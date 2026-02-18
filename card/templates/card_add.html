@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>카드 사용 내역 추가</title>
+    
+    <link rel="stylesheet" href="{{ url_for('card_static', filename='css/card.css') }}">
+    
+    <style>
+        /* =========================================
+           배경 이미지 레이어 설정 (라이트/다크 공통)
+           ========================================= */
+        body {
+            background-image: none !important;
+            position: relative;
+            z-index: 0;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            
+            /* 배경 이미지 경로 */
+            background-image: url("{{ url_for('card_static', filename='images/bg002.jpg') }}");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            
+            /* 라이트 모드용 옅은 오버레이 */
+            background-color: rgba(0, 0, 0, 0.5); 
+            background-blend-mode: multiply;
+            transition: background-color 0.3s ease;
+        }
+
+        /* 다크 모드일 때 오버레이를 더 어둡게 */
+        body.dark-mode::before {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+
+        /* 다크모드 대응 select 박스 스타일 */
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--input-border);
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+            line-height: 1.4;
+            background-color: var(--input-bg);
+            color: var(--input-text);
+        }
+    </style>
+</head>
+<body class="bg-image">
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+            }
+        })();
+    </script>
+
+    <div class="form-container">
+        <form method="POST">
+            <div class="form-group">
+                <label for="date">일자 *</label>
+                <input type="date" id="date" name="date" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="usage">사용처 *</label>
+                <input type="text" id="usage" name="usage" list="usageList" required>
+                <datalist id="usageList">
+                    {% for usage in usages %}
+                    <option value="{{ usage }}">
+                    {% endfor %}
+                </datalist>
+            </div>
+            
+            <div class="form-group">
+                <label for="amount">금액 *</label>
+                <input type="number" id="amount" name="amount" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="user">사용자 *</label>
+                <input type="text" id="user" name="user" list="userList" value="육동연" required>
+                <datalist id="userList">
+                    {% for user in users %}
+                    <option value="{{ user }}">
+                    {% endfor %}
+                </datalist>
+            </div>
+            
+            <div class="form-group">
+                <label for="purpose">목적 *</label>
+                <input type="text" id="purpose" name="purpose" list="purposeList" required>
+                <datalist id="purposeList">
+                    {% for purpose in purposes %}
+                    <option value="{{ purpose }}">
+                    {% endfor %}
+                </datalist>
+            </div>
+            
+            <div class="form-group">
+                <label for="content">내용 *</label>
+                <div style="position: relative;">
+                    <input type="text" id="content" name="content" value="{{ last_content }}" required autocomplete="off">
+                    <div id="contentDropdown" class="content-dropdown"></div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="note">비고</label>
+                <div class="note-input-container">
+                    <div class="note-input-wrapper">
+                        <input type="text" id="note" name="note" value="{{ last_note }}" autocomplete="off">
+                        <div id="noteDropdown" class="content-dropdown"></div>
+                    </div>
+                    <button type="button" class="add-note-btn" title="비고 추가">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="noteModal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3 class="modal-title">비고 선택</h3>
+                        <button class="close-button">&times;</button>
+                    </div>
+                    <div class="search-wrapper">
+                        <input type="text" class="search-input" placeholder="이름 검색 또는 입력...">
+                        <button type="button" class="add-new-name">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            신규 추가
+                        </button>
+                    </div>
+                    <div class="selected-names"></div>
+                    <div class="names-container"></div>
+                    <div class="modal-footer">
+                        <button class="modal-button cancel-button">취소</button>
+                        <button class="modal-button confirm-button">확인</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="receipt">영수증</label>
+                 <select id="receipt" name="receipt">
+                     <option value="Y" selected>Y</option>
+                     <option value="N">N</option>
+                 </select>
+            </div>
+
+            <div class="button-group">
+                <a href="/card" id="cancelBtn">
+                    <button type="button" class="cancel-btn">취소</button>
+                </a>
+                <button type="submit" class="submit-btn">저장</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        /* 사용자/목적 등 필드 선택 모달 동적 생성 */
+        function setupFieldModal(field, data) {
+           const input = document.getElementById(field);
+           if (!input || !data || !Array.isArray(data)) return;
+           
+           const fieldModal = document.createElement('div');
+           fieldModal.id = `${field}Modal`;
+           fieldModal.className = 'modal';
+           fieldModal.innerHTML = `
+               <div class="modal-content">
+                   <div class="modal-header">
+                       <h3 class="modal-title">${field === 'purpose' ? '목적' : '사용자'} 선택</h3>
+                       <button class="close-button">&times;</button>
+                   </div>
+                   <div class="search-wrapper">
+                       <input type="text" class="search-input" placeholder="검색...">
+                   </div>
+                   <div class="names-container"></div>
+                   <div class="modal-footer">
+                       <button class="modal-button cancel-button">취소</button>
+                   </div>
+               </div>`;
+           document.body.appendChild(fieldModal);
+        
+           const modal = document.getElementById(`${field}Modal`);
+           const namesContainer = modal.querySelector('.names-container');
+           const searchInput = modal.querySelector('.search-input');
+           const closeButton = modal.querySelector('.close-button');
+           const cancelButton = modal.querySelector('.cancel-button');
+        
+           function updateList(searchText = '') {
+               const filteredItems = data.filter(item => 
+                   item && item.toString().toLowerCase().includes(searchText.toLowerCase())
+               );
+               
+               namesContainer.innerHTML = filteredItems.map(item => `
+                   <div class="name-item">${item}</div>
+               `).join('');
+        
+               namesContainer.querySelectorAll('.name-item').forEach(item => {
+                   item.addEventListener('click', () => {
+                       input.value = item.textContent;
+                       modal.style.display = 'none';
+                   });
+               });
+           }
+        
+           input.addEventListener('keydown', (e) => {
+               if (e.key === ' ') {
+                   e.preventDefault();
+                   modal.style.display = 'block';
+                   searchInput.focus();
+                   updateList();
+               }
+           });
+        
+           searchInput.addEventListener('input', (e) => updateList(e.target.value));
+           closeButton.addEventListener('click', () => modal.style.display = 'none');
+           cancelButton.addEventListener('click', () => modal.style.display = 'none');
+           modal.addEventListener('click', (e) => {
+               if (e.target === modal) modal.style.display = 'none';
+           });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {    
+            const noteInput = document.getElementById('note');
+            const addButton = document.querySelector('.add-note-btn');
+            const noteModal = document.getElementById('noteModal');
+            const closeButton = noteModal.querySelector('.close-button');
+            const searchInput = noteModal.querySelector('.search-input');
+            const addNewNameBtn = noteModal.querySelector('.add-new-name');
+            const namesContainer = noteModal.querySelector('.names-container');
+            const selectedNamesContainer = noteModal.querySelector('.selected-names');
+            const confirmButton = noteModal.querySelector('.confirm-button');
+            const cancelButton = noteModal.querySelector('.cancel-button');
+            
+            // 데이터 안전 처리
+            const notes = {{ notes|default([])|tojson|safe }};
+            const purposes = {{ purposes|default([])|tojson|safe }};
+            const users = {{ users|default([])|tojson|safe }};
+            const contents = {{ contents|default([])|tojson|safe }};
+
+            // --- 초성 검색 로직 ---
+            const CHO_HANGUL = [
+                'ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'
+            ];
+
+            function getChosung(str) {
+                let result = "";
+                for (let i = 0; i < str.length; i++) {
+                    const code = str.charCodeAt(i) - 0xAC00;
+                    if (code > -1 && code < 11172) {
+                        const choIdx = Math.floor(code / 588);
+                        result += CHO_HANGUL[choIdx];
+                    } else {
+                        result += str.charAt(i);
+                    }
+                }
+                return result;
+            }
+
+            function matchChosung(target, query) {
+                target = target || "";
+                query = query || "";
+                if (target.toLowerCase().includes(query.toLowerCase())) return true;
+                const targetChosung = getChosung(target);
+                return targetChosung.includes(query);
+            }
+
+            // --- 비고 자동완성 로직 ---
+            const noteDropdown = document.getElementById('noteDropdown');
+            let currentNoteFocusIndex = -1;
+            
+            if (noteInput && noteDropdown) {
+                noteInput.addEventListener('input', function() {
+                    const val = this.value;
+                    const parts = val.split(',');
+                    const lastPart = parts[parts.length - 1].trim();
+                    
+                    currentNoteFocusIndex = -1;
+                    
+                    if (lastPart.length === 0) {
+                        noteDropdown.style.display = 'none';
+                        return;
+                    }
+                    
+                    const filtered = notes.filter(n => matchChosung(n, lastPart));
+                    
+                    if (filtered.length === 0) {
+                        noteDropdown.style.display = 'none';
+                        return;
+                    }
+                    
+                    noteDropdown.innerHTML = '';
+                    filtered.forEach(note => {
+                        const div = document.createElement('div');
+                        div.className = 'content-item';
+                        div.textContent = note;
+                        div.addEventListener('click', function() {
+                            parts[parts.length - 1] = note; 
+                            noteInput.value = parts.map(p => p.trim()).join(', ') + ', ';
+                            noteDropdown.style.display = 'none';
+                            noteInput.focus();
+                        });
+                        noteDropdown.appendChild(div);
+                    });
+                    noteDropdown.style.display = 'block';
+                });
+                
+                noteInput.addEventListener('keydown', function(e) {
+                    const items = noteDropdown.querySelectorAll('.content-item');
+                    if (noteDropdown.style.display === 'none' || items.length === 0) return;
+                    
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        currentNoteFocusIndex++;
+                        if (currentNoteFocusIndex >= items.length) currentNoteFocusIndex = 0;
+                        setNoteActiveItem(items);
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        currentNoteFocusIndex--;
+                        if (currentNoteFocusIndex < 0) currentNoteFocusIndex = items.length - 1;
+                        setNoteActiveItem(items);
+                    } else if (e.key === 'Enter' && currentNoteFocusIndex >= 0) {
+                        e.preventDefault();
+                        items[currentNoteFocusIndex].click();
+                    } else if (e.key === 'Escape') {
+                        noteDropdown.style.display = 'none';
+                    }
+                });
+                
+                function setNoteActiveItem(items) {
+                    items.forEach((item, index) => {
+                        if (index === currentNoteFocusIndex) {
+                            item.classList.add('active');
+                            item.scrollIntoView({ block: 'nearest' });
+                        } else {
+                            item.classList.remove('active');
+                        }
+                    });
+                }
+                
+                document.addEventListener('click', function(e) {
+                    if (e.target !== noteInput) {
+                        noteDropdown.style.display = 'none';
+                    }
+                });
+            }
+
+            let selectedNames = new Set();
+
+            // 날짜 기본값 (오늘)
+            let today = new Date().toISOString().split('T')[0];
+            document.getElementById("date").value = today;
+            
+            // === 내용 자동완성 기능 ===
+            const contentInput = document.getElementById('content');
+            const contentDropdown = document.getElementById('contentDropdown');
+            let currentFocusIndex = -1;
+            
+            if (contentInput && contentDropdown) {
+                contentInput.addEventListener('input', function() {
+                    const value = this.value.trim();
+                    currentFocusIndex = -1;
+                    
+                    if (value.length === 0) {
+                        contentDropdown.style.display = 'none';
+                        return;
+                    }
+                    const filtered = contents.filter(c => c.toLowerCase().startsWith(value.toLowerCase()));
+                    if (filtered.length === 0) {
+                        contentDropdown.style.display = 'none';
+                        return;
+                    }
+                    contentDropdown.innerHTML = '';
+                    filtered.forEach((content) => {
+                        const div = document.createElement('div');
+                        div.className = 'content-item';
+                        div.textContent = content;
+                        div.addEventListener('click', function() {
+                            contentInput.value = content;
+                            contentDropdown.style.display = 'none';
+                        });
+                        contentDropdown.appendChild(div);
+                    });
+                    contentDropdown.style.display = 'block';
+                });
+                
+                contentInput.addEventListener('keydown', function(e) {
+                    const items = contentDropdown.querySelectorAll('.content-item');
+                    if (items.length === 0) return;
+                    
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        currentFocusIndex++;
+                        if (currentFocusIndex >= items.length) currentFocusIndex = 0;
+                        setActiveItem(items);
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        currentFocusIndex--;
+                        if (currentFocusIndex < 0) currentFocusIndex = items.length - 1;
+                        setActiveItem(items);
+                    } else if (e.key === 'Enter' && currentFocusIndex >= 0) {
+                        e.preventDefault();
+                        items[currentFocusIndex].click();
+                    } else if (e.key === 'Escape') {
+                        contentDropdown.style.display = 'none';
+                    }
+                });
+                
+                function setActiveItem(items) {
+                    items.forEach((item, index) => {
+                        if (index === currentFocusIndex) {
+                            item.classList.add('active');
+                            item.scrollIntoView({ block: 'nearest' });
+                        } else {
+                            item.classList.remove('active');
+                        }
+                    });
+                }
+                
+                document.addEventListener('click', function(e) {
+                    if (e.target !== contentInput) {
+                        contentDropdown.style.display = 'none';
+                    }
+                });
+            }
+            
+            // === 비고 모달 로직 ===
+            addButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                noteModal.style.display = 'block';
+                searchInput.value = '';
+                const currentNames = noteInput.value.split(',').map(n => n.trim()).filter(n => n);
+                selectedNames = new Set(currentNames);
+                updateSelectedNames();
+                updateNamesList('');
+            });
+        
+            function closeModal(e) {
+                if (e) e.preventDefault();
+                noteModal.style.display = 'none';
+                searchInput.value = '';
+            }
+        
+            closeButton.addEventListener('click', closeModal);
+            cancelButton.addEventListener('click', closeModal);
+        
+            noteModal.addEventListener('click', function(e) {
+                if (e.target === noteModal) closeModal(e);
+            });
+        
+            function toggleName(name, element) {
+                if (selectedNames.has(name)) {
+                    selectedNames.delete(name);
+                    element.style.backgroundColor = '';
+                } else {
+                    selectedNames.add(name);
+                    element.style.backgroundColor = 'var(--selected-tag-bg)';
+                }
+                updateSelectedNames();
+            }
+        
+            function updateNamesList(searchText) {
+                const cleanSearchText = searchText.trim().toLowerCase();
+                const filteredNotes = cleanSearchText 
+                    ? notes.filter(note => matchChosung(note, cleanSearchText))
+                    : notes;
+        
+                namesContainer.innerHTML = '';
+                
+                if (cleanSearchText && filteredNotes.length === 0) {
+                    addNewNameBtn.style.display = 'flex';
+                    const noResults = document.createElement('div');
+                    noResults.className = 'no-results';
+                    noResults.textContent = '검색 결과가 없습니다.';
+                    namesContainer.appendChild(noResults);
+                } else {
+                    addNewNameBtn.style.display = 'none';
+                    filteredNotes.forEach(note => {
+                        const div = document.createElement('div');
+                        div.className = 'name-item';
+                        div.textContent = note;
+                        if (selectedNames.has(note)) {
+                            div.style.backgroundColor = 'var(--selected-tag-bg)';
+                        }
+                        div.addEventListener('click', () => toggleName(note, div));
+                        namesContainer.appendChild(div);
+                    });
+                }
+            }
+        
+            function updateSelectedNames() {
+                selectedNamesContainer.innerHTML = '';
+                selectedNames.forEach(name => {
+                    const tag = document.createElement('div');
+                    tag.className = 'selected-name-tag';
+                    const nameSpan = document.createElement('span');
+                    nameSpan.textContent = name;
+                    const removeButton = document.createElement('span');
+                    removeButton.className = 'remove-name';
+                    removeButton.textContent = '×';
+                    removeButton.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        selectedNames.delete(name);
+                        updateSelectedNames();
+                        updateNamesList(searchInput.value);
+                    });
+                    tag.appendChild(nameSpan);
+                    tag.appendChild(removeButton);
+                    selectedNamesContainer.appendChild(tag);
+                });
+            }
+        
+            function addNewName(name) {
+                const cleanName = name.trim();
+                if (!notes.includes(cleanName) && cleanName) {
+                    notes.push(cleanName);
+                    selectedNames.add(cleanName);
+                    updateSelectedNames();
+                    searchInput.value = '';
+                    updateNamesList('');
+                }
+            }
+        
+            addNewNameBtn.addEventListener('click', function() {
+                addNewName(searchInput.value);
+            });
+            
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && addNewNameBtn.style.display === 'flex') {
+                    e.preventDefault();
+                    addNewName(this.value);
+                }
+            });
+            
+            searchInput.addEventListener('input', function(e) {
+                updateNamesList(e.target.value);
+            });
+        
+            confirmButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                noteInput.value = Array.from(selectedNames).join(', ');
+                const event = new Event('input', { bubbles: true, cancelable: true });
+                noteInput.dispatchEvent(event);
+                closeModal(e);
+            });
+            
+            // 금액 입력 키보드 조작
+            document.getElementById('amount').addEventListener('keydown', function(e) {
+               if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                   e.preventDefault();
+                   let currentValue = parseInt(this.value) || 0;
+                   if (e.key === 'ArrowUp') {
+                       this.value = currentValue + 1000;
+                   } else {
+                       this.value = Math.max(0, currentValue - 1000);
+                   }
+               }
+            });  
+            
+            // 취소 버튼 (목록으로 돌아가기)
+            const cancelBtn = document.getElementById('cancelBtn');
+            if (cancelBtn) {
+               cancelBtn.addEventListener('click', function(e) {
+                   e.preventDefault();
+                   const returnYear = sessionStorage.getItem('returnYear');
+                   const returnMonth = sessionStorage.getItem('returnMonth');
+                   if (returnYear && returnMonth) {
+                       window.location.href = "/card?year=" + returnYear + "&month=" + returnMonth;
+                   } else {
+                       window.location.href = "/card";
+                   }
+               });
+            }
+
+            // 필드 모달 설정
+            setupFieldModal('purpose', purposes);
+            setupFieldModal('user', users);
+            
+            updateNamesList('');
+        });
+    </script>
+</body>
+</html>

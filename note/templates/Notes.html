@@ -1,0 +1,452 @@
+{% extends "base.html" %}
+
+{% block title %}{% if note %}노트 수정{% else %}새 노트 작성{% endif %}{% endblock %}
+
+{% block content %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    /* modern-container 상단 여백 제거 */
+    .modern-container {
+        padding-top: 10px !important;
+    }
+
+    /* Bootstrap navbar 오버라이드 방지 */
+    nav.navbar {
+        height: 43px !important;
+        padding: 0 15px !important;
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 1000 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        background-color: var(--nav-bg) !important;
+        border-bottom: 1px solid var(--nav-border) !important;
+        color: var(--nav-text) !important;
+        white-space: nowrap !important;
+        flex-wrap: nowrap !important;
+    }
+
+    /* 드롭다운 메뉴 Bootstrap 오버라이드 */
+    .navbar .dropdown-menu {
+        background-color: var(--dropdown-bg) !important;
+        border: 1px solid var(--border-color) !important;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3) !important;
+    }
+    .navbar .dropdown-menu a {
+        color: var(--dropdown-text) !important;
+        padding: 10px 15px !important;
+    }
+    .navbar .dropdown-menu a:hover {
+        background-color: var(--dropdown-hover-bg) !important;
+        color: var(--nav-hover) !important;
+    }
+
+    .notes-card {
+        background: white;
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        margin-top: 0;
+    }
+    .notes-card .card-header {
+        background: #2c3e50;
+        color: white;
+        border-radius: 12px 12px 0 0 !important;
+        padding: 1rem 1.5rem;
+    }
+    .notes-card .card-header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+    }
+    .notes-card .card-body {
+        padding: 2rem;
+    }
+    .notes-card .form-label {
+        font-weight: 500;
+        color: #333;
+    }
+    .notes-card .form-control,
+    .notes-card .form-select {
+        border-radius: 8px;
+        border: 1px solid #ddd;
+    }
+    .notes-card .form-control:focus,
+    .notes-card .form-select:focus {
+        border-color: #2c3e50;
+        box-shadow: 0 0 0 0.2rem rgba(44, 62, 80, 0.15);
+    }
+    .notes-card textarea.form-control {
+        min-height: 300px;
+    }
+    /* 이미지 업로드 스타일 */
+    .image-upload-controls {
+        display: flex;
+        align-items: center;
+    }
+    .notes-card textarea.drag-over {
+        border: 2px dashed #4a90e2 !important;
+        background-color: rgba(74, 144, 226, 0.05);
+    }
+    .dark-mode .notes-card textarea.drag-over {
+        border-color: #60a5fa !important;
+        background-color: rgba(96, 165, 250, 0.1);
+    }
+    .product-info-card {
+        background: white;
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+    .product-info-card .card-header {
+        background: #f8f9fa;
+        border-radius: 12px 12px 0 0 !important;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #eee;
+    }
+    .product-info-card .card-header h5 {
+        margin: 0;
+        color: #2c3e50;
+    }
+    .select2-container--default .select2-selection--multiple {
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        min-height: 42px;
+    }
+
+    /* 다크모드 스타일 */
+    .dark-mode .notes-card {
+        background: #16213e;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .dark-mode .notes-card .card-header {
+        background: #1e3a5f;
+    }
+    .dark-mode .notes-card .card-body {
+        background: #16213e;
+    }
+    .dark-mode .notes-card .form-label {
+        color: #e2e8f0;
+    }
+    .dark-mode .notes-card .form-control,
+    .dark-mode .notes-card .form-select {
+        background-color: #1e293b;
+        border-color: #334155;
+        color: #e2e8f0;
+    }
+    .dark-mode .notes-card .form-control:focus,
+    .dark-mode .notes-card .form-select:focus {
+        background-color: #1e293b;
+        border-color: #4a90e2;
+        color: #e2e8f0;
+        box-shadow: 0 0 0 0.2rem rgba(74, 144, 226, 0.25);
+    }
+    .dark-mode .notes-card .form-control::placeholder {
+        color: #64748b;
+    }
+    .dark-mode .notes-card .text-muted {
+        color: #94a3b8 !important;
+    }
+    .dark-mode .notes-card .btn-secondary {
+        background-color: #475569;
+        border-color: #475569;
+        color: #e2e8f0;
+    }
+    .dark-mode .notes-card .btn-secondary:hover {
+        background-color: #64748b;
+        border-color: #64748b;
+    }
+    .dark-mode .notes-card .btn-primary {
+        background-color: #3b82f6;
+        border-color: #3b82f6;
+    }
+    .dark-mode .notes-card .btn-primary:hover {
+        background-color: #2563eb;
+        border-color: #2563eb;
+    }
+    .dark-mode .product-info-card {
+        background: #16213e;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .dark-mode .product-info-card .card-header {
+        background: #1e293b;
+        border-bottom-color: #334155;
+    }
+    .dark-mode .product-info-card .card-header h5 {
+        color: #e2e8f0;
+    }
+    .dark-mode .product-info-card .card-body {
+        background: #16213e;
+    }
+    .dark-mode .product-info-card .list-group-item {
+        background-color: #1e293b;
+        border-color: #334155;
+        color: #e2e8f0;
+    }
+    .dark-mode .product-info-card .btn-info {
+        background-color: #0ea5e9;
+        border-color: #0ea5e9;
+        color: white;
+    }
+    .dark-mode .product-info-card .btn-info:hover {
+        background-color: #0284c7;
+        border-color: #0284c7;
+    }
+    /* Select2 다크모드 */
+    .dark-mode .select2-container--default .select2-selection--multiple {
+        background-color: #1e293b;
+        border-color: #334155;
+    }
+    .dark-mode .select2-container--default .select2-selection--multiple .select2-selection__choice {
+        background-color: #334155;
+        border-color: #475569;
+        color: #e2e8f0;
+    }
+    .dark-mode .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+        color: #94a3b8;
+    }
+    .dark-mode .select2-dropdown {
+        background-color: #1e293b;
+        border-color: #334155;
+    }
+    .dark-mode .select2-container--default .select2-results__option {
+        color: #e2e8f0;
+    }
+    .dark-mode .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        background-color: #3b82f6;
+    }
+    .dark-mode .select2-container--default .select2-search--dropdown .select2-search__field {
+        background-color: #16213e;
+        border-color: #334155;
+        color: #e2e8f0;
+    }
+</style>
+
+<div class="modern-container">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card notes-card">
+                    <div class="card-header">
+                        <h2>{% if note %}노트 수정{% else %}새 노트 작성{% endif %}</h2>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST">
+                            <!-- 제목 -->
+                            <div class="mb-3">
+                                <label for="title" class="form-label">제목 *</label>
+                                <input type="text"
+                                       class="form-control"
+                                       id="title"
+                                       name="title"
+                                       value="{{ note.title if note else '' }}"
+                                       required>
+                            </div>
+
+                            <!-- Product 선택 (다중 선택) -->
+                            <div class="mb-3">
+                                <label for="product_ids" class="form-label">연결된 Product</label>
+                                <select class="form-select"
+                                        id="product_ids"
+                                        name="product_ids"
+                                        multiple>
+                                    {% for product in all_products %}
+                                        <option value="{{ product.id }}"
+                                                {% if note and product in note.products %}selected{% endif %}>
+                                            {{ product.title }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Ctrl/Cmd를 누른 채로 여러 개 선택 가능</small>
+                            </div>
+
+                            <!-- 내용 -->
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label for="content" class="form-label mb-0">내용 (마크다운 지원)</label>
+                                    <div class="image-upload-controls">
+                                        <input type="file" id="imageInput" accept="image/*" style="display: none;">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="document.getElementById('imageInput').click();">
+                                            <i class="fas fa-image"></i> 이미지 업로드
+                                        </button>
+                                        <a href="{{ url_for('note.image_gallery') }}" class="btn btn-outline-info btn-sm ms-1" target="_blank">
+                                            <i class="fas fa-images"></i> 갤러리
+                                        </a>
+                                        <span class="text-muted small ms-2">또는 Ctrl+V로 붙여넣기</span>
+                                    </div>
+                                </div>
+                                <textarea class="form-control"
+                                          id="content"
+                                          name="content"
+                                          rows="15"
+                                          placeholder="여기에 이미지를 드래그하거나 붙여넣기 할 수 있습니다.">{{ note.content if note else '' }}</textarea>
+                                <div id="uploadProgress" class="progress mt-2" style="display: none; height: 5px;">
+                                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                </div>
+                            </div>
+
+                            <!-- 버튼 -->
+                            <div class="d-flex justify-content-between">
+                                <a href="javascript:history.back()" class="btn btn-secondary">취소</a>
+                                <button type="submit" class="btn btn-primary">
+                                    {% if note %}수정{% else %}저장{% endif %}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 연결된 Product 현황 (수정 시) -->
+                {% if note and note.products %}
+                <div class="card mt-3 product-info-card">
+                    <div class="card-header">
+                        <h5>현재 연결된 Product</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group">
+                            {% for product in note.products %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                {{ product.title }}
+                                <a href="{{ url_for('product', product_id=product.id) }}"
+                                   class="btn btn-sm btn-info"
+                                   target="_blank">보기</a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+    // Select2로 검색 가능한 드롭다운 만들기
+    $(document).ready(function() {
+        $('#product_ids').select2({
+            placeholder: 'Product를 선택하세요',
+            allowClear: true
+        });
+    });
+
+    // 이미지 업로드 함수
+    async function uploadImage(file) {
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const progressBar = document.getElementById('uploadProgress');
+        const progressBarInner = progressBar.querySelector('.progress-bar');
+        progressBar.style.display = 'block';
+        progressBarInner.style.width = '30%';
+
+        try {
+            const response = await fetch('{{ url_for("note.upload_image") }}', {
+                method: 'POST',
+                body: formData
+            });
+
+            progressBarInner.style.width = '70%';
+
+            if (!response.ok) {
+                throw new Error('업로드 실패');
+            }
+
+            const data = await response.json();
+            progressBarInner.style.width = '100%';
+
+            setTimeout(() => {
+                progressBar.style.display = 'none';
+                progressBarInner.style.width = '0%';
+            }, 500);
+
+            return data.url;
+        } catch (error) {
+            console.error('이미지 업로드 오류:', error);
+            progressBar.style.display = 'none';
+            alert('이미지 업로드에 실패했습니다.');
+            return null;
+        }
+    }
+
+    // 텍스트 에디터에 이미지 마크다운 삽입
+    function insertImageMarkdown(url) {
+        const textarea = document.getElementById('content');
+        const cursorPos = textarea.selectionStart;
+        const textBefore = textarea.value.substring(0, cursorPos);
+        const textAfter = textarea.value.substring(cursorPos);
+        const imageMarkdown = `![image](${url})`;
+
+        textarea.value = textBefore + imageMarkdown + textAfter;
+        textarea.selectionStart = textarea.selectionEnd = cursorPos + imageMarkdown.length;
+        textarea.focus();
+    }
+
+    // 파일 선택 이벤트
+    document.getElementById('imageInput').addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const url = await uploadImage(file);
+            if (url) {
+                insertImageMarkdown(url);
+            }
+        }
+        e.target.value = ''; // 같은 파일 재선택 가능하도록 초기화
+    });
+
+    // 붙여넣기 이벤트 (Ctrl+V)
+    document.getElementById('content').addEventListener('paste', async function(e) {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        for (let item of items) {
+            if (item.type.indexOf('image') !== -1) {
+                e.preventDefault();
+                const file = item.getAsFile();
+                if (file) {
+                    const url = await uploadImage(file);
+                    if (url) {
+                        insertImageMarkdown(url);
+                    }
+                }
+                break;
+            }
+        }
+    });
+
+    // 드래그 앤 드롭 이벤트
+    const contentTextarea = document.getElementById('content');
+
+    contentTextarea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('drag-over');
+    });
+
+    contentTextarea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.classList.remove('drag-over');
+    });
+
+    contentTextarea.addEventListener('drop', async function(e) {
+        e.preventDefault();
+        this.classList.remove('drag-over');
+
+        const files = e.dataTransfer?.files;
+        if (!files || files.length === 0) return;
+
+        for (let file of files) {
+            if (file.type.startsWith('image/')) {
+                const url = await uploadImage(file);
+                if (url) {
+                    insertImageMarkdown(url);
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

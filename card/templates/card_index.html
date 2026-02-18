@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>법인카드 - {{ year }}.{{ month }}</title>
+        
+        <link rel="stylesheet" href="{{ url_for('card_static', filename='css/card.css') }}">
+    </head>
+<body>
+<div class="container">
+    <div class="cd_left-panel">
+        <div>
+            <a href="{{ url_for('index') }}" class="home-button">
+                <h3>🏠 HOME</h3>
+            </a>
+            <h3 style="color: var(--text-color);">법인카드</h3>
+        </div>
+        <ul>
+            {% for year, months in year_months.items() %}
+            <li class="cd_year-group">
+                <div class="cd_year-header collapsed" onclick="toggleYear(this)">{{ year }}년</div>
+                <ul class="cd_months-list" style="display: none;">
+                    {% for month in months %}
+                    <li>
+                        <button onclick="filterByYearMonth('{{ year }}', '{{ month }}')">
+                            {{ month }}월
+                        </button>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="cd_right-panel">
+        <div class="cd_header-links">            
+            <div class="cd_summary-info">
+                <span id="cd_current-period">전체</span>
+                <span id="cd_total-amount">: 0원</span>
+            </div>
+            <div class="button-container">
+                <button class="theme-toggle-btn" onclick="toggleDarkMode()" title="다크모드 전환">
+                     <span id="theme-icon">🌙</span>
+                </button>
+
+                <a href="{{ url_for('card_add_route') }}">
+                    <img src="{{ url_for('card_static', filename='icons/card.png') }}" alt="추가" title="추가 (단축키: N)">
+                </a>
+                <a href="#" onclick="goToMonthlyViz(); return false;">
+                    <img src="{{ url_for('card_static', filename='icons/piechart.png') }}" alt="월별">
+                </a>
+                <a href="{{ url_for('card_yearly_viz_route') }}">
+                    <img src="{{ url_for('card_static', filename='icons/barchart.png') }}" alt="연도별" title="연도별">
+                </a>
+               
+                <a href="#" onclick="printView(); return false;">
+                    <img src="{{ url_for('card_static', filename='icons/print.png') }}" alt="프린트" title="프린트">
+                </a>
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>일자</th>
+                    <th>사용처</th>
+                    <th>금액</th>
+                    <th>사용자</th>
+                    <th>목적</th>
+                    <th>내용</th>
+                    <th>비고</th>
+                </tr>
+            </thead>
+            <tbody id="cd_data-table">
+                {% if data %}
+                    {% for row in data %}
+                    <tr 
+                        class="{{ 'cd_no-receipt' if row.receipt == 'N' else '' }}" 
+                        data-id="{{ row.id }}" 
+                        data-year="{{ row.date.split('-')[0] }}" 
+                        data-month="{{ row.date.split('-')[1] }}" 
+                        ondblclick="redirectToEdit('{{ row.id }}')">
+                        
+                        <td>{{ row.date }}</td>
+                        <td>{{ row.usage }}</td>
+                        <td class="cd_amount">{{ "{:,}".format(row.amount) }}</td>
+                        <td class="cd_user">{{ row.user }}</td>
+                        <td>{{ row.purpose }}</td>
+                        <td>{{ row.content }}</td>
+                        <td>{{ row.note }}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" style="text-align: center;">No data available</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div> 
+<script>
+    let selectedYear = null;
+    let selectedMonth = null;
+
+    /* =========================================
+       다크모드 관련 스크립트
+       ========================================= */
+    function toggleDarkMode() {
+        const body = document.body;
+        const icon = document.getElementById('theme-icon');
+        
+        body.classList.toggle('dark-mode');
+        
+        if (body.classList.contains('dark-mode')) {
+            localStorage.setItem('theme', 'dark');
+            icon.textContent = '☀️'; 
+        } else {
+            localStorage.setItem('theme', 'light');
+            icon.textContent = '🌙'; 
+        }
+    }
+
+    // 초기 테마 로드
+    function loadTheme() {
+        const savedTheme = localStorage.getItem('theme');
+        const icon = document.getElementById('theme-icon');
+        
+        if (savedTheme === 'dark') {
+            document.body.classList.add('dark-mode');
+            if(icon) icon.textContent = '☀️';
+        } else {
+            document.body.classList.remove('dark-mode');
+            if(icon) icon.textContent = '🌙';
+        }
+    }
+
+    /* =========================================
+       기존 기능 로직
+       ========================================= */
+    function toggleYear(header) {
+        header.classList.toggle('collapsed');
+        const monthsList = header.nextElementSibling;
+        if (header.classList.contains('collapsed')) {
+            monthsList.style.display = 'none';
+            monthsList.style.maxHeight = '0';
+        } else {
+            monthsList.style.display = 'block';
+            monthsList.style.maxHeight = 'none';
+        }
+    }
+
+    function getUrlParams() {
+        const params = new URLSearchParams(window.location.search);
+        const year = params.get('year');
+        const month = params.get('month');
+        return { year, month };
+    }
+    
+    function filterCurrentMonth() {
+        const now = new Date();
+        const currentYear = now.getFullYear().toString();
+        const currentMonth = (now.getMonth() + 1).toString().padStart(2, '0');
+        filterByYearMonth(currentYear, currentMonth);
+        expandSpecificMonth(currentYear, currentMonth);
+    }
+
+    function filterByYearMonth(year, month) {
+        selectedYear = year;
+        selectedMonth = month;
+        sessionStorage.setItem('selectedYear', year);
+        sessionStorage.setItem('selectedMonth', month);
+        
+        let totalAmount = 0;
+        const rows = document.querySelectorAll("#cd_data-table tr");
+        
+        rows.forEach(row => {
+            const rowYear = row.getAttribute('data-year');
+            const rowMonth = row.getAttribute('data-month');
+    
+            if (rowYear === year && rowMonth === month) {
+                row.style.display = 'table-row';
+                const amountCell = row.querySelector('td:nth-child(3)');
+                if (amountCell) {
+                    const amountText = amountCell.textContent.trim().replace(/,/g, '');
+                    const amount = parseInt(amountText, 10);
+                    if (!isNaN(amount)) {
+                        totalAmount += amount;
+                    }
+                }
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    
+        document.getElementById('cd_current-period').textContent = `${year}년 ${month}월`;
+        document.getElementById('cd_total-amount').textContent = `${totalAmount.toLocaleString()}원`;
+    }
+
+    function expandSpecificMonth(year, month) {
+        const yearGroups = document.querySelectorAll('.cd_year-group');
+        yearGroups.forEach(group => {
+            const yearText = group.querySelector('.cd_year-header').textContent.trim();
+            const monthsList = group.querySelector('.cd_months-list');
+            const yearHeader = group.querySelector('.cd_year-header');
+    
+            if (yearText === `${year}년`) {
+                yearHeader.classList.remove('collapsed');
+                monthsList.style.display = 'block';
+                const monthButtons = monthsList.querySelectorAll('button');
+                monthButtons.forEach(button => {
+                    button.classList.remove('current-month');
+                    if (button.textContent.trim() === `${month}월`) {
+                        button.classList.add('current-month');
+                    }
+                });
+            } else {
+                yearHeader.classList.add('collapsed');
+                monthsList.style.display = 'none';
+            }
+        });
+    }
+
+    function printView() {
+        if (selectedYear && selectedMonth) {
+            window.location.href = `/card/print/${selectedYear}/${selectedMonth}`;
+        } else {
+            alert('연도와 월을 선택하세요.');
+        }
+    }
+    
+    function redirectToEdit(id) {
+        sessionStorage.setItem('returnYear', selectedYear);
+        sessionStorage.setItem('returnMonth', selectedMonth);
+        window.location.href = `/card/edit/${id}`;
+    }
+
+    function goToMonthlyViz() {
+        if (selectedYear && selectedMonth) {
+            const formattedMonth = `${selectedYear}-${selectedMonth.padStart(2, '0')}`;
+            window.location.href = `/card/monthly_viz?month=${formattedMonth}`;
+        } else {
+            window.location.href = '/card/monthly_viz';
+        }
+    }
+
+    // 초기화 로직
+    document.addEventListener('DOMContentLoaded', function() {
+        loadTheme(); // 테마 로드
+
+        const savedYear = sessionStorage.getItem('selectedYear');
+        const savedMonth = sessionStorage.getItem('selectedMonth');
+        const { year: urlYear, month: urlMonth } = getUrlParams();
+        
+        if (urlYear && urlMonth) {
+            filterByYearMonth(urlYear, urlMonth);
+            expandSpecificMonth(urlYear, urlMonth);
+        } else if (savedYear && savedMonth) {
+            filterByYearMonth(savedYear, savedMonth);
+            expandSpecificMonth(savedYear, savedMonth);
+        } else {
+            filterCurrentMonth();
+        }
+    });
+
+    // 핫키 설정
+    let isComposing = false;
+    document.addEventListener('compositionstart', () => isComposing = true);
+    document.addEventListener('compositionend', () => isComposing = false);
+    
+    document.addEventListener('keydown', function(event) {
+        const activeElement = document.activeElement;
+        const isInputField = activeElement.tagName === 'INPUT' || 
+                            activeElement.tagName === 'TEXTAREA' || 
+                            activeElement.isContentEditable;
+        
+        if (isInputField || isComposing) return;
+        
+        if (event.code === 'KeyN') {
+            event.preventDefault();
+            window.location.href = "{{ url_for('card_add_route') }}";
+        }
+    });
+</script> 
+</body>
+</html>

@@ -1,0 +1,680 @@
+{% extends "base.html" %}
+
+{% block title %}메모수정{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h1>Edit Memo</h1>
+
+    <form method="POST" action="{{ url_for('edit_memo', memo_id=memo.id) }}" enctype="multipart/form-data"
+        onsubmit="return validateForm();">
+
+        {% if memo.parent %}
+        <div class="parent-memo">
+            <p><strong>Parent Memo:</strong></p>
+            <p>{{ memo.parent.content[:150] }}... <a href="{{ url_for('view_memo', memo_id=memo.parent.id) }}">전체 보기</a>
+            </p>
+            <div style="display: flex; align-items: center; margin-top: 10px;">
+                <input type="checkbox" id="remove_parent" name="remove_parent" value="on" style="margin-right: 5px;">
+                <label for="remove_parent" style="margin: 0; width: 300px; display: inline-block;">연관성 해지</label>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="form-group">
+            <label for="created_at">Date:</label>
+            <input type="datetime-local" id="created_at" name="created_at"
+                value="{{ memo.created_at.strftime('%Y-%m-%dT%H:%M') }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="content">Content:</label>
+            <textarea id="content" name="content" required>{{ memo.content }}</textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="project">Project:</label>
+            <select id="project" name="project" onchange="updateProducts()">
+                <option value="">-- Select a project --</option>
+                {% for project in projects %}
+                {% if project.status != '완료' %}
+                <option value="{{ project.id }}" {% if memo.project_id==project.id %}selected{% endif %}>
+                    {{ project.title }}
+                </option>
+                {% endif %}
+                {% endfor %}
+
+                {% if memo.project and memo.project.status == '완료' %}
+                <option value="{{ memo.project.id }}" selected style="color: #999; font-style: italic;">
+                    {{ memo.project.title }} (완료)
+                </option>
+                {% endif %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="product">Product:</label>
+            <select id="product" name="product">
+                <option value="">-- Select a product --</option>
+                {% for product in products %}
+                <option value="{{ product.id }}" {% if memo.product_id==product.id %}selected{% endif %}>
+                    {{ product.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="tag">Tag:</label>
+            <select id="tag" name="tag">
+                <option value="">-- Select a tag --</option>
+                {% for tag in tags %}
+                <option value="{{ tag.id }}" {% if memo.tag_id==tag.id %}selected{% endif %}>
+                    {{ tag.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="image_option">File Upload:</label>
+            <div class="upload-options">
+                <select id="image_option" name="image_option" style="width: 200px; margin-bottom: 10px;"
+                    onchange="toggleUploadArea(this.value)">
+                    <option value="file">Upload File</option>
+                    <option value="paste">Paste Image</option>
+                </select>
+
+                <div id="file-upload-area" class="upload-area">
+                    <input type="file" id="file" name="file"
+                        accept="image/*,.pdf,.xls,.xlsx,.ppt,.pptx,.md,.html,.htm" multiple="multiple" onchange="validateFileCount(this)">
+                    <small style="display:block; color:#666; margin-top:5px; font-size: 0.9em;">
+                        💡 Ctrl(또는 Command) 키를 누르고 클릭하여 여러 파일을 선택할 수 있습니다. (최대 5장)
+                    </small>
+                </div>
+
+                <div id="paste-upload-area" class="upload-area" style="display: none;">
+                    <textarea id="paste-area" placeholder="탭하고 이미지 붙여넣기 (Ctrl+V 또는 길게 눌러서 붙여넣기)" style="width: 100%; 
+                                     min-height: 150px; 
+                                     border: 2px dashed var(--link-color);
+                                     padding: 20px;
+                                     text-align: center;
+                                     border-radius: 8px;
+                                     background-color: var(--stripe-bg);
+                                     font-weight: 500;
+                                     color: var(--secondary-text);
+                                     resize: vertical;
+                                     font-family: inherit;"></textarea>
+                    <div id="preview-container" style="margin-top: 10px; display: none;">
+                        <img id="pasted-preview"
+                            style="max-width: 100%; max-height: 150px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"
+                            alt="Preview">
+                        <button type="button" onclick="clearPastedImage()"
+                            style="display: block; margin-top: 10px; padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">이미지
+                            제거</button>
+                    </div>
+                    <input type="hidden" id="pasted_image_data" name="pasted_image_data">
+                </div>
+            </div>
+        </div>
+
+        {% if memo.image_filename or memo.pdf_filename or memo.excel_filename or memo.ppt_filename or memo.md_filename
+        or memo.html_filename %}
+        <div class="form-group">
+            <label>Current File:</label>
+            <div class="current-files">
+                {% set ns = namespace(found=false) %}
+                {% for img in memo.images %}
+                    {% if img.filename == memo.image_filename %}
+                        {% set ns.found = true %}
+                    {% endif %}
+                {% endfor %}
+
+                <!-- 기존 다중 이미지 표시 -->
+                {% for img in memo.images %}
+                <div class="current-file">
+                    <i class="fas fa-image" style="color: #3498db; margin-right: 10px;"></i>
+                    <div class="file-info">
+                        <span>{{ img.filename }}</span>
+                        <div class="delete-option">
+                            <input type="checkbox" id="delete_memo_image_{{ img.id }}" name="delete_memo_image_ids" value="{{ img.id }}">
+                            <label for="delete_memo_image_{{ img.id }}">Delete</label>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- 레거시 이미지 표시 (MemoImage에 없는 경우) -->
+                {% if memo.image_filename and not ns.found %}
+                <div class="current-file">
+                    <i class="fas fa-image" style="color: #3498db; margin-right: 10px;"></i>
+                    <div class="file-info">
+                        <span>{{ memo.original_filename or memo.image_filename }}</span>
+                        <div class="delete-option">
+                            <input type="checkbox" id="delete_image" name="delete_image">
+                            <label for="delete_image">Delete</label>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if memo.pdf_filename %}
+                <div class="current-file">
+                    <i class="fas fa-file-pdf file-icon"></i>
+                    <div class="file-info">
+                        <span>{{ memo.original_filename or memo.pdf_filename }}</span>
+                        <div class="delete-option">
+                            <input type="checkbox" id="delete_pdf" name="delete_pdf">
+                            <label for="delete_pdf">Delete</label>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if memo.excel_filename %}
+                <div class="current-file">
+                    <i class="fas fa-file-excel file-icon"></i>
+                    <div class="file-info">
+                        <span>{{ memo.original_filename or memo.excel_filename }}</span>
+                        <div class="delete-option">
+                            <input type="checkbox" id="delete_excel" name="delete_excel">
+                            <label for="delete_excel">Delete</label>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if memo.ppt_filename %}
+                <div class="current-file">
+                    <i class="fas fa-file-powerpoint file-icon"></i>
+                    <div class="file-option">
+                        <span>{{ memo.original_filename or memo.ppt_filename }}</span>
+                        <div class="delete-option">
+                            <input type="checkbox" id="delete_ppt" name="delete_ppt">
+                            <label for="delete_ppt">Delete</label>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if memo.md_filename %}
+                <div class="current-file">
+                    <i class="fas fa-file-alt file-icon"></i>
+                    <div class="file-info">
+                        <span>{{ memo.original_filename or memo.md_filename }}</span>
+                        <div class="delete-option">
+                            <input type="checkbox" id="delete_md" name="delete_md">
+                            <label for="delete_md">Delete</label>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if memo.html_filename %}
+                <div class="current-file">
+                    <i class="fas fa-file-code file-icon" style="color: #e34c26;"></i>
+                    <div class="file-info">
+                        <span>{{ memo.original_filename or memo.html_filename }}</span>
+                        <div class="delete-option">
+                            <input type="checkbox" id="delete_html" name="delete_html">
+                            <label for="delete_html">Delete</label>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="form-buttons">
+            <a href="{{ url_for('view_memo', memo_id=memo.id) }}" class="btn-cancel">Cancel</a>
+            <button type="submit" class="btn-update">Update</button>
+        </div>
+    </form>
+
+    <div class="delete-container">
+        <form method="POST" action="{{ url_for('delete_memo', memo_id=memo.id) }}">
+            <button type="submit" class="btn-delete" onclick="return confirm('메모를 삭제하시겠습니까?');">
+                Delete
+            </button>
+        </form>
+    </div>
+</div>
+
+<style>
+    /* ==========================================================================
+       [다크 모드 배색 수정] edit_memo.html
+       ========================================================================== */
+    .form-container {
+        width: 90%;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        color: var(--text-color);
+    }
+
+    h1 {
+        margin-bottom: 20px;
+        color: var(--text-color);
+        font-size: 1.3rem;
+    }
+
+    /* Form Groups & Labels */
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+    }
+
+    /* 입력 필드 스타일 */
+    input[type="datetime-local"],
+    input[type="file"],
+    select,
+    textarea {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        background-color: var(--input-bg);
+        color: var(--input-text);
+        font-size: 1.05rem;
+        transition: border-color 0.2s;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+        border-color: var(--link-color);
+        outline: none;
+    }
+
+    #content {
+        min-height: 150px;
+        line-height: 1.5;
+    }
+
+    /* Parent Memo 스타일 */
+    .parent-memo {
+        padding: 15px;
+        border-left: 3px solid var(--danger-color);
+        background-color: var(--stripe-bg);
+        margin-bottom: 20px;
+        border-radius: 4px;
+    }
+
+    .parent-memo p,
+    .parent-memo label {
+        color: var(--text-color);
+    }
+
+    .parent-memo a {
+        color: var(--link-color);
+    }
+
+    .parent-memo a:hover {
+        color: var(--link-hover);
+    }
+
+    /* 파일 업로드 및 붙여넣기 영역 */
+    .upload-options {
+        padding: 10px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        margin-top: 5px;
+        background-color: var(--stripe-bg);
+    }
+
+    /* 현재 파일 표시 영역 */
+    .current-files {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 5px;
+    }
+
+    .current-file {
+        display: flex;
+        align-items: center;
+        padding: 8px;
+        background-color: var(--stripe-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+    }
+
+    .file-icon {
+        font-size: 20px;
+        margin-right: 10px;
+        color: #3498db;
+    }
+
+    .current-file .fa-file-pdf {
+        color: var(--danger-color);
+    }
+
+    .current-file .fa-file-excel {
+        color: green;
+    }
+
+    .current-file .fa-file-powerpoint {
+        color: orange;
+    }
+
+    .current-file .fa-file-code {
+        color: #e34c26;
+    }
+
+    .file-info {
+        margin-left: 5px;
+    }
+
+    .delete-option {
+        display: flex;
+        align-items: center;
+        margin-top: 5px;
+    }
+
+    .delete-option label {
+        margin-left: 5px;
+        display: inline;
+        font-size: 0.9rem;
+        color: var(--secondary-text);
+    }
+
+    /* 버튼 스타일 */
+    .form-buttons {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        /* 오른쪽 정렬 */
+        gap: 15px;
+        /* 버튼 사이 간격 */
+        margin-top: 20px;
+    }
+
+    .btn-update {
+        padding: 8px 20px;
+        background-color: #28a745;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .btn-cancel {
+        color: var(--danger-color);
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+
+    body.dark-mode .btn-update {
+        background-color: #2ea043 !important;
+        color: #e0e0e0;
+    }
+
+    body.dark-mode .btn-update:hover {
+        background-color: #38b450 !important;
+    }
+
+    body.dark-mode .btn-cancel:hover {
+        color: var(--link-hover);
+    }
+
+    /* 삭제 버튼 영역 */
+    .delete-container {
+        margin-top: 10px;
+        display: flex;
+        justify-content: flex-start;
+        /* 왼쪽 정렬 */
+    }
+
+    .btn-delete {
+        padding: 6px 15px;
+        color: var(--danger-color);
+        background-color: transparent;
+        border: 1px solid var(--danger-color);
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    body.dark-mode .btn-delete:hover {
+        background-color: var(--danger-color);
+        color: #fff;
+    }
+
+    @media screen and (max-width: 768px) {
+        .form-container {
+            width: 95%;
+            padding: 10px;
+        }
+    }
+</style>
+
+<script>
+    // File Upload Handling
+    function toggleUploadArea(value) {
+        const fileArea = document.getElementById('file-upload-area');
+        const pasteArea = document.getElementById('paste-upload-area');
+        const fileInput = document.getElementById('file');
+        const pastedImageData = document.getElementById('pasted_image_data');
+
+        if (value === 'file') {
+            fileArea.style.display = 'block';
+            pasteArea.style.display = 'none';
+            fileInput.disabled = false;
+            pastedImageData.value = '';
+            clearPastedImage();
+        } else {
+            fileArea.style.display = 'none';
+            pasteArea.style.display = 'block';
+            fileInput.disabled = true;
+            fileInput.value = '';
+        }
+    }
+
+    // Image Paste Handling - iPad 지원
+    document.addEventListener('DOMContentLoaded', function () {
+        const pasteAreaTextarea = document.getElementById('paste-area');
+        const pastedPreview = document.getElementById('pasted-preview');
+        const previewContainer = document.getElementById('preview-container');
+        const hiddenInput = document.getElementById('pasted_image_data');
+
+        if (pasteAreaTextarea) {
+            pasteAreaTextarea.addEventListener('paste', function (e) {
+                if (document.getElementById('image_option').value !== 'paste') return;
+
+                const items = e.clipboardData.items;
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf('image') !== -1) {
+                        e.preventDefault();
+                        const blob = items[i].getAsFile();
+                        const reader = new FileReader();
+
+                        reader.onload = function (event) {
+                            pastedPreview.src = event.target.result;
+                            previewContainer.style.display = 'block';
+                            pasteAreaTextarea.style.display = 'none';
+                            hiddenInput.value = event.target.result;
+                        };
+
+                        reader.readAsDataURL(blob);
+                        break;
+                    }
+                }
+            });
+
+            pasteAreaTextarea.addEventListener('focus', function () {
+                this.style.borderColor = 'var(--link-color)';
+                this.style.backgroundColor = '#f0f8ff';
+            });
+
+            pasteAreaTextarea.addEventListener('blur', function () {
+                this.style.borderColor = 'var(--link-color)';
+                this.style.backgroundColor = 'var(--stripe-bg)';
+            });
+        }
+
+        toggleUploadArea(document.getElementById('image_option').value);
+
+        const projectSelect = document.getElementById('project');
+        if (projectSelect.value) {
+            updateProducts();
+        }
+    });
+
+    // 이미지 제거 함수
+    function clearPastedImage() {
+        const pasteAreaTextarea = document.getElementById('paste-area');
+        const pastedPreview = document.getElementById('pasted-preview');
+        const previewContainer = document.getElementById('preview-container');
+        const hiddenInput = document.getElementById('pasted_image_data');
+
+        if (pasteAreaTextarea) {
+            pasteAreaTextarea.style.display = 'block';
+            pasteAreaTextarea.value = '';
+        }
+        if (pastedPreview) pastedPreview.src = '';
+        if (previewContainer) previewContainer.style.display = 'none';
+        if (hiddenInput) hiddenInput.value = '';
+    }
+
+    // Products Update
+    function updateProducts() {
+        const projectSelect = document.getElementById('project');
+        const productSelect = document.getElementById('product');
+        const selectedProjectId = projectSelect.value;
+        const selectedProjectName = projectSelect.options[projectSelect.selectedIndex].text.trim();
+        const currentProductId = '{{ memo.product_id }}';
+
+        productSelect.innerHTML = '<option value="">-- Select a product --</option>';
+
+        if (selectedProjectName.includes("일반업무")) {
+            fetch('/get_all_products')
+                .then(response => response.json())
+                .then(products => {
+                    products.forEach(product => {
+                        const option = document.createElement('option');
+                        option.value = product.id;
+                        option.textContent = product.name;
+                        if (product.id == currentProductId) {
+                            option.selected = true;
+                        }
+                        productSelect.appendChild(option);
+                    });
+                })
+                .catch(err => console.error("Error fetching all products:", err));
+        } else if (selectedProjectId) {
+            fetch(`/get_products/${selectedProjectId}`)
+                .then(response => response.json())
+                .then(products => {
+                    products.forEach(product => {
+                        const option = document.createElement('option');
+                        option.value = product.id;
+                        option.textContent = product.name;
+                        if (product.id == currentProductId) {
+                            option.selected = true;
+                        }
+                        productSelect.appendChild(option);
+                    });
+                })
+                .catch(err => console.error("Error fetching products:", err));
+        }
+    }
+
+    // Form Validation
+    function validateForm() {
+        const uploadOption = document.getElementById('image_option').value;
+        const pastedImageData = document.getElementById('pasted_image_data');
+
+        // [수정 완료] Jinja2 중괄호 닫기(}};)를 정확히 수정했습니다.
+        const hasExistingFile = {{ 'true' if memo.image_filename or memo.pdf_filename or memo.excel_filename or memo.ppt_filename or memo.md_filename or memo.html_filename else 'false' }};
+
+        // 이미지 파일 개수 계산
+        // 1. 현재 화면에 표시된 이미지 파일 개수 (삭제 체크박스가 체크되지 않은 것만)
+        let currentImageCount = 0;
+        
+        // .current-file 요소들 중 이미지가 포함된 것 확인
+        document.querySelectorAll('.current-file').forEach(fileDiv => {
+            // 이미지 아이콘이나 이미지가 있는지 확인
+            if (fileDiv.querySelector('.fa-image')) {
+                // 삭제 체크박스 확인
+                const checkbox = fileDiv.querySelector('input[type="checkbox"]');
+                if (checkbox && !checkbox.checked) {
+                    currentImageCount++;
+                }
+            }
+        });
+
+        // 2. 새로 업로드할 파일 개수
+        let newImageCount = 0;
+        const fileInput = document.getElementById('file');
+        const imageExts = ['jpg', 'jpeg', 'png', 'gif'];
+        
+        if (uploadOption === 'file' && fileInput.files) {
+            for (let i = 0; i < fileInput.files.length; i++) {
+                const fileName = fileInput.files[i].name;
+                const ext = fileName.split('.').pop().toLowerCase();
+                if (imageExts.includes(ext)) {
+                    newImageCount++;
+                }
+            }
+        } else if (uploadOption === 'paste' && pastedImageData.value) {
+            newImageCount = 1;
+        }
+
+        const totalImages = currentImageCount + newImageCount;
+
+        if (totalImages > 5) {
+            alert('이미지는 최대 5장까지만 저장할 수 있습니다.\n(현재 유지: ' + currentImageCount + '장 + 추가: ' + newImageCount + '장 = 총 ' + totalImages + '장)');
+            return false;
+        }
+
+        // 체크박스 선택 확인 (기존 로직 유지)
+        const isDeleting = document.querySelectorAll('input[name^="delete_"]:checked').length > 0;
+
+        if (uploadOption === 'paste' && !pastedImageData.value) {
+            if (!hasExistingFile || (hasExistingFile && isDeleting)) {
+                 alert('이미지를 붙여넣거나 파일 업로드 옵션을 선택해주세요.');
+                 return false;
+            }
+        }
+        return true;
+    }
+
+    function validateFileCount(input) {
+        if (input.files.length > 0) {
+            let newImageCount = 0;
+            const imageExts = ['jpg', 'jpeg', 'png', 'gif'];
+            
+            for (let i = 0; i < input.files.length; i++) {
+                const fileName = input.files[i].name;
+                const ext = fileName.split('.').pop().toLowerCase();
+                if (imageExts.includes(ext)) {
+                    newImageCount++;
+                }
+            }
+            
+            // 현재 유지될 이미지 개수 계산
+            let currentImageCount = 0;
+            document.querySelectorAll('.current-file').forEach(fileDiv => {
+                if (fileDiv.querySelector('.fa-image')) {
+                    const checkbox = fileDiv.querySelector('input[type="checkbox"]');
+                    if (checkbox && !checkbox.checked) {
+                        currentImageCount++;
+                    }
+                }
+            });
+            
+            if (currentImageCount + newImageCount > 5) {
+                alert('이미지는 최대 5장까지만 저장할 수 있습니다.\n(현재 유지: ' + currentImageCount + '장 + 추가: ' + newImageCount + '장)');
+                input.value = ''; 
+            }
+        }
+    }
+</script>
+{% endblock %}

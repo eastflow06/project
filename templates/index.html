@@ -1,0 +1,1350 @@
+{% extends "base.html" %}
+{% block title %}
+Main
+{% endblock %}
+{% block content %}
+
+<div class="container">
+    <div class="tabs">
+        <div id="projects-tab" class="tab-button active" onclick="showTab('projects')">프로젝트 현황</div>
+        <div id="tasks-tab" class="tab-button" onclick="showTab('tasks')">Task</div>
+        <div id="todos-tab" class="tab-button" onclick="showTab('todos')">Todo</div>
+        <div id="materials-tab" class="tab-button" onclick="showTab('materials')">자료</div>
+        <div id="thoughts-tab" class="tab-button" onclick="showTab('thoughts')">생각</div>
+        <div id="on-hold-tab" class="tab-button" onclick="showTab('on-hold')">보류</div>
+    </div>
+
+    <div id="projects" class="tab-content active">
+        <div class="section">
+            <div class="table-container">
+                <div class="column 기타-panel1-bg">
+                    <div class="header">Research</div>
+                    <div class="content">
+                        {% set research_statuses = research_statuses_list %}
+                        {% for status in research_statuses %}
+                            {% if status_projects.get(status, []) %}
+                                <div style="margin-bottom: 8px;">
+                                    <h4 class="status-header">{{ status }}</h4>
+                                    <ul class="project-list">
+                                        {% for project in status_projects.get(status, []) | sort(attribute='created_at') %}
+                                            <li style="margin-bottom: 3px;">
+                                                <a href="{{ url_for('project', project_id=project.id) }}" class="custom-link">{{ project.title }}</a>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="column 기타-panel2-bg">
+                    <div class="header">Development</div>
+                    <div class="content">
+                        {% set development_statuses = development_statuses_list %}
+                        {% for status in development_statuses %}
+                            {% if status_projects.get(status, []) %}
+                                <div style="margin-bottom: 8px;">
+                                    <h4 class="status-header">{{ status }}</h4>
+                                    <ul class="project-list">
+                                        {% for project in status_projects.get(status, []) | sort(attribute='created_at') %}
+                                            <li style="margin-bottom: 3px;">
+                                                <a href="{{ url_for('project', project_id=project.id) }}" class="custom-link">{{ project.title }}</a>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="column 기타-panel3-bg">
+                    <div class="header">기타</div>
+                    <div class="content">
+                        {% set other_statuses = other_statuses_list %}
+                        {% for status in other_statuses %}
+                            {% if status != '보류' and status_projects.get(status, []) %}
+                                <div style="margin-bottom: 8px;">
+                                    <h4 class="status-header">{{ status }}</h4>
+                                    <ul class="project-list">
+                                        {% for project in status_projects.get(status, []) | sort(attribute='created_at') %}
+                                            <li style="margin-bottom: 3px;">
+                                                <a href="{{ url_for('project', project_id=project.id) }}" class="custom-link">{{ project.title }}</a>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="todos" class="tab-content">
+        <div class="section">
+            <h3>Todo 리스트</h3>
+            <div id="todos-loading" style="display: none; text-align: center; padding: 20px;">
+                <div class="loading-spinner"></div>
+                <p>Todo 항목을 불러오는 중...</p>
+            </div>
+            <div id="todos-container">
+                <table class="completed-table" id="todosTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTodosTable(0)" class="sortable col-date">날짜 <span class="sort-icon">↕</span></th>
+                            <th onclick="sortTodosTable(1)" class="sortable col-content">내용 <span class="sort-icon">↕</span></th>
+                            <th onclick="sortTodosTable(2)" class="sortable col-project">프로젝트 <span class="sort-icon">↕</span></th>
+                            <th onclick="sortTodosTable(3)" class="sortable col-product">제품 <span class="sort-icon">↕</span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="todos-tbody">
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: #666; font-style: italic; padding: 20px;">
+                                Todo 항목을 불러오려면 Todo 탭을 클릭하세요.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="on-hold" class="tab-content">
+        <div class="section">
+            <h3>보류된 프로젝트</h3>
+            <div id="on-hold-loading" style="display: none; text-align: center; padding: 20px;">
+                <div class="loading-spinner"></div>
+                <p>보류된 프로젝트를 불러오는 중...</p>
+            </div>
+            <div id="on-hold-container">
+                <table class="completed-table" id="onHoldTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortOnHoldTable(0)" class="sortable" style="width: 25%;">프로젝트명 <span class="sort-icon">↕</span></th>
+                            <th onclick="sortOnHoldTable(1)" class="sortable" style="width: 15%;">Product <span class="sort-icon">↕</span></th>
+                            <th style="width: 10%;">완료 태스크</th>
+                            <th style="width: 50%;">Description</th>
+                        </tr>
+                    </thead>
+                    <tbody id="on-hold-tbody">
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: #666; font-style: italic; padding: 20px;">
+                                보류된 프로젝트를 불러오려면 보류 탭을 클릭하세요.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="tasks" class="tab-content">
+        <div style="display: flex; align-items: center; margin-bottom: 20px; gap: 40px;">
+            <h3>Task</h3>
+            <div class="toggle-switch" onclick="toggleViewMode()">
+                <div class="toggle-switch-track">
+                    <div class="toggle-switch-thumb"></div>
+                </div>
+                <span id="modeText">프로젝트</span>
+            </div>
+        
+            <a href="all_tasks" style="text-decoration: none; font-size: 16px; font-weight: bold; color: #007bff; padding: 5px 15px; border: 1px solid #007bff; border-radius: 5px; white-space: nowrap; transition: background-color 0.3s; height: 25px; line-height: 16px;">
+                전체 Task 보기
+            </a>
+        </div>
+
+        <div id="tasks-loading" style="display: none; text-align: center; padding: 20px;">
+            <div class="loading-spinner"></div>
+            <p>Task 데이터를 불러오는 중...</p>
+        </div>
+    
+        <div class="section" id="tasks-container">
+            <div id="projectView" class="task-view"></div>
+            <div id="timelineView" class="task-view hidden"></div>
+        </div>
+    </div>
+
+    <div id="materials" class="tab-content">
+        <div class="section">
+            <h3>자료 목록 ({{ data_memos|length }}개)</h3>
+            <div id="materials-loading" style="display: none; text-align: center; padding: 20px;">
+                <div class="loading-spinner"></div>
+                <p>자료를 불러오는 중...</p>
+            </div>
+            <div id="materials-container">
+                <div style="margin-bottom: 20px; text-align: left;">
+                    <div style="display: flex; align-items: center; margin-top: 10px; gap: 10px;">
+                        <input type="text" id="materials-search" placeholder="Search for memos..." 
+                                style="width: 400px; padding: 5px; height: 40px; font-size: 1.0rem;" 
+                                onkeyup="handleMaterialsKeyPress(event)">
+                        
+                        <select id="materials-tag-filter" style="width: 15%; height: 40px; padding: 5px;" onchange="searchMaterialsMemos()">
+                            <option value="">All Tags</option>
+                        </select>
+                        <button onclick="searchMaterialsMemos()" class="btn-search" style="height: 40px;">Search</button>
+                        <button onclick="resetMaterialsSearch()" class="btn-reset" style="height: 40px;">Reset</button>
+                    </div>
+                </div>
+
+                <div id="materials-search-results" style="margin-bottom: 20px; text-align: left;">
+                </div>
+
+                <div id="materials-memo-view" style="margin-bottom: 20px; text-align: left;">
+                   
+                    <table id="materials-table">
+                        <thead>
+                            <tr>
+                                <th class="col-date">Date</th>
+                                <th class="col-tag">tag</th>
+                                <th class="col-content">Content</th>
+                            </tr>
+                        </thead>
+                        <tbody id="materials-tbody">
+                            {% if data_memos %}
+                                {% set pin_memos = data_memos | selectattr('tag.name', 'equalto', 'Pin') | list %}
+                                {% set other_memos = data_memos | rejectattr('tag.name', 'equalto', 'Pin') | list %}
+                                {% set sorted_memos = pin_memos + (other_memos | sort(attribute='created_at', reverse=True)) %}
+                                
+                                {% for memo in sorted_memos %}
+                                    <tr data-memo-id="{{ memo.id }}" onclick="viewMemo({{ memo.id }})" style="cursor: pointer;" class="{% if memo.tag and memo.tag.name == 'Pin' %}materials-pin-memo-row{% endif %}">
+                                        <td class="col-date">{{ memo.created_at.strftime('%Y-%m-%d') if memo.created_at else '' }}</td>
+                                        <td class="col-tag">{{ memo.tag.name if memo.tag else '' }}</td>
+                                        <td>
+                                            <div class="content-container">
+                                                <span class="content-text">{{ memo.content }}</span>
+                                                <span class="file-icons">                                                
+                                                    {% if memo.image_filename %}<i class="fas fa-file-image" style="color: var(--product-blue);"></i>{% endif %}
+                                                    {% if memo.html_filename %}<i class="fas fa-file-code" style="color: #FF8C00;"></i>{% endif %}
+                                                    {% if memo.pdf_filename %}<i class="fas fa-file-pdf" style="color: red;"></i>{% endif %}
+                                                    {% if memo.excel_filename %}<i class="fas fa-file-excel" style="color: green;"></i>{% endif %}
+                                                    {% if memo.ppt_filename %}<i class="fas fa-file-powerpoint" style="color: orange;"></i>{% endif %}
+                                                    {% if memo.md_filename %}<i class="fas fa-file-alt" style="color: purple;"></i>{% endif %}
+                                                </span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="3" style="text-align: center; color: #666; font-style: italic; padding: 15px;">
+                                        자료로 분류된 메모가 없습니다.
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="thoughts" class="tab-content">
+        <div class="section">
+            <h3>생각 목록 ({{ thought_memos|length }}개)</h3>
+            <div id="thoughts-memo-view" style="margin-bottom: 20px; text-align: left;">
+                <table id="thoughts-table">
+                    <thead>
+                        <tr>
+                            <th class="col-date">날짜</th>
+                            <th class="col-product">제품</th>
+                            <th class="col-content">내용</th>
+                        </tr>
+                    </thead>
+                    <tbody id="thoughts-tbody">
+                        {% if thought_memos %}
+                            {% for memo in thought_memos %}
+                                <tr data-memo-id="{{ memo.id }}" onclick="viewMemo({{ memo.id }})" style="cursor: pointer;">
+                                    <td class="col-date">{{ memo.created_at.strftime('%Y-%m-%d') if memo.created_at else '' }}</td>
+                                    <td class="col-product">
+                                        {% if memo.product %}
+                                            <span class="product-name-blue">{{ memo.product.name }}</span>
+                                        {% elif memo.project and memo.project.products %}
+                                            <span class="product-name-default">{{ memo.project.products[0].name }}</span>
+                                        {% else %}
+                                            <span style="color: #999;">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="content-container">
+                                            <span class="content-text">{{ memo.content }}</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="3" style="text-align: center; color: #666; font-style: italic; padding: 15px;">
+                                    '생각' 태그가 달린 메모가 없습니다.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="edit-panel" class="edit-panel">
+    <div style="height: 6%; display: flex; align-items: center; justify-content: space-between; padding: 0 20px;">
+        <span id="project-title" style="font-weight: bold;"></span>
+        <button type="button" onclick="toggleEditForm();" style="background: none; border: none; font-size: 16px; cursor: pointer;">✖</button>
+    </div>
+
+    <div style="flex: 1; padding: 20px; overflow-y: auto;">
+        <form id="edit-form" method="POST" action="">
+        </form>
+    </div>
+    <hr style="margin: 0;">
+    <div style="height: 5%; display: flex; align-items: center; justify-content: flex-end; padding-right: 20px;">
+        <button type="button" onclick="confirmDelete(event);" style="background: none; border: none; cursor: pointer;">
+            <i class="fas fa-trash" style="font-size: 20px; color: #f44336;"></i>
+        </button>
+    </div>
+</div>
+
+<style>
+    /* ==========================================================================
+       1. Body 및 배경 설정
+       ========================================================================== */
+    body {
+        {% if settings.Index.bg_url %}
+        background-image: url('{{ settings.Index.bg_url }}');
+        {% endif %}
+        background-color: {{ settings.Index.bg_color }};
+        position: relative;
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-position: center;
+        z-index: 1;
+    }
+    
+    {% if settings.Index.bg_url %}
+    body::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(255, 255, 255, {{ settings.Index.opacity }});
+        z-index: -1;
+        pointer-events: none;
+        transition: background-color 0.3s;
+    }
+    body.dark-mode::before {
+        background-color: rgba(0, 0, 0, 0.7) !important;
+    }
+    {% endif %}
+    
+    /* Panel 배경 설정 */
+    .기타-panel1-bg, .기타-panel2-bg, .기타-panel3-bg {
+        position: relative;
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-position: center;
+        z-index: 1;
+    }
+    .기타-panel1-bg::before, .기타-panel2-bg::before, .기타-panel3-bg::before {
+        content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+    }
+
+    /* Panel 1 */
+    .기타-panel1-bg {
+        {% if settings.Panels.panel1.bg_url %} background-image: url('{{ settings.Panels.panel1.bg_url }}'); {% else %} background-color: {{ settings.Panels.panel1.bg_color }}; {% endif %}
+    }
+    {% if settings.Panels.panel1.bg_url %}
+    .기타-panel1-bg::before { background-color: rgba(255, 255, 255, {{ settings.Panels.panel1.opacity }}); }
+    body.dark-mode .기타-panel1-bg::before { background-color: rgba(0, 0, 0, 0.6) !important; }
+    {% endif %}
+
+    /* Panel 2 */
+    .기타-panel2-bg {
+        {% if settings.Panels.panel2.bg_url %} background-image: url('{{ settings.Panels.panel2.bg_url }}'); {% else %} background-color: {{ settings.Panels.panel2.bg_color }}; {% endif %}
+    }
+    {% if settings.Panels.panel2.bg_url %}
+    .기타-panel2-bg::before { background-color: rgba(255, 255, 255, {{ settings.Panels.panel2.opacity }}); }
+    body.dark-mode .기타-panel2-bg::before { background-color: rgba(0, 0, 0, 0.6) !important; }
+    {% endif %}
+
+    /* Panel 3 */
+    .기타-panel3-bg {
+        {% if settings.Panels.panel3.bg_url %} background-image: url('{{ settings.Panels.panel3.bg_url }}'); {% else %} background-color: {{ settings.Panels.panel3.bg_color }}; {% endif %}
+    }
+    {% if settings.Panels.panel3.bg_url %}
+    .기타-panel3-bg::before { background-color: rgba(255, 255, 255, {{ settings.Panels.panel3.opacity }}); }
+    body.dark-mode .기타-panel3-bg::before { background-color: rgba(0, 0, 0, 0.6) !important; }
+    {% endif %}
+
+    /* 소제목 스타일 */
+    .status-header {
+        margin-bottom: 2px;
+        margin-top: 10px;
+        font-size: 1.1em;
+        margin-left: 10px;
+    }
+    .project-list {
+        margin-top: 0;
+        padding-left: 20px;
+    }
+
+    /* ==========================================================================
+       2. 통합 테이블 스타일 (한 줄 표시 + 아이콘 정렬)
+       ========================================================================== */
+    #todosTable, #materials-table, #thoughts-table, #completedTable, #materials-search-results-table {
+        table-layout: fixed;
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    /* 컬럼 너비 설정 */
+    .col-date { width: 7%; text-align: center; white-space: nowrap; color: var(--text-color); font-size: 1.05rem; }
+    .col-tag { width: 6%; text-align: center; color: var(--danger-color); font-size: 0.9em; white-space: nowrap;}
+    .col-project { width: 13%; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--secondary-text); }
+    .col-product { width: 13%; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--secondary-text); }
+    
+    /* 나머지 공간은 내용이 차지 */
+    .col-content { width: auto; }
+
+    /* Flex 컨테이너 */
+    .content-container {
+        display: flex; 
+        align-items: center; 
+        justify-content: flex-start; 
+        width: 100%;
+        
+        /* ▼▼▼ [추가됨] 우측 여백 설정 ▼▼▼ */
+        padding-right: 20px;     /* 원하는 만큼 여백 조절 (예: 15px ~ 20px) */
+        box-sizing: border-box;  /* 패딩이 전체 너비에 포함되도록 설정 */
+    }
+    /* 텍스트 말줄임 처리 */
+    .content-text {
+        /* ★ 수정됨: 
+           flex-grow: 0 -> 남은 공간을 억지로 차지하지 않음 (글자 길이만큼만)
+           flex-shrink: 1 -> 공간이 부족하면 줄어듦
+           flex-basis: auto -> 기본 크기는 컨텐츠 크기
+        */
+        flex: 0 1 auto; 
+        
+        white-space: nowrap; 
+        overflow: hidden; 
+        text-overflow: ellipsis;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        min-width: 0;       /* 말줄임표 작동을 위한 최소 너비 */
+        max-width: 100%;    /* 부모를 넘지 않도록 제한 */
+        font-size: 1.05rem;
+        cursor: pointer;
+    }
+    .content-text:hover { color: var(--link-color); }
+
+    /* 아이콘 영역 */
+    .file-icons {
+        margin-left: 8px;       /* 텍스트와의 간격 */
+        white-space: nowrap;
+        flex-shrink: 0;         /* ★ 중요: 공간이 좁아져도 아이콘은 찌그러지지 않음 */
+        display: flex;
+        gap: 3px;
+        align-items: center;
+    }
+
+    /* ==========================================================================
+       3. Task 및 기타 UI 스타일
+       ========================================================================== */
+    .hidden { display: none !important; }
+    .task-list { margin-top: 2px; padding-left: 25px; line-height: 1.6; list-style: none; }
+    .task-list li:before { content: "•"; margin-right: 8px; display: inline-block; font-weight: bold; font-size: 1.2em; color: #555; line-height: 1; }
+    .task-row { display: flex; align-items: center; font-size: 18px; margin-bottom: 8px; }
+    .task-content { display: flex; align-items: center; flex-wrap: nowrap; white-space: nowrap; line-height: 1.4; }
+    .task-title-link { text-decoration: none; color: #7d848b; cursor: pointer; margin-right: 5px; transition: color 0.2s; }
+    .task-title-link:hover { text-decoration: underline; color: #007bff; }
+    
+    .due-date { color: #007bff; margin: 0 5px; font-size: 0.9em; }
+    .due-date.past { color: #dc3545; }
+    .due-date.warning { color: #ffc107; }
+    .due-date.far { color: #28a745; }
+    .beacon { width: 20px; height: 20px; vertical-align: middle; margin-left: 5px; }
+    
+    .project-title { margin-top: 15px; margin-bottom: 5px; font-size: 1.1em; font-weight: bold;}
+    .project-link { text-decoration: none; color: inherit; }
+    .project-link:hover { text-decoration: underline; color: #007bff; }
+    
+    /* Toggle Switch */
+    .toggle-switch { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+    .toggle-switch-track { position: relative; width: 36px; height: 20px; background-color: #e0e0e0; border-radius: 10px; transition: background-color 0.3s ease; }
+    .toggle-switch-thumb { position: absolute; left: 2px; top: 2px; width: 16px; height: 16px; background-color: white; border-radius: 50%; transition: left 0.3s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    .toggle-switch.active .toggle-switch-track { background-color: #4CAF50; }
+    .toggle-switch.active .toggle-switch-thumb { left: 18px; }
+
+    /* Loading Spinner */
+    .loading-spinner { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 10px auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    
+    /* Edit Panel */
+    .edit-panel { position: fixed; top: 0; right: -40%; width: 40%; height: 100%; background-color: white; box-shadow: -2px 0 5px rgba(0,0,0,0.1); z-index: 1000; transition: right 0.3s ease-in-out; display: flex; flex-direction: column; color: #333; }
+    body.dark-mode .edit-panel { background-color: #2c2c2c; color: #e0e0e0; box-shadow: -2px 0 5px rgba(0,0,0,0.5); border-left: 1px solid #444; }
+    body.dark-mode .edit-panel button { color: #e0e0e0 !important; }
+    body.dark-mode .edit-panel hr { border-color: #555 !important; }
+
+    /* Task Edit Card */
+    .task-edit-card { border: 2px solid #ccc; border-radius: 10px; padding: 10px; background-color: #f9f9f9; width: 90%; margin: 20px auto; }
+    body.dark-mode .task-edit-card { background-color: #383838; border-color: #555; }
+
+    .editable-input { width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; background-color: #fff; color: #333; }
+    body.dark-mode .editable-input { background-color: #4a4a4a; border-color: #666; color: #fff; }
+    body.dark-mode .editable-input:focus { background-color: #555; border-color: #007bff; outline: none; }
+    body.dark-mode input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
+    
+    .task-action-btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    .update-btn { background-color: #4CAF50; color: white; }
+    .cancel-btn { background-color: #6c757d; color: white; }
+
+    /* Product Name Colors */
+    .product-name-blue { color: #007bff; }
+    .product-name-default { color: #333; font-weight: 500; }
+    body.dark-mode .product-name-blue { color: #66b0ff; }
+    body.dark-mode .product-name-default { color: #e0e0e0; }
+
+    
+/* ==========================================================================
+    4. 모바일 및 태블릿 반응형 (Todo 탭 수정 완료)
+    ========================================================================== */
+    @media screen and (max-width: 1024px) {
+        /* 1. 기본 UI 조정 */
+        .edit-panel { width: 85%; right: -85%; }
+        #searchForm { max-width: 100%; }
+        .toggle-button-group { margin-left: 0; margin-top: 10px; width: 100%; }
+        .toggle-btn { width: 50%; }
+        
+        /* 폼 요소 터치 편의성 */
+        .btn-search, .btn-reset, .toggle-switch, .search-input, 
+        #materials-search, #materials-tag-filter {
+            height: 45px !important;
+        }
+
+        /* 폰트 확대 */
+        body, th, td, input, select, textarea, button, 
+        .content-text, .toggle-btn, .col-date, .project-link, .task-title-link, .project-title,
+        .custom-link, .status-header {    
+            font-size: 1.3rem !important;
+            line-height: 1.6 !important;
+        }
+        .project-list li {
+            margin-bottom: 8px !important;
+        }
+        /* ============================================================
+            [중요] 테이블별 컬럼 표시/숨김 정밀 제어
+            목표: 모든 테이블에서 "Date"와 "Content"만 표시
+            ============================================================ */
+
+        /* 공통: Date(첫 번째 컬럼) 고정 너비 */
+        #todosTable th:nth-child(1), #todosTable td:nth-child(1),
+        #materials-table th:nth-child(1), #materials-table td:nth-child(1),
+        #thoughts-table th:nth-child(1), #thoughts-table td:nth-child(1) {
+            width: 130px !important;
+            display: table-cell !important;
+        }
+
+        /* ------------------------------------------------------------
+            A. Todo 테이블 (#todosTable)
+            구조: 1.Date | 2.Content | 3.Project | 4.Product
+            ------------------------------------------------------------ */
+        /* 2번째(Content) 강제 표시 */
+        #todosTable th:nth-child(2), #todosTable td:nth-child(2) {
+            display: table-cell !important;
+            width: auto !important;
+        }
+        /* 3, 4번째(Project, Product) 숨김 */
+        #todosTable th:nth-child(3), #todosTable td:nth-child(3),
+        #todosTable th:nth-child(4), #todosTable td:nth-child(4) {
+            display: none !important;
+        }
+
+        /* ------------------------------------------------------------
+            B. Materials 테이블 (#materials-table)
+            구조: 1.Date | 2.Tag | 3.Content
+            ------------------------------------------------------------ */
+        /* 2번째(Tag) 숨김 */
+        #materials-table th:nth-child(2), #materials-table td:nth-child(2) {
+            display: none !important;
+        }
+        /* 3번째(Content) 강제 표시 */
+        #materials-table th:nth-child(3), #materials-table td:nth-child(3) {
+            display: table-cell !important;
+            width: auto !important;
+        }
+
+        /* ------------------------------------------------------------
+            C. Thoughts 테이블 (#thoughts-table)
+            구조: 1.Date | 2.Product | 3.Content
+            ------------------------------------------------------------ */
+        /* 2번째(Product) 숨김 */
+        #thoughts-table th:nth-child(2), #thoughts-table td:nth-child(2) {
+            display: none !important;
+        }
+        /* 3번째(Content) 강제 표시 */
+        #thoughts-table th:nth-child(3), #thoughts-table td:nth-child(3) {
+            display: table-cell !important;
+            width: auto !important;
+        }
+    }
+</style>
+
+<script>
+// 초기 데이터 로드 (메모용)
+const initialMemos = [
+    {% for memo in data_memos %}
+        {
+            id: {{ memo.id }},
+            created_at: '{{ memo.created_at.strftime('%Y-%m-%d') if memo.created_at else '' }}',
+            tag: { 
+                name: {% if memo.tag and memo.tag.name %}'{{ memo.tag.name }}'{% else %}null{% endif %}
+            },
+            content: {{ memo.content | tojson | safe }}, 
+            image_filename: {{ 'true' if memo.image_filename else 'false' }},
+            pdf_filename: {{ 'true' if memo.pdf_filename else 'false' }},
+            excel_filename: {{ 'true' if memo.excel_filename else 'false' }},
+            ppt_filename: {{ 'true' if memo.ppt_filename else 'false' }},
+            md_filename: {{ 'true' if memo.md_filename else 'false' }},
+            html_filename: {{ 'true' if memo.html_filename else 'false' }},
+        }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
+
+console.log('🔍 Initial memos loaded:', initialMemos.length);
+
+let completedDataLoaded = false;
+let onHoldDataLoaded = false;
+let materialsData = { 
+    memos: initialMemos,
+    tags: [] 
+};
+
+// 탭 전환 함수
+function showTab(tabName) {
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.classList.remove('active');
+    });
+    
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    
+    document.getElementById(tabName + '-tab').classList.add('active');
+    document.getElementById(tabName).classList.add('active');
+    
+    if (tabName === 'todos') {
+        loadTodos();
+    } else if (tabName === 'completed' && !completedDataLoaded) {
+        loadCompletedProjects();
+    } else if (tabName === 'on-hold' && !onHoldDataLoaded) {
+        loadOnHoldProjects();
+    } else if (tabName === 'tasks') { 
+        loadTasksData(); 
+    }
+    
+    localStorage.setItem('selectedTab', tabName);
+    // URL 해시 업데이트 (히스토리에 추가하지 않음)
+    window.location.hash = tabName;
+}
+
+// 아이콘 생성 함수
+function generateFileIcons(memo) {
+    let icons = '';
+    if (memo.image_filename) icons += '<i class="fas fa-file-image" style="color: var(--product-blue);"></i>';    
+    if (memo.pdf_filename) icons += '<i class="fas fa-file-pdf" style="color: red;"></i>';
+    if (memo.excel_filename) icons += '<i class="fas fa-file-excel" style="color: green;"></i>';
+    if (memo.ppt_filename) icons += '<i class="fas fa-file-powerpoint" style="color: orange;"></i>';
+    if (memo.md_filename) icons += '<i class="fas fa-file-alt" style="color: purple;"></i>';
+    if (memo.html_filename) icons += '<i class="fas fa-file-code" style="color: #FF8C00;"></i>';
+    return icons;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// === Materials 관련 함수 ===
+function searchMaterialsMemos() {
+    const searchQuery = document.getElementById('materials-search').value.toLowerCase();
+    const selectedTag = document.getElementById('materials-tag-filter').value.toLowerCase();
+    const resultsContainer = document.getElementById('materials-search-results');
+    const memoView = document.getElementById('materials-memo-view');
+    
+    if (!materialsData || !materialsData.memos) {
+        resultsContainer.innerHTML = '<p>데이터를 불러오는 중입니다.</p>';
+        return;
+    }
+    
+    if (!searchQuery && !selectedTag) {
+        resultsContainer.innerHTML = '';
+        memoView.style.display = 'block';
+        return;
+    }
+
+    memoView.style.display = 'none';
+
+    const filteredMemos = materialsData.memos.filter(memo => {
+        const searchTerms = searchQuery.split('&&').map(term => term.trim()).filter(term => term !== '');
+        
+        const contentMatch = searchTerms.length === 0 || 
+            searchTerms.every(term => memo.content.toLowerCase().includes(term));
+        
+        const tagMatch = selectedTag === "" || 
+            (memo.tag && memo.tag.name && memo.tag.name.toLowerCase() === selectedTag);
+        
+        return contentMatch && tagMatch;
+    });
+    
+    let resultsHTML = '';
+    
+    if (filteredMemos.length > 0) {
+        const pinResults = filteredMemos.filter(memo => memo.tag && memo.tag.name === 'Pin');
+        const otherResults = filteredMemos.filter(memo => !memo.tag || memo.tag.name !== 'Pin');
+        
+        const sortedOtherResults = otherResults.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        const sortedResults = pinResults.concat(sortedOtherResults);
+        
+        resultsHTML = `
+            <h3>Search Results (${filteredMemos.length}개)</h3>
+            <table id="materials-search-results-table">
+                <thead>
+                    <tr>
+                        <th style="width: 12%;">Date</th>
+                        <th style="width: 5%;">tag</th>
+                        <th style="width: 83%;">Content</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        sortedResults.forEach(memo => {
+            const fileIcons = generateFileIcons(memo);
+            const isPinMemo = memo.tag && memo.tag.name === 'Pin';
+            const rowClass = isPinMemo ? 'materials-pin-memo-row' : '';
+            const content = memo.content || '';
+            const tagName = (memo.tag && memo.tag.name) ? memo.tag.name : '';
+            const escapedContent = escapeHtml(content);
+
+            resultsHTML += `
+                <tr class="${rowClass}" onclick="viewMemo(${memo.id})" style="cursor: pointer;">
+                    <td>${memo.created_at}</td>
+                    <td style="font-size: 14px; color: #F44336;">${tagName}</td>
+                    <td><span class="materials-ellipsis">${escapedContent}</span><span class="materials-file-icons">${fileIcons}</span></td>
+                </tr>
+            `;
+        });
+        resultsHTML += '</tbody></table>';
+    } else {
+        resultsHTML = '<p style="text-align: center; color: #666; font-style: italic; padding: 15px;">검색 결과가 없습니다.</p>';
+    }
+    resultsContainer.innerHTML = resultsHTML;
+}
+
+function resetMaterialsSearch() {
+    document.getElementById('materials-search').value = '';
+    document.getElementById('materials-tag-filter').value = '';
+    document.getElementById('materials-search-results').innerHTML = '';
+    document.getElementById('materials-memo-view').style.display = 'block';
+}
+
+function handleMaterialsKeyPress(event) {
+    if (event.key === 'Enter') searchMaterialsMemos();
+}
+
+function viewMemo(memoId) {
+    window.location.href = "/view_memo/" + memoId;
+}
+
+// === Completed Project Load ===
+async function loadCompletedProjects() {
+    const loadingDiv = document.getElementById('completed-loading');
+    const tbody = document.getElementById('completed-tbody');
+    try {
+        loadingDiv.style.display = 'block';
+        const response = await fetch('/api/completed', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        if (!response.ok) throw new Error('완료된 프로젝트를 불러오는데 실패했습니다.');
+        
+        const data = await response.json();
+        tbody.innerHTML = '';
+        
+        if (data.completed && data.completed.length > 0) {
+            data.completed.forEach(project => {
+                const row = document.createElement('tr');
+                const statusType = project.status || '상태 없음'; 
+                row.innerHTML = `
+                    <td><a href="/project/${project.id}" class="custom-link">${project.title}</a></td>
+                    <td>${project.products.length > 0 ? project.products.join(', ') : '<span style="color: #999;">-</span>'}</td>
+                    <td><span style="color: ${project.completed_tasks === project.total_tasks ? '#28a745' : '#ffc107'};">${project.completed_tasks}/${project.total_tasks}</span></td>
+                    <td><span style="color: #28a745; font-weight: bold;">${statusType}</span></td>
+                `;
+                tbody.appendChild(row);
+            });
+        } else {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #666; font-style: italic; padding: 20px;">완료된 프로젝트가 없습니다.</td></tr>`;
+        }
+        completedDataLoaded = true;
+    } catch (error) {
+        console.error('완료된 프로젝트 로드 에러:', error);
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #f44336; padding: 20px;">완료된 프로젝트를 불러오는데 실패했습니다.</td></tr>`;
+    } finally {
+        loadingDiv.style.display = 'none';
+    }
+}
+
+// === On-Hold Project Load ===
+async function loadOnHoldProjects() {
+    const loadingDiv = document.getElementById('on-hold-loading');
+    const tbody = document.getElementById('on-hold-tbody');
+    try {
+        loadingDiv.style.display = 'block';
+        const response = await fetch('/api/on-hold', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        if (!response.ok) throw new Error('보류된 프로젝트를 불러오는데 실패했습니다.');
+        
+        const data = await response.json();
+        tbody.innerHTML = '';
+        
+        if (data.on_hold && data.on_hold.length > 0) {
+            data.on_hold.forEach(project => {
+                const row = document.createElement('tr');
+                const description = project.description || '-';
+                row.innerHTML = `
+                    <td><a href="/project/${project.id}" class="custom-link">${project.title}</a></td>
+                    <td>${project.products.length > 0 ? project.products.join(', ') : '<span style="color: #999;">-</span>'}</td>
+                    <td><span style="color: ${project.completed_tasks === project.total_tasks ? '#28a745' : '#ffc107'};">${project.completed_tasks}/${project.total_tasks}</span></td>
+                    <td style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 0;" title="${description}">${description}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        } else {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #666; font-style: italic; padding: 20px;">보류된 프로젝트가 없습니다.</td></tr>`;
+        }
+        onHoldDataLoaded = true;
+    } catch (error) {
+        console.error('보류된 프로젝트 로드 에러:', error);
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #f44336; padding: 20px;">보류된 프로젝트를 불러오는데 실패했습니다.</td></tr>`;
+    } finally {
+        loadingDiv.style.display = 'none';
+    }
+}
+
+// === Task Load and Render ===
+async function loadTasksData() {
+    const loadingDiv = document.getElementById('tasks-loading');
+    const projectView = document.getElementById('projectView');
+    const timelineView = document.getElementById('timelineView');
+    
+    loadingDiv.style.display = 'block';
+    projectView.innerHTML = '';
+    timelineView.innerHTML = ''; 
+
+    try {
+        const response = await fetch('/api/tasks', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        if (!response.ok) throw new Error('Task 데이터를 불러오는데 실패했습니다.');
+        
+        const data = await response.json();
+        renderTaskViews(data.tasks);
+
+    } catch (error) {
+        console.error('Tasks 로드 에러:', error);
+        document.getElementById('tasks-container').innerHTML = `
+            <div style="text-align: center; color: #f44336; padding: 20px;">
+                Task 데이터를 불러오는데 실패했습니다.
+            </div>
+        `;
+    } finally {
+        loadingDiv.style.display = 'none';
+        const savedViewMode = sessionStorage.getItem('viewMode') || 'project';
+        toggleViewMode(savedViewMode);
+    }
+}
+
+function renderTaskViews(tasks) {
+    const projectView = document.getElementById('projectView');
+    const timelineView = document.getElementById('timelineView');
+    
+    const projectsMap = {};
+    const tasksWithDueDate = [];
+    const tasksWithoutDueDate = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    tasks.forEach(task => {
+        const projectId = task.project ? task.project.id : 'no_project';
+        const projectTitle = task.project ? task.project.title : '프로젝트 없음';
+        const projectStatus = task.project ? task.project.status : '';
+
+        if (!projectsMap[projectId]) {
+            projectsMap[projectId] = { title: projectTitle, status: projectStatus, tasks: [] };
+        }
+        projectsMap[projectId].tasks.push(task);
+
+        if (task.due_date) {
+            tasksWithDueDate.push(task);
+        } else {
+            tasksWithoutDueDate.push(task);
+        }
+    });
+
+    let projectViewHTML = '';
+    for (const id in projectsMap) {
+        const projectInfo = projectsMap[id];
+        const linkUrl = projectInfo.status ? `/project/${id}` : '#';
+
+        projectViewHTML += `
+            <h3 class="project-title">
+                <a href="${linkUrl}" class="project-link">
+                    ${projectInfo.title} <span style="color: #666; font-size: 0.8em;">(${projectInfo.status})</span>
+                </a>
+            </h3>
+            <ul class="task-list">
+        `;
+        projectInfo.tasks.forEach(task => {
+            const daysLeft = task.due_date ? Math.floor((new Date(task.due_date) - today) / (1000 * 60 * 60 * 24)) : null;
+            const dateClass = daysLeft !== null ? (daysLeft < 0 ? 'past' : (daysLeft <= 3 ? 'warning' : (daysLeft > 20 ? 'far' : ''))) : '';
+            const dueDateDisplay = task.due_date ? `(${task.due_date})` : '';
+            const beacon = daysLeft === 0 ? `<img src="{{ url_for('static', filename='icons/beacon.gif') }}" alt="Beacon" class="beacon">` : '';
+            
+            const escapedTitle = task.title.replace(/'/g, "\\'").replace(/"/g, '\\"');
+            const escapedComment = (task.comment || '').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
+            const escapedProjectTitle = projectInfo.title.replace(/'/g, "\\'").replace(/"/g, '\\"');
+
+            projectViewHTML += `
+                <li class="task-row">
+                    <div class="task-content">
+                        <span class="task-title-container">
+                            <a href="#" class="task-title-link" onclick="toggleEditForm('${task.id}', '${escapedTitle}', '${task.status}', '${task.start_date || ''}', '${task.due_date || ''}', '${task.finished_date || ''}', '${escapedComment}', '${escapedProjectTitle}'); return false;">${task.title}</a>
+                        </span>
+                        <span class="due-date ${dateClass}">${dueDateDisplay}</span>
+                        ${beacon}
+                    </div>
+                </li>
+            `;
+        });
+        projectViewHTML += `</ul>`;
+    }
+    projectView.innerHTML = projectViewHTML;
+
+    let timelineHTML = '<h3>🔘 기한 있음</h3><ul class="task-list">';
+    tasksWithDueDate.sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+    
+    tasksWithDueDate.forEach(task => {
+        const taskDate = new Date(task.due_date);
+        taskDate.setHours(0, 0, 0, 0);
+        const daysLeft = Math.floor((taskDate - today) / (1000 * 60 * 60 * 24));
+        const dateClass = daysLeft < 0 ? 'past' : (daysLeft <= 3 ? 'warning' : (daysLeft > 20 ? 'far' : ''));
+        const beacon = daysLeft === 0 ? `<img src="{{ url_for('static', filename='icons/beacon.gif') }}" alt="Beacon" class="beacon">` : '';
+        const projectTitle = task.project ? task.project.title : '프로젝트 없음';
+        const linkUrl = task.project ? `/project/${task.project.id}` : '#';
+
+        const escapedTitle = task.title.replace(/'/g, "\\'").replace(/"/g, '\\"');
+        const escapedComment = (task.comment || '').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
+        const escapedProjectTitle = projectTitle.replace(/'/g, "\\'").replace(/"/g, '\\"');
+        
+        timelineHTML += `
+            <li class="task-row">
+                <div class="task-content">
+                    <span class="task-title-container">
+                        <a href="#" class="task-title-link" onclick="toggleEditForm('${task.id}', '${escapedTitle}', '${task.status}', '${task.start_date || ''}', '${task.due_date || ''}', '${task.finished_date || ''}', '${escapedComment}', '${escapedProjectTitle}'); return false;">${task.title}</a>
+                    </span>
+                    <span class="due-date ${dateClass}">(${task.due_date})</span>
+                    ${beacon}
+                    <span class="project-name-container">
+                        - [<a href="${linkUrl}" class="project-name-link">${projectTitle}</a>]
+                    </span>
+                </div>
+            </li>
+        `;
+    });
+    
+    timelineHTML += '</ul><h3>🔘 기한 없음</h3><ul class="task-list">';
+    tasksWithoutDueDate.forEach(task => {
+        const projectTitle = task.project ? task.project.title : '프로젝트 없음';
+        const linkUrl = task.project ? `/project/${task.project.id}` : '#';
+        const escapedTitle = task.title.replace(/'/g, "\\'").replace(/"/g, '\\"');
+        const escapedComment = (task.comment || '').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
+        const escapedProjectTitle = projectTitle.replace(/'/g, "\\'").replace(/"/g, '\\"');
+
+        timelineHTML += `
+            <li class="task-row">
+                <div class="task-content">
+                    <span class="task-title-container">
+                        <a href="#" class="task-title-link" onclick="toggleEditForm('${task.id}', '${escapedTitle}', '${task.status}', '${task.start_date || ''}', '${task.due_date || ''}', '${task.finished_date || ''}', '${escapedComment}', '${escapedProjectTitle}'); return false;">${task.title}</a>
+                    </span>
+                    <span class="project-name-container">
+                        - [<a href="${linkUrl}" class="project-name-link">${projectTitle}</a>]
+                    </span>
+                </div>
+            </li>
+        `;
+    });
+    timelineHTML += '</ul>';
+    timelineView.innerHTML = timelineHTML;
+}
+
+function toggleViewMode(mode) {
+    const projectView = document.getElementById('projectView');
+    const timelineView = document.getElementById('timelineView');
+    const toggleSwitch = document.querySelector('.toggle-switch');
+    const modeText = document.getElementById('modeText');
+    
+    if (mode === undefined) mode = projectView.classList.contains('hidden') ? 'project' : 'timeline';
+    
+    if (mode === 'timeline') {
+        projectView.classList.add('hidden');
+        timelineView.classList.remove('hidden');
+        if (toggleSwitch) toggleSwitch.classList.add('active');
+        if (modeText) modeText.textContent = '타임라인';
+    } else {
+        projectView.classList.remove('hidden');
+        timelineView.classList.add('hidden');
+        if (toggleSwitch) toggleSwitch.classList.remove('active');
+        if (modeText) modeText.textContent = '프로젝트';
+    }
+    sessionStorage.setItem('viewMode', mode);
+}
+
+// === Edit Form Logic ===
+function toggleEditForm(taskId, title, status, startDate, dueDate, finishedDate, comment, projectTitle) {
+    var panel = document.getElementById('edit-panel');
+    var isPanelVisible = panel.style.right === '0px';
+
+    if (!isPanelVisible && taskId) {
+        panel.style.right = '0';
+        panel.style.display = 'flex';
+        var form = document.getElementById('edit-form');
+        form.innerHTML = generateEditFormHTML(taskId, title, status, startDate, dueDate, finishedDate, comment);
+        form.action = `/update_task/${taskId}`;
+        document.getElementById('project-title').textContent = projectTitle;
+    } else {
+        panel.style.right = '-40%';
+        setTimeout(function() {
+            panel.style.display = 'none';
+        }, 300);
+    }
+}
+
+// [추가] 취소 버튼 동작 함수 (누락된 함수 추가)
+function cancelEdit() {
+    var panel = document.getElementById('edit-panel');
+    // 패널 닫기 (toggleEditForm의 닫기 로직과 동일)
+    panel.style.right = ''; 
+    setTimeout(function() {
+        panel.style.display = 'none';
+    }, 300);
+}
+
+function generateEditFormHTML(taskId, title, status, startDate, dueDate, finishedDate, comment) {
+    const sanitizedComment = comment.replace(/"/g, '&quot;').replace(/\n/g, '&#10;');
+    
+    // [수정됨] 가장 바깥 div의 inline style을 제거하고 class="task-edit-card"를 추가했습니다.
+    return `
+        <div class="task-edit-card">
+            <div style="margin-bottom: 10px;">
+                <input type="text" name="title" value="${title.replace(/"/g, '&quot;')}" required class="editable-input" style="font-size: 22px; font-weight: bold;">
+            </div>
+            <div style="margin-bottom: 30px;">
+                <select name="status" required class="editable-input" style="width: 30%; padding: 5px;" onchange="updateFinishedDate(this);">
+                    <option value="To Do" ${status === 'To Do' ? 'selected' : ''}>To Do</option>
+                    <option value="Done" ${status === 'Done' ? 'selected' : ''}>Done</option>
+                </select>
+            </div>
+            <div style="display: flex; margin-bottom: 20px;">
+                <div style="flex: 1; margin-right: 5px;">
+                    <label for="start_date">Start Date:</label>
+                    <input type="date" name="start_date" value="${startDate}" class="editable-input" style="width: 80%; padding: 5px;">
+                </div>
+                <div style="flex: 1; margin-right: 5px;">
+                    <label for="due_date">Due Date:</label>
+                    <input type="date" name="due_date" value="${dueDate}" class="editable-input" style="width: 80%; padding: 5px;">
+                </div>
+            </div>
+            <div style="margin-bottom: 30px;">
+                <label for="finished_date">Finished Date:</label><br>
+                <input type="date" id="finished_date" name="finished_date" value="${finishedDate}" class="editable-input" style="width: 40%; padding: 5px;">
+            </div>
+            <div style="margin-bottom: 10px;">
+                <label for="comment">Comment:</label>
+                <textarea name="comment" rows="7" class="editable-input" style="width: 95%; padding: 5px;">${sanitizedComment}</textarea>
+            </div>
+            <div style="margin-bottom: 10px; text-align: center;">
+                <input type="hidden" name="return_url" value="${window.location.href}">
+                <button type="submit" class="task-action-btn update-btn" 
+                        style="display: inline-block; width: 100px; height: 35px; padding: 5px; background-color: #4CAF50; color: white; border: none; cursor: pointer; margin-right: 20px;"
+                        onclick="localStorage.setItem('selectedTab', 'tasks');">  <i class="fas fa-check"></i> <span class="btn-text">Update</span>
+                </button>
+                <button type="button" onclick="cancelEdit();" class="task-action-btn cancel-btn" style="display: inline-block; width: 100px; height: 35px; padding: 5px; background-color: #6c757d; color: white; border: #6c757d; cursor: pointer;">
+                    <i class="fas fa-times"></i> <span class="btn-text">Cancel</span>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function updateFinishedDate(statusSelect) {
+    var finishedDateInput = document.getElementById('finished_date');
+    if (statusSelect.value === 'Done') {
+        var today = new Date().toISOString().split('T')[0];
+        finishedDateInput.value = today;
+    } else {
+        finishedDateInput.value = '';
+    }
+}
+
+async function confirmDelete(event) {
+    // 1. 이벤트 전파 및 기본 동작(제출 등) 완전히 차단
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
+    // 2. 삭제 확인창 (여기서 멈춰야 함)
+    if (!confirm('이 Task를 정말로 삭제하시겠습니까?')) {
+        return;
+    }
+
+    const form = document.getElementById('edit-form');
+    // action URL에서 ID 추출 (예: /update_task/123 -> 123)
+    const actionParts = form.action.split('/');
+    const taskId = actionParts[actionParts.length - 1];
+
+    console.log("삭제 시도 ID:", taskId); // 디버깅용
+
+    try {
+        const response = await fetch(`/delete_task/${taskId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log("서버 응답:", data);
+
+        if (data.success) {
+            // 성공 시 바로 새로고침 (alert 없이)
+            // Tasks 탭이 선택되도록 설정
+            localStorage.setItem('selectedTab', 'tasks');
+            window.location.reload();
+        } else {
+            // 서버에서 success: false를 준 경우
+            alert("삭제 실패: " + (data.error || "알 수 없는 오류가 발생했습니다."));
+        }
+    } catch (error) {
+        // 네트워크 에러나 코드 에러가 난 경우
+        console.error("Fetch 에러:", error);
+        alert("삭제 중 오류가 발생했습니다.\n" + error.message);
+    }
+}
+
+// Click outside to close panel
+document.addEventListener('click', function(event) {
+    var isClickInside = event.target.closest('.edit-panel, .task-title-link');
+    if (!isClickInside) {
+        var panel = document.getElementById('edit-panel');
+        if (panel.style.right === '0px') {
+            panel.style.right = '-40%';
+            setTimeout(function() { panel.style.display = 'none'; }, 300);
+        }
+    }
+});
+
+// Initialization
+document.addEventListener('DOMContentLoaded', function() {
+    // URL 해시 확인 (우선순위: URL 해시 > localStorage > 기본값 'projects')
+    const urlHash = window.location.hash.substring(1); // # 제거
+    const validTabs = ['projects', 'tasks', 'todos', 'materials', 'thoughts', 'on-hold'];
+    let initialTab = 'projects';
+    
+    if (urlHash && validTabs.includes(urlHash)) {
+        initialTab = urlHash;
+    } else {
+        initialTab = localStorage.getItem('selectedTab') || 'projects';
+    }
+    
+    showTab(initialTab);
+    
+    const savedViewMode = sessionStorage.getItem('viewMode') || 'project';
+    toggleViewMode(savedViewMode);
+
+    const tagFilter = document.getElementById('materials-tag-filter');
+    const uniqueTags = [...new Set(materialsData.memos.map(memo => memo.tag && memo.tag.name).filter(name => name))].sort();
+    
+    tagFilter.innerHTML = '<option value="">All Tags</option>';
+    uniqueTags.forEach(tagName => {
+        const option = document.createElement('option');
+        option.value = tagName;
+        option.textContent = tagName;
+        tagFilter.appendChild(option);
+    });
+});
+
+// URL 해시 변경 감지 (브라우저 뒤로가기/앞으로가기 지원)
+window.addEventListener('hashchange', function() {
+    const urlHash = window.location.hash.substring(1);
+    const validTabs = ['projects', 'tasks', 'todos', 'materials', 'thoughts', 'on-hold'];
+    
+    if (urlHash && validTabs.includes(urlHash)) {
+        showTab(urlHash);
+    }
+});
+
+// === [원복됨] Todo 로드 함수 (날짜-내용-프로젝트-제품) ===
+async function loadTodos() {
+    const loadingDiv = document.getElementById('todos-loading');
+    const tbody = document.getElementById('todos-tbody');
+    try {
+        loadingDiv.style.display = 'block';
+        const response = await fetch('/search_memos?tag_type=todo', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        if (!response.ok) throw new Error('Todo 항목을 불러오는데 실패했습니다.');
+        
+        const data = await response.json();
+        tbody.innerHTML = '';
+        
+        if (data.memos && data.memos.length > 0) {
+            data.memos.forEach(memo => {
+                const row = document.createElement('tr');
+                
+                // Flexbox 구조 (스타일 유지)
+                const contentCell = `
+                    <td>
+                        <div class="content-container">
+                            <a href="/view_memo/${memo.id}" class="content-text">
+                               ${memo.content}
+                            </a>
+                        </div>
+                    </td>`;
+                
+                // [수정됨] Tag 제거하고 Product 복구
+                row.innerHTML = `
+                    <td class="col-date">${memo.date}</td>
+                    ${contentCell}
+                    <td class="col-project">${memo.project || '-'}</td>
+                    <td class="col-product">${memo.product || '-'}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        } else {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #666; font-style: italic; padding: 20px;">Todo 항목이 없습니다.</td></tr>`;
+        }
+    } catch (error) {
+        console.error('Todo 로드 에러:', error);
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #f44336; padding: 20px;">Todo 항목을 불러오는데 실패했습니다.</td></tr>`;
+    } finally {
+        loadingDiv.style.display = 'none';
+    }
+}
+
+let sortDirection = {};
+function sortTable(columnIndex) { /* (기존 sortTable 코드 유지) */ 
+    const table = document.getElementById('completedTable');
+    if (!table) return;
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const dataRows = rows.filter(row => !row.cells[0].hasAttribute('colspan'));
+    if (dataRows.length === 0) return;
+    if (!sortDirection[columnIndex]) { sortDirection[columnIndex] = 'asc'; } else { sortDirection[columnIndex] = sortDirection[columnIndex] === 'asc' ? 'desc' : 'asc'; }
+    const sortableHeaders = table.querySelectorAll('th.sortable .sort-icon');
+    sortableHeaders.forEach((icon, index) => {
+        if (index === columnIndex) { icon.textContent = sortDirection[columnIndex] === 'asc' ? '↑' : '↓'; icon.style.color = '#007bff'; } else { icon.textContent = '↕'; icon.style.color = '#999'; }
+    });
+    dataRows.sort((a, b) => {
+        let aValue = '', bValue = '';
+        if (columnIndex === 3) { aValue = a.cells[3].textContent.trim(); bValue = b.cells[3].textContent.trim(); }
+        else if (columnIndex === 0) { const aLink = a.cells[0].querySelector('a'); const bLink = b.cells[0].querySelector('a'); aValue = aLink ? aLink.textContent.trim() : a.cells[0].textContent.trim(); bValue = bLink ? bLink.textContent.trim() : b.cells[0].textContent.trim(); }
+        else if (columnIndex === 1) { aValue = a.cells[1].textContent.trim(); bValue = b.cells[1].textContent.trim(); if (aValue === '-' && bValue !== '-') return 1; if (bValue === '-' && aValue !== '-') return -1; if (aValue === '-' && bValue === '-') return 0; }
+        const comparison = aValue.localeCompare(bValue, 'ko-KR', { numeric: true, sensitivity: 'base' });
+        return sortDirection[columnIndex] === 'asc' ? comparison : -comparison;
+    });
+    dataRows.forEach(row => tbody.appendChild(row));
+}
+
+let todosSortDirection = {};
+function sortTodosTable(columnIndex) { /* (기존 sortTodosTable 코드 유지) */
+    const table = document.getElementById('todosTable');
+    if (!table) return;
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const dataRows = rows.filter(row => !row.cells[0].hasAttribute('colspan'));
+    if (dataRows.length === 0) return;
+    if (!todosSortDirection[columnIndex]) { todosSortDirection[columnIndex] = 'asc'; } else { todosSortDirection[columnIndex] = todosSortDirection[columnIndex] === 'asc' ? 'desc' : 'asc'; }
+    const sortableHeaders = table.querySelectorAll('th.sortable .sort-icon');
+    sortableHeaders.forEach((icon, index) => {
+        if (index === columnIndex) { icon.textContent = todosSortDirection[columnIndex] === 'asc' ? '↑' : '↓'; icon.style.color = '#007bff'; } else { icon.textContent = '↕'; icon.style.color = '#999'; }
+    });
+    dataRows.sort((a, b) => {
+        let aValue = a.cells[columnIndex].textContent.trim(); let bValue = b.cells[columnIndex].textContent.trim();
+        if (columnIndex === 0) { aValue = new Date(aValue); bValue = new Date(bValue); const comparison = aValue - bValue; return todosSortDirection[columnIndex] === 'asc' ? comparison : -comparison; }
+        if (aValue === '-' && bValue !== '-') return 1; if (bValue === '-' && aValue !== '-') return -1; if (aValue === '-' && bValue === '-') return 0;
+        const comparison = aValue.localeCompare(bValue, 'ko-KR', { numeric: true, sensitivity: 'base' });
+        return todosSortDirection[columnIndex] === 'asc' ? comparison : -comparison;
+    });
+    dataRows.forEach(row => tbody.appendChild(row));
+}
+
+let onHoldSortDirection = {};
+function sortOnHoldTable(columnIndex) {
+    const table = document.getElementById('onHoldTable');
+    if (!table) return;
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const dataRows = rows.filter(row => !row.cells[0].hasAttribute('colspan'));
+    if (dataRows.length === 0) return;
+    
+    if (!onHoldSortDirection[columnIndex]) { 
+        onHoldSortDirection[columnIndex] = 'asc'; 
+    } else { 
+        onHoldSortDirection[columnIndex] = onHoldSortDirection[columnIndex] === 'asc' ? 'desc' : 'asc'; 
+    }
+    
+    const sortableHeaders = table.querySelectorAll('th.sortable .sort-icon');
+    sortableHeaders.forEach((icon, index) => {
+        if (index === columnIndex) { 
+            icon.textContent = onHoldSortDirection[columnIndex] === 'asc' ? '↑' : '↓'; 
+            icon.style.color = '#007bff'; 
+        } else { 
+            icon.textContent = '↕'; 
+            icon.style.color = '#999'; 
+        }
+    });
+    
+    dataRows.sort((a, b) => {
+        let aValue = '', bValue = '';
+        
+        if (columnIndex === 0) { 
+            // 프로젝트명
+            const aLink = a.cells[0].querySelector('a');
+            const bLink = b.cells[0].querySelector('a');
+            aValue = aLink ? aLink.textContent.trim() : a.cells[0].textContent.trim();
+            bValue = bLink ? bLink.textContent.trim() : b.cells[0].textContent.trim();
+        } else if (columnIndex === 1) { 
+            // Product
+            aValue = a.cells[1].textContent.trim();
+            bValue = b.cells[1].textContent.trim();
+            if (aValue === '-' && bValue !== '-') return 1;
+            if (bValue === '-' && aValue !== '-') return -1;
+            if (aValue === '-' && bValue === '-') return 0;
+        } else if (columnIndex === 3) { 
+            // Description
+            aValue = a.cells[3].textContent.trim();
+            bValue = b.cells[3].textContent.trim();
+        }
+        
+        const comparison = aValue.localeCompare(bValue, 'ko-KR', { numeric: true, sensitivity: 'base' });
+        return onHoldSortDirection[columnIndex] === 'asc' ? comparison : -comparison;
+    });
+    
+    dataRows.forEach(row => tbody.appendChild(row));
+}
+
+</script>
+{% endblock %}

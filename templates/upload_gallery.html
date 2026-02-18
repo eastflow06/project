@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}
+인덱스 이미지 관리
+{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>이미지 업로드</h1>
+    <form action="{{ url_for('image_upload_gallery') }}" method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="file">업로드할 이미지를 선택하세요:</label>
+            <input type="file" name="file" id="file" required>
+        </div>
+        <button type="submit" class="btn btn-primary">업로드</button>
+    </form>
+
+    <h2 style="display: inline;">이미지 갤러리</h2>
+    <button class="btn btn-secondary" id="slideShowBtn" onclick="startSlideshow()" style="display: inline; width: 120px;">슬라이드 보기</button>
+    
+    <div class="gallery-container">
+        <br>
+        {% for image in images %}
+        <div class="gallery-item" style="display: inline-block;">
+             <img id="image_{{ loop.index }}" src="{{ url_for('static', filename='photo/' ~ image) }}" alt="{{ image }}" 
+                 style="width: 150px; height: 150px; object-fit: cover; cursor: pointer;" onclick="showImage('{{ url_for('static', filename='photo/' ~ image) }}', {{ loop.index0 }})">
+            <form action="{{ url_for('delete_image_file', filename=image) }}" method="POST" style="display: inline;">
+                <button type="submit" class="delete-button" onclick="return confirm('정말로 이 이미지를 삭제하시겠습니까?')">X</button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+
+<script>
+    let images = [];
+    let currentIndex = 0;
+    let slideInterval;
+    let isPlaying = true;
+    let isZoomed = false; // Track the zoom state
+
+    {% for image in images %}
+        images.push("{{ url_for('static', filename='photo/' ~ image) }}");
+    {% endfor %}
+
+    function showNextImage() {
+        currentIndex = (currentIndex + 1) % images.length;
+        updateFullscreenImage();
+    }
+
+    function showPreviousImage() {
+        currentIndex = (currentIndex - 1 + images.length) % images.length;
+        updateFullscreenImage();
+    }
+
+    function updateFullscreenImage() {
+        const currentImage = document.getElementById('slideshow');
+        currentImage.src = images[currentIndex];
+        adjustImageSize(currentImage);
+    }
+
+    function adjustImageSize(img) {
+        const screenRatio = window.innerWidth / window.innerHeight;
+        const imgRatio = img.naturalWidth / img.naturalHeight;
+
+        if (screenRatio > imgRatio) {
+            img.style.width = isZoomed ? 'auto' : '100%';
+            img.style.height = isZoomed ? '100%' : 'auto';
+        } else {
+            img.style.width = isZoomed ? '100%' : 'auto';
+            img.style.height = isZoomed ? 'auto' : '100%';
+        }
+    }
+
+    function toggleZoom() {
+        isZoomed = !isZoomed;
+        adjustImageSize(document.getElementById('slideshow'));
+    }
+
+    function showImage(imageUrl, index) {
+        currentIndex = index;
+
+        let background = document.createElement("div");
+        background.style.position = "fixed";
+        background.style.top = "0";
+        background.style.left = "0";
+        background.style.width = "100%";
+        background.style.height = "100%";
+        background.style.backgroundColor = "black";
+        background.style.zIndex = "9998";
+        background.id = "slideshowBackground";
+        document.body.appendChild(background);
+
+        let img = document.createElement("img");
+        img.id = "slideshow";
+        img.src = imageUrl;
+        img.style.position = "fixed";
+        img.style.top = "50%";
+        img.style.left = "50%";
+        img.style.transform = "translate(-50%, -50%)";
+        img.style.transition = "opacity 1s ease-in-out";
+        img.style.cursor = "zoom-in";
+        img.style.zIndex = "9999";
+        img.onclick = toggleZoom; // Toggle zoom on click
+        document.body.appendChild(img);
+
+        adjustImageSize(img);
+    }
+
+    function closeFullscreen() {
+        let elements = ['slideshow', 'slideshowBackground'];
+        elements.forEach(function(id) {
+            let el = document.getElementById(id);
+            if (el) document.body.removeChild(el);
+        });
+    }
+
+    function startSlideshow() {
+        shuffleArray(images); // 슬라이드 쇼를 시작할 때 이미지를 랜덤으로 섞음
+        currentIndex = 0;
+
+        // 전체 화면 모드로 전환
+        if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen();
+        } else if (document.documentElement.mozRequestFullScreen) { // Firefox
+            document.documentElement.mozRequestFullScreen();
+        } else if (document.documentElement.webkitRequestFullscreen) { // Chrome, Safari and Opera
+            document.documentElement.webkitRequestFullscreen();
+        } else if (document.documentElement.msRequestFullscreen) { // IE/Edge
+            document.documentElement.msRequestFullscreen();
+        }
+
+        showImage(images[currentIndex], currentIndex);
+        slideInterval = setInterval(showNextImage, 6000); // 6초마다 이미지 변경
+    }
+
+    function stopSlideshow() {
+        clearInterval(slideInterval);
+        closeFullscreen();
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.mozCancelFullScreen) { // Firefox
+            document.mozCancelFullScreen();
+        } else if (document.webkitExitFullscreen) { // Chrome, Safari and Opera
+            document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) { // IE/Edge
+            document.msExitFullscreen();
+        }
+    }
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            stopSlideshow();
+        } else if (event.key === 'ArrowRight') {
+            showNextImage();
+        } else if (event.key === 'ArrowLeft') {
+            showPreviousImage();
+        }
+    });
+
+    window.addEventListener('resize', () => {
+        const currentImage = document.getElementById('slideshow');
+        if (currentImage) adjustImageSize(currentImage);
+    });
+
+    // 배열을 무작위로 섞는 함수
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
+</script>
+{% endblock %}
+
+<style>
+    .gallery-container {
+        display: flex;
+        flex-direction: row; /* 이미지를 왼쪽에서 오른쪽으로 나란히 배치 */
+        flex-wrap: wrap; /* 화면을 넘어가는 이미지는 다음 줄로 넘김 */
+        gap: 20px;
+    }
+
+    .gallery-item {
+        display: flex;
+        flex-direction: column; /* 버튼을 이미지 아래로 배치 */
+        align-items: center;
+        width: 150px;
+    }
+
+    .gallery-item img {
+        width: 150px;
+        height: 150px;
+        object-fit: cover;
+        cursor: pointer;
+    }
+
+    .delete-button {
+        background: none;
+        border: none;
+        color: black;
+        font-size: 16px;
+        cursor: pointer;
+        margin-top: 5px; /* 이미지와 버튼 사이에 약간의 간격을 둠 */
+    }
+
+    #slideShowBtn {
+        margin-top: 20px;
+    }
+</style>

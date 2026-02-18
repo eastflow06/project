@@ -1,0 +1,2057 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIMS 대시보드</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: 'var(--bg-color)',
+                            card: 'var(--card-bg)',
+                            border: 'var(--border-color)',
+                            text: 'var(--text-color)',
+                            muted: 'var(--muted-text)'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            /* Light Mode Defaults */
+            --bg-color: #ffffff;
+            --text-color: #333333;
+            --card-bg: #f9f9f9;
+            --border-color: #bbb;
+            --muted-text: #666;
+            
+            /* Chart Colors (Light) */
+            --chart-text: #333333;
+            --chart-grid: #e5e7eb;
+            --chart-axis: #64748b;
+        }
+
+        /* Dark Mode (mapped from style.css body.dark-mode) */
+        .dark {
+            --bg-color: #2f343f;
+            --text-color: #e0e0e0;
+            --card-bg: #3f4652;
+            --border-color: rgba(255, 255, 255, 0.15);
+            --muted-text: #a0a0a0;
+            
+            /* Chart Colors (Dark) */
+            --chart-text: #ffffff;
+            --chart-grid: #64748b;
+            --chart-axis: #cbd5e1;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+        /* Toast 알림 스타일 */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            min-width: 300px;
+            max-width: 500px;
+            padding: 16px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            z-index: 9999;
+            animation: slideIn 0.3s ease-out;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .toast.success {
+            background-color: #10b981;
+            color: white;
+        }
+        .toast.error {
+            background-color: #ef4444;
+            color: white;
+        }
+        .toast.info {
+            background-color: #3b82f6;
+            color: white;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+        .toast.hiding {
+            animation: slideOut 0.3s ease-out;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569; 
+        }
+        
+        /* Markdown Styles */
+        .prose-invert {
+            color: #d1d5db;
+        }
+        .prose-invert h1, .prose-invert h2, .prose-invert h3, .prose-invert h4 {
+            color: #f3f4f6;
+            font-weight: 600;
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+        }
+        .prose-invert p {
+            margin-bottom: 1em;
+            line-height: 1.6;
+        }
+        .prose-invert ul {
+            list-style-type: disc;
+            padding-left: 1.5em;
+            margin-bottom: 1em;
+        }
+        .prose-invert ol {
+            list-style-type: decimal;
+            padding-left: 1.5em;
+            margin-bottom: 1em;
+        }
+        .prose-invert a {
+            color: #60a5fa;
+            text-decoration: underline;
+        }
+        .prose-invert blockquote {
+            border-left: 4px solid #4b5563;
+            padding-left: 1em;
+            color: #9ca3af;
+            font-style: italic;
+        }
+        .prose-invert code {
+            background-color: #374151;
+            padding: 0.2em 0.4em;
+            border-radius: 0.25em;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        .prose-invert pre {
+            background-color: #1f2937;
+            padding: 1em;
+            border-radius: 0.5em;
+            overflow-x: auto;
+            margin-bottom: 1em;
+        }
+        .prose-invert pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+        .prose-invert table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1em;
+        }
+        .prose-invert th, .prose-invert td {
+            border: 1px solid #374151;
+            padding: 0.5em;
+        }
+        .prose-invert th {
+            background-color: #1f2937;
+        }
+        
+        /* Sidebar Scroll - Show only on hover */
+        .sidebar-scroll::-webkit-scrollbar-thumb {
+            background: transparent;
+        }
+        .sidebar-scroll:hover::-webkit-scrollbar-thumb {
+            background: #334155;
+        }
+    </style>
+</head>
+<body class="dark h-screen w-screen flex flex-col overflow-hidden bg-dark-bg text-dark-text">
+    
+    <!-- 상단 헤더 --> 
+    <div class="h-12 px-4 py-1 border-b border-dark-border flex items-center justify-between bg-dark-card flex-none">
+        <!-- Left: Logo -->
+        <!-- Left: Logo & Home -->
+        <div class="flex items-center gap-4">
+            <a href="{{ url_for('index') }}" class="text-dark-muted hover:text-dark-text transition" title="상위 폴더로 이동">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+            </a>
+            <div class="h-4 w-px bg-dark-border"></div>
+            <a href="{{ url_for('lims.dashboard') }}" class="flex items-center gap-2 text-dark-text font-bold text-lg hover:text-blue-400 transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+                </svg>
+                <span>LIMS</span>
+            </a>
+        </div>
+            
+        <!-- Center: Search -->
+        <div class="flex-1 flex justify-center px-4">
+            <div class="w-full max-w-xs flex gap-2">
+                <div class="relative group flex flex-1 rounded-lg shadow-sm">
+                    <!-- 검색 범위 선택 Select -->
+                    <select id="search-scope" onchange="renderTestList()" class="appearance-none rounded-l-lg border border-r-0 border-dark-border bg-dark-bg text-dark-text text-xs px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 hover:bg-dark-border/50 transition-colors w-20 text-center cursor-pointer">
+                        <option value="all">통합</option>
+                        <option value="title">제목</option>
+                        <option value="product">제품</option>
+                        <option value="info">정보</option>
+                    </select>
+                    
+                    <!-- 검색어 입력 Input -->
+                    <div class="relative flex-grow focus-within:z-10">
+                        <input type="text" 
+                               id="search-input" 
+                               oninput="renderTestList()"
+                               class="block w-full rounded-none rounded-r-lg pl-3 pr-8 py-1.5 border border-dark-border bg-dark-bg text-dark-text placeholder-dark-muted focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm transition-all" 
+                               placeholder="검색 (Ctrl+K)...">
+                        <div class="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
+                            <svg class="h-4 w-4 text-dark-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 초기화 버튼 -->
+                <button onclick="resetSearch()" class="px-2 py-1.5 bg-dark-bg border border-dark-border rounded-lg text-dark-muted hover:text-white hover:bg-dark-border/50 transition-colors flex-shrink-0" title="검색 초기화">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <a href="{{ url_for('lims.test_list') }}" 
+               class="w-9 h-9 flex items-center justify-center bg-dark-bg border border-dark-border text-dark-text rounded-lg hover:bg-dark-border hover:text-blue-400 transition"
+               title="목록보기">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+                </svg>
+            </a>
+            <a href="{{ url_for('lims.upload_page') }}" 
+               class="w-9 h-9 flex items-center justify-center bg-dark-bg border border-dark-border text-dark-text rounded-lg hover:bg-dark-border hover:text-green-400 transition"
+               title="HTML 업로드">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+            </a>
+            <button onclick="window.location.href='/lims/edit/0'" 
+                    class="w-9 h-9 flex items-center justify-center bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                    title="새 시험 등록">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+            </button>
+            <button onclick="toggleDarkMode()" 
+                    class="w-9 h-9 flex items-center justify-center text-dark-muted hover:text-yellow-400 transition hover:bg-white/5 rounded-lg" 
+                    title="다크 모드 전환">
+                <svg id="header-icon-dark" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                </svg>
+                <svg id="header-icon-light" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <input type="file" id="html-upload-input" accept=".html,.htm" class="hidden" onchange="handleHtmlUpload(this)">
+    </div>
+
+    <!-- 2. 메인 콘텐츠 영역 (사이드바와 메인 패널 분할) -->
+    <div class="flex flex-1 overflow-hidden">
+        
+        <!-- 왼쪽 사이드바 (border-r로 분할) -->
+        <aside class="w-[20%] flex-none bg-dark-card border-r border-dark-border flex flex-col">
+            <div class="p-3 border-b border-dark-border flex-shrink-0 bg-dark-card flex gap-2">
+                <div class="relative flex-1">
+                    <select id="sort-select" onchange="handleSortChange()" class="w-full appearance-none bg-dark-bg border border-dark-border text-dark-text pl-3 pr-8 py-1.5 rounded text-xs focus:outline-none focus:border-blue-500 cursor-pointer">
+                        <option value="test_title">제목명</option>
+                        <option value="product_name">제품명</option>
+                        <option value="updated_at" selected>업데이트일자</option>
+                        <option value="created_at">등록일자</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-dark-muted">
+                        <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                </div>
+                <button type="button" onclick="toggleSortOrder()" id="sort-order-btn" class="px-2 py-1 bg-dark-bg border border-dark-border rounded text-dark-muted hover:text-blue-500 hover:border-blue-500 transition-colors flex items-center justify-center" title="정렬 순서 변경">
+                    <!-- Z-A (Desc) -->
+                    <svg id="sort-icon-desc" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"></path></svg>
+                    <!-- A-Z (Asc) -->
+                    <svg id="sort-icon-asc" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h5m4 0l4 4m0 0l4-4m-4 4v-12"></path></svg>
+                </button>
+            </div>
+            
+            <!-- 목록 스크롤 영역 -->
+            <div class="flex-1 overflow-y-auto p-2 sidebar-scroll">
+                <div id="test-list" class="space-y-0">
+                    <!-- 데이터가 여기에 동적으로 추가됩니다 -->
+                </div>
+
+                <!-- 빈 상태 -->
+                <div id="empty-state" class="hidden py-10 text-center">
+                    <p class="text-sm text-dark-muted">등록된 시험이 없습니다</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 오른쪽 메인 패널 (하단 Status Bar 공간 확보를 위해 pb-14 추가 - 푸터 높이만큼) -->
+        <main class="flex-1 flex flex-col min-w-0 bg-dark-bg pb-14 overflow-hidden">
+            
+            <!-- 통합 메인 컨테이너 (여백 제거) -->
+            <div class="flex-1 bg-dark-card flex flex-col overflow-hidden">
+                
+                <!-- 상단/하단 분할 영역 (flex-1) -->
+                <div class="flex-1 flex flex-col min-h-0">
+                    <!-- 상단: 80% 영역 (그래프/결과) -->
+                    <div class="flex-1 flex flex-col border-b border-dark-border relative">
+                        <!-- 헤더 -->
+
+
+                        <!-- 바디 (차트/HTML) -->
+                        <div id="result-body" class="flex-1 overflow-hidden relative bg-dark-bg">
+                            <div id="result-placeholder" class="h-full flex flex-col items-center justify-center text-dark-muted">
+                                <svg class="h-16 w-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                </svg>
+                                <p class="text-lg">왼쪽 목록에서 시험을 선택하세요</p>
+                            </div>
+                        </div>
+
+
+                        <!-- Data Slide Panel (Top to Bottom) -->
+                        <div id="data-slide-panel" class="absolute inset-x-0 top-0 h-[50%] bg-dark-card border-b border-dark-border shadow-2xl transform -translate-y-full transition-transform duration-300 z-20 flex flex-col">
+                            <div class="p-4 border-b border-dark-border flex items-center justify-between bg-dark-card">
+                                <h3 class="text-sm font-semibold text-dark-text">원본 데이터</h3>
+                                <button onclick="toggleDataPanel(event)" class="bg-transparent hover:bg-dark-border/50 rounded-full p-1 transition-colors">
+                                    <svg class="w-5 h-5 text-dark-muted hover:text-dark-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div id="data-content" class="flex-1 overflow-auto p-4 bg-dark-bg/95">
+                                <div class="text-center text-dark-muted py-10">데이터를 불러오는 중...</div>
+                            </div>
+                        </div>
+
+                        <!-- Info Slide Panel -->
+                        <div id="info-slide-panel" class="absolute inset-y-0 right-0 w-[400px] bg-dark-card border-l border-dark-border shadow-2xl transform translate-x-full transition-transform duration-300 z-20 flex flex-col">
+                            <div class="p-4 border-b border-dark-border flex items-center justify-between bg-dark-card">
+                                <h3 class="text-lg font-semibold text-dark-text">시험 상세 정보</h3>
+                                <button onclick="toggleInfoPanel(event)" class="text-dark-muted hover:text-dark-text transition-colors">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div id="info-content" class="flex-1 overflow-y-auto p-4 space-y-6">
+                                <!-- Dynamic Content -->
+                            </div>
+                        </div>
+
+                        <!-- Floating Action Buttons (Right-Middle) -->
+
+                    </div>
+
+
+                </div>
+
+                <!-- 푸터 제거 (최상위 레벨로 이동) -->
+            </div>
+        </main>
+    </div>
+
+    <!-- 3. 하단 상태 표시줄 (Status Bar) - 화면 하단 고정 -->
+    <footer id="result-footer" class="fixed bottom-0 left-[20%] right-0 h-14 bg-dark-card border-t border-dark-border shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] flex items-center justify-between px-6 z-30 transition-transform duration-300">
+        <!-- 내용은 JS로 동적 로드됨 -->
+    </footer>
+
+    <!-- 토스트 컨테이너 -->
+    <div id="toast-container"></div>
+
+    <!-- 로딩 인디케이터 -->
+    <div id="loading" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-dark-card rounded-lg p-6 flex items-center gap-4">
+            <svg class="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="text-white text-lg">로딩 중...</span>
+        </div>
+    </div>
+
+    <script>
+        // 전역 변수
+        let currentTestId = null;
+        let currentTestData = null;
+        let currentChart = null;
+        let currentChartData = null;
+        let debounceTimer = null; // Debounce timer for keyboard navigation
+        
+        function getCssVar(name) {
+            return getComputedStyle(document.body).getPropertyValue(name).trim();
+        }
+
+        // 정렬 관련 변수
+        let allTests = [];
+        let sortField = 'updated_at'; // Default to updated_at as requested
+        let sortOrder = 'desc'; // 'desc' (Z-A/최신순) or 'asc' (A-Z/오래된순) - Default DESC for dates
+
+        // 페이지 로드 시 시험 목록 조회
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTests();
+            setupStateManagement();
+            setupKeyboardNavigation();
+            
+            // 검색 단축키 (Ctrl+K)
+            document.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    document.getElementById('search-input').focus();
+                }
+            });
+
+            // 테마 변경 감지하여 차트 업데이트 (MutationObserver)
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.attributeName === 'class') {
+                        if (currentChart) {
+                            const text = getCssVar('--chart-text');
+                            const grid = getCssVar('--chart-grid');
+                            const axis = getCssVar('--chart-axis');
+
+                            if (currentChart.options.plugins.legend) {
+                                currentChart.options.plugins.legend.labels.color = text;
+                            }
+                            
+                            ['x', 'y'].forEach(axisName => {
+                                if (currentChart.options.scales[axisName]) {
+                                    currentChart.options.scales[axisName].ticks.color = axis;
+                                    currentChart.options.scales[axisName].title.color = axis;
+                                    if (currentChart.options.scales[axisName].grid) {
+                                        currentChart.options.scales[axisName].grid.color = grid;
+                                        currentChart.options.scales[axisName].grid.borderColor = grid;
+                                        currentChart.options.scales[axisName].grid.tickColor = grid;
+                                    }
+                                }
+                            });
+                            
+                            currentChart.update();
+                        }
+                    }
+                });
+            });
+            observer.observe(document.body, { attributes: true }); // body 클래스 변화 감지
+        });
+
+        function setupStateManagement() {
+            // Search Input (Debounced Save)
+            let searchTimeout;
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) {
+                searchInput.addEventListener('input', () => {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(saveDashboardState, 500);
+                });
+            }
+
+            // Search Scope
+            const searchScope = document.getElementById('search-scope');
+            if (searchScope) {
+                searchScope.addEventListener('change', saveDashboardState);
+            }
+
+            // Sort Select
+            const sortSelect = document.getElementById('sort-select');
+            if (sortSelect) {
+                sortSelect.addEventListener('change', () => {
+                    saveDashboardState();
+                });
+            }
+
+            // Scroll (Debounced Save)
+            let scrollTimeout;
+            const scrollContainer = document.querySelector('.sidebar-scroll');
+            if (scrollContainer) {
+                scrollContainer.addEventListener('scroll', () => {
+                    clearTimeout(scrollTimeout);
+                    scrollTimeout = setTimeout(saveDashboardState, 500);
+                });
+            }
+        }
+
+        const STATE_KEY = 'lims_dashboard_state';
+
+        function saveDashboardState() {
+            const scrollContainer = document.querySelector('.sidebar-scroll');
+            const state = {
+                searchQuery: document.getElementById('search-input').value,
+                searchScope: document.getElementById('search-scope').value,
+                selectedId: currentTestId,
+                scrollTop: scrollContainer ? scrollContainer.scrollTop : 0,
+                sortField: sortField,
+                sortOrder: sortOrder
+            };
+            sessionStorage.setItem(STATE_KEY, JSON.stringify(state));
+        }
+
+        function restoreDashboardState() {
+            try {
+                const saved = sessionStorage.getItem(STATE_KEY);
+                return saved ? JSON.parse(saved) : null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        async function loadTests() {
+            showLoading(true);
+            try {
+                const response = await fetch('/lims/api/tests');
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error);
+                }
+
+                allTests = result.data;
+                
+                // State Restoration Logic
+                const savedState = restoreDashboardState();
+                
+                if (savedState) {
+                    // Restore Inputs
+                    const searchInput = document.getElementById('search-input');
+                    const searchScope = document.getElementById('search-scope');
+                    const sortSelect = document.getElementById('sort-select');
+                    
+                    if (searchInput) searchInput.value = savedState.searchQuery || '';
+                    if (searchScope) searchScope.value = savedState.searchScope || 'all';
+                    
+                    // Restore Sort (User requested to always default to updated_at desc on load)
+                    sortField = 'updated_at';
+                    sortOrder = 'desc'; 
+                    // sortField = savedState.sortField || 'updated_at';
+                    // sortOrder = savedState.sortOrder || 'desc'; 
+
+                    if (sortSelect) sortSelect.value = sortField;
+                    
+                    // Update Sort Icon
+                    const ascIcon = document.getElementById('sort-icon-asc');
+                    const descIcon = document.getElementById('sort-icon-desc');
+                    if (sortOrder === 'asc') {
+                        ascIcon.classList.remove('hidden');
+                        descIcon.classList.add('hidden');
+                    } else {
+                        ascIcon.classList.add('hidden');
+                        descIcon.classList.remove('hidden');
+                    }
+
+                    // Render list with restored filters
+                    renderTestList(false);
+                    
+                    // Restore Selection
+                    // URL param 'selected_id' takes precedence if present (e.g. returning from new test creation)
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const paramId = urlParams.get('selected_id');
+                    
+                    let targetId = paramId || savedState.selectedId;
+                    
+                    if (targetId && allTests.some(t => t.id == targetId)) {
+                        selectTest(targetId);
+                    } else if (allTests.length > 0) {
+                        selectTest(allTests[0].id);
+                    }
+                    
+                    // Restore Scroll Position
+                    setTimeout(() => {
+                        const scrollContainer = document.querySelector('.sidebar-scroll');
+                        if (scrollContainer && savedState.scrollTop) {
+                            scrollContainer.scrollTop = savedState.scrollTop;
+                        }
+                    }, 0);
+                    
+                } else {
+                    renderTestList(true); // Normal initial load
+                }
+                
+            } catch (error) {
+                showToast('시험 목록 로드 실패: ' + error.message, 'error');
+                console.error(error);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 시험 목록 렌더링 및 정렬
+        function renderTestList(isInitial = false) {
+            const testList = document.getElementById('test-list');
+            const emptyState = document.getElementById('empty-state');
+            const searchQuery = document.getElementById('search-input') ? document.getElementById('search-input').value.toLowerCase().trim() : '';
+            const searchScope = document.getElementById('search-scope') ? document.getElementById('search-scope').value : 'all';
+
+            // 1. Filter
+            let displayTests = allTests.filter(test => {
+                if (!searchQuery) return true;
+                
+                const title = (test.test_title || '').toLowerCase();
+                const product = (test.product_name || '').toLowerCase();
+                // 시험정보: 개요, 제형정보 등을 포함
+                const info = (test.test_summary || '' + ' ' + test.formulation_info || '').toLowerCase();
+
+                if (searchScope === 'title') {
+                    return title.includes(searchQuery);
+                } else if (searchScope === 'product') {
+                    return product.includes(searchQuery);
+                } else if (searchScope === 'info') {
+                    return info.includes(searchQuery);
+                } else {
+                    // all: 통합검색
+                    return title.includes(searchQuery) || product.includes(searchQuery) || info.includes(searchQuery);
+                }
+            });
+
+            // 2. Sort logic
+            displayTests.sort((a, b) => {
+                let valA = a[sortField];
+                let valB = b[sortField];
+                
+                // 날짜 필드 처리 (created_at, updated_at)
+                if (sortField === 'created_at' || sortField === 'updated_at') {
+                    const dateA = valA ? new Date(valA).getTime() : 0;
+                    const dateB = valB ? new Date(valB).getTime() : 0;
+                    
+                    if (dateA === dateB) return 0;
+                    return sortOrder === 'desc' ? (dateB - dateA) : (dateA - dateB);
+                } 
+                // 문자열 필드 처리
+                else {
+                    valA = (valA || '').toString().toLowerCase();
+                    valB = (valB || '').toString().toLowerCase();
+                    
+                    if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+                    if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+                    return 0;
+                }
+            });
+
+            // 3. Render
+            if (displayTests.length === 0) {
+                if (searchQuery) {
+                    // 검색 결과 없음 상태
+                    testList.innerHTML = `
+                        <div class="py-10 text-center">
+                            <svg class="mx-auto h-12 w-12 text-dark-muted opacity-50 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                            <p class="text-sm text-dark-muted">검색 결과가 없습니다</p>
+                        </div>
+                    `;
+                    emptyState.classList.add('hidden');
+                } else {
+                    // 데이터 없음 상태
+                    testList.innerHTML = '';
+                    emptyState.classList.remove('hidden');
+                }
+                
+                // 목록이 비어있는 경우 푸터 메시지 설정
+                const resultFooter = document.getElementById('result-footer');
+                if (resultFooter.innerHTML.trim() === '') {
+                    resultFooter.innerHTML = '<span class="text-dark-muted">선택된 시험 없음</span>';
+                }
+            } else {
+                emptyState.classList.add('hidden');
+                testList.innerHTML = displayTests.map(test => `
+                    <div class="test-item px-2 py-1 rounded-lg hover:bg-dark-bg cursor-pointer border border-transparent transition-all duration-200 group" 
+                            data-test-id="${test.id}"
+                            onclick="selectTest(${test.id})">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1 min-w-0">
+                                <h3 class="text-sm font-medium text-dark-text truncate mb-0 group-hover:text-blue-400 transition-colors">
+                                    ${escapeHtml(test.test_title)}
+                                </h3>
+                                <div class="flex items-center gap-2 mt-0">
+                                    ${test.html_template ? 
+                                        `<span class="text-green-400 flex-shrink-0" title="HTML Report">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                                        </span>` : 
+                                        `<span class="text-blue-400 flex-shrink-0" title="Chart Data">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                                        </span>`
+                                    }
+                                    <p class="text-xs text-dark-muted truncate">
+                                        ${test.product_name ? escapeHtml(test.product_name) : '제품명 없음'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                // 현재 선택된 아이템 하이라이트 유지
+                if (currentTestId) {
+                    const activeItem = document.querySelector(`.test-item[data-test-id="${currentTestId}"]`);
+                    if (activeItem) {
+                        activeItem.classList.add('bg-dark-bg', 'border-blue-500/50');
+                    }
+                }
+
+                // 초기 로딩 시 첫 번째 항목 자동 선택 (검색 중에는 자동 선택 안함)
+                if (isInitial && currentTestId === null && displayTests.length > 0) {
+                    selectTest(displayTests[0].id);
+                }
+            }
+        }
+
+        // 검색 초기화
+        function resetSearch() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('search-scope').value = 'all';
+            renderTestList();
+        }
+
+        // 아이콘 업데이트 헬퍼
+        function updateSortIcon() {
+            const ascIcon = document.getElementById('sort-icon-asc');
+            const descIcon = document.getElementById('sort-icon-desc');
+            
+            if (sortOrder === 'asc') {
+                ascIcon.classList.remove('hidden');
+                descIcon.classList.add('hidden');
+            } else {
+                ascIcon.classList.add('hidden');
+                descIcon.classList.remove('hidden');
+            }
+        }
+
+        // 정렬 필드 변경 핸들러
+        function handleSortChange() {
+            sortField = document.getElementById('sort-select').value;
+            
+            // 제목명, 제품명은 오름차순(asc) 기본
+            if (sortField === 'test_title' || sortField === 'product_name') {
+                sortOrder = 'asc';
+            } 
+            // 등록일자, 업데이트일자는 내림차순(desc) 기본
+            else if (sortField === 'created_at' || sortField === 'updated_at') {
+                sortOrder = 'desc';
+            }
+            
+            updateSortIcon();
+            renderTestList();
+            saveDashboardState();
+        }
+
+        // 정렬 순서 토글 핸들러
+        function toggleSortOrder() {
+            sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+            updateSortIcon();
+            renderTestList();
+            saveDashboardState();
+        }
+
+        function setupKeyboardNavigation() {
+            document.addEventListener('keydown', (e) => {
+                // Ignore if an input or textarea is focused
+                if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+                    return;
+                }
+
+                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    
+                    const items = Array.from(document.querySelectorAll('.test-item'));
+                    if (items.length === 0) return;
+
+                    // Use currentTestId to find index
+                    let currentIndex = items.findIndex(item => item.dataset.testId == currentTestId);
+                    
+                    // If nothing selected, start from top
+                    if (currentIndex === -1) {
+                        currentIndex = 0;
+                        if (items[0]) {
+                            // First selection can be immediate or debounced, let's debounce for consistency
+                            selectTest(items[0].dataset.testId, true);
+                        }
+                        return;
+                    }
+
+                    let newIndex;
+                    if (e.key === 'ArrowUp') {
+                        newIndex = currentIndex > 0 ? currentIndex - 1 : 0;
+                    } else {
+                        newIndex = currentIndex < items.length - 1 ? currentIndex + 1 : items.length - 1;
+                    }
+
+                    if (newIndex !== currentIndex) {
+                        const targetItem = items[newIndex];
+                        const newId = targetItem.dataset.testId;
+                        
+                        // Pass true to skip immediate loading (debounce)
+                        selectTest(newId, true);
+                        
+                        // Scroll into view
+                        targetItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }
+            });
+        }
+
+        // ... (existing code) ...
+
+        function selectTest(id, skipLoad = false) {
+            // 선택된 항목 하이라이트 (UI Update Immediate)
+            document.querySelectorAll('.test-item').forEach(item => {
+                if (item.dataset.testId == id) {
+                    item.classList.add('bg-dark-bg', 'border-blue-500/50');
+                } else {
+                    item.classList.remove('bg-dark-bg', 'border-blue-500/50');
+                }
+            });
+
+            currentTestId = id;
+            saveDashboardState();
+            
+            // Clear existing timer if any
+            if (debounceTimer) {
+                clearTimeout(debounceTimer);
+                debounceTimer = null;
+            }
+
+            if (skipLoad) {
+                // Debounced loading for keyboard navigation
+                debounceTimer = setTimeout(() => {
+                    loadTestDetails(id);
+                }, 300); // 300ms delay
+            } else {
+                // Immediate loading for clicks
+                loadTestDetails(id);
+            }
+        }
+
+        async function loadTestDetails(id) {
+            // 시험 데이터 로드
+            showLoading(true);
+            try {
+                const response = await fetch(`/lims/api/tests/${id}`);
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error);
+                }
+
+                currentTestData = result.data;
+                displayTestResult(currentTestData);
+            } catch (error) {
+                showToast('시험 데이터 로드 실패: ' + error.message, 'error');
+                console.error(error);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function displayTestResult(test) {
+            const resultBody = document.getElementById('result-body');
+            const resultFooter = document.getElementById('result-footer');
+
+            // 이전 차트 파괴
+            if (currentChart) {
+                currentChart.destroy();
+                currentChart = null;
+            }
+
+            // 초기화
+            resultBody.innerHTML = '';
+            resultFooter.innerHTML = '';
+            
+            // 플로팅 버튼 표시
+            const floatingActions = document.getElementById('floating-actions');
+            if (floatingActions) floatingActions.classList.remove('hidden');
+
+            currentChartData = null; // 데이터 초기화
+            // resultFooter.classList.remove('hidden'); // 상시 노출
+            
+            // Status Bar 보임 처리에 따른 메인 컨텐츠 여백 조정 (상시 적용됨)
+            // document.getElementById('footer-spacer').classList.remove('h-0');
+            // document.getElementById('footer-spacer').classList.add('h-14');
+            
+            // --- 1. 메인 컨텐츠 렌더링 (Body) ---
+            if (test.html_template) {
+                // HTML 템플릿 처리 로직 개선
+                // 1. 데이터 파싱 (<data-store> 확인)
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(test.html_template, 'text/html');
+                const dataStore = doc.querySelector('data-store script[type="application/json"]');
+                
+                let finalHtml = test.html_template;
+                
+                // 1. 데이터 로드 (DB에 저장된 파싱 데이터 우선 사용)
+                let jsonData = null;
+                
+                // 데이터 정규화 함수 (Array of Objects, headers 등 처리)
+                const normalizeData = (data) => {
+                    if (!data) return { columns: [], rows: [] };
+                    
+                    // Array of Objects: [{ col1: val, col2: val }, ...]
+                    if (Array.isArray(data)) {
+                        if (data.length === 0) return { columns: [], rows: [] };
+                        const columns = Object.keys(data[0]);
+                        const rows = data.map(obj => columns.map(col => obj[col]));
+                        return { columns, rows };
+                    }
+                    
+                    // Chart.js Data Format Support
+                    if (data.labels && data.datasets) {
+                        const columns = ['Label'];
+                        data.datasets.forEach((ds, index) => {
+                            columns.push(ds.label || `Dataset ${index + 1}`);
+                        });
+                        
+                        const rows = [];
+                        if (Array.isArray(data.labels)) {
+                            data.labels.forEach((label, i) => {
+                                const row = [label];
+                                data.datasets.forEach(ds => {
+                                    const val = ds.data[i];
+                                    // Handle object data points {x,y} or raw values
+                                    if (typeof val === 'object' && val !== null) {
+                                        row.push(val.y !== undefined ? val.y : JSON.stringify(val));
+                                    } else {
+                                        row.push(val);
+                                    }
+                                });
+                                rows.push(row);
+                            });
+                        }
+                        return { columns, rows };
+                    }
+
+                    // Headers alias support
+                    if (data.headers && !data.columns) {
+                        data.columns = data.headers;
+                    }
+                    
+                    // Ensure structure
+                    if (!data.columns) data.columns = [];
+                    if (!data.rows) data.rows = [];
+                    
+                    return data;
+                };
+
+                if (test.chart_data) {
+                    try {
+                        jsonData = typeof test.chart_data === 'string' ? JSON.parse(test.chart_data) : test.chart_data;
+                        jsonData = normalizeData(jsonData);
+                    } catch (e) {
+                         console.error('Failed to parse test.chart_data', e);
+                    }
+                }
+
+                if (!jsonData && dataStore) {
+                    try {
+                        jsonData = JSON.parse(dataStore.textContent);
+                        jsonData = normalizeData(jsonData);
+                    } catch (e) {
+                         console.error('Failed to parse data-store JSON from HTML', e);
+                    }
+                }
+                
+                currentChartData = jsonData; // 원본 보기 패널용 데이터 설정
+
+                if (dataStore) { // HTML에 dataStore가 있는 경우 시각화 주입 (그래프는 이 데이터나 HTML 자체 데이터 사용)
+                    try {
+                        // 2. 시각화 스크립트 주입
+                        // Chart.js 및 Tailwind CDN 주입 (템플릿에 없을 경우를 대비)
+                        // Note: 렌더링 로직은 HTML 템플릿 내부에 포함되어 있어야 합니다.
+                        // 서버 사이드 뷰(routes.py)와 동일하게 동작하도록 강제 렌더링 로직을 제거하고 라이브러리만 제공합니다.
+                        const injectionScript = `
+                            <script src="https://cdn.tailwindcss.com"><\/script>
+                            <script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>
+                            <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2"><\/script>
+                            <style>
+                                /* Hide internal top-right control buttons */
+                                .fixed.top-4.right-4, .absolute.top-4.right-4, 
+                                .fixed.top-5.right-5, .absolute.top-5.right-5,
+                                .fixed.top-6.right-6, .absolute.top-6.right-6 {
+                                    display: none !important;
+                                }
+                                /* Hide result table area as requested */
+                                result-table-area {
+                                    display: none !important;
+                                }
+                            </style>
+                        `;
+
+                        // </body> 태그 앞에 스크립트 주입
+                        if (finalHtml.includes('</body>')) {
+                            finalHtml = finalHtml.replace('</body>', injectionScript + '</body>');
+                        } else {
+                            finalHtml += injectionScript;
+                        }
+
+                    } catch (e) {
+                         console.error('Failed to parse data-store JSON', e);
+                    }
+                }
+
+                // Blob을 사용하여 HTML 콘텐츠 렌더링
+                const blob = new Blob([finalHtml], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                
+                resultBody.innerHTML = `
+                    <iframe 
+                        src="${url}"
+                        class="w-full h-full border-0"
+                        onload="URL.revokeObjectURL(this.src)"
+                    ></iframe>
+                `;
+            } else {
+                // 차트 데이터 표시
+                resultBody.innerHTML = `
+                    <div class="w-full h-full flex flex-col p-4 relative">
+                        <div id="chart-loading" class="absolute inset-0 flex items-center justify-center bg-dark-bg/50 z-10">
+                            <svg class="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1 relative min-h-0" style="min-height: 300px;">
+                            <canvas id="resultChart"></canvas>
+                        </div>
+                    </div>
+                `;
+
+                // 데이터 로드 및 차트 렌더링
+                fetch(`/lims/api/gsheet/data/${test.id}`)
+                    .then(response => response.json())
+                    .then(result => {
+                        if (!result.success) throw new Error(result.error);
+                        
+                        const data = result.data;
+                        currentChartData = data; // 전역 변수 저장
+                        document.getElementById('chart-loading').classList.add('hidden');
+                        
+                        // 차트 설정이 있다면 사용, 없다면 빈 객체
+                        let settings = {};
+                        if (test.chart_settings) {
+                            settings = test.chart_settings;
+                        } else if (typeof test.chart_data === 'string') {
+                            try {
+                                settings = JSON.parse(test.chart_data);
+                            } catch (e) {
+                                console.warn('Failed to parse chart settings', e);
+                            }
+                        } else if (test.chart_data) {
+                            settings = test.chart_data;
+                        }
+
+                        renderChart(data.columns, data.rows, settings);
+                    })
+                    .catch(error => {
+                        console.error('Chart data load error:', error);
+                        resultBody.innerHTML = `
+                            <div class="h-full flex flex-col items-center justify-center text-dark-muted">
+                                <svg class="h-12 w-12 mb-2 opacity-50 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <p class="text-red-400">데이터 로드 실패</p>
+                                <p class="text-xs mt-1">${error.message}</p>
+                            </div>
+                        `;
+                    });
+            }
+            
+            // --- 1-2. 추가 정보 패널 (Additional Info) ---
+            // --- 1-2. 추가 정보 패널 (Additional Info) ---
+            const infoContent = document.getElementById('info-content');
+            infoContent.innerHTML = ''; // Clear previous content
+
+            // Reset panel state (hide it) when switching tests
+            document.getElementById('info-slide-panel').classList.add('translate-x-full');
+
+            if (test.test_summary || test.formulation_info || (test.image_urls && test.image_urls.length > 0) || (test.reference_links && test.reference_links.length > 0) || test.start_month || test.end_month) {
+                
+                // 이미지 HTML 생성
+                let imagesHtml = '';
+                if (test.image_urls && test.image_urls.length > 0) {
+                    imagesHtml = `
+                        <div class="mb-4">
+                            <h4 class="text-sm font-semibold text-dark-text mb-2">관련 이미지</h4>
+                            <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-dark-border scrollbar-track-transparent">
+                                ${test.image_urls.map(url => `
+                                    <div class="flex-none relative w-full aspect-video rounded-lg overflow-hidden border border-dark-border group">
+                                        <img src="${url}" alt="Related Image" class="w-full h-full object-contain bg-black/20">
+                                        <a href="${url}" target="_blank" class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-colors">
+                                            <svg class="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path>
+                                            </svg>
+                                        </a>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // 링크 HTML 생성
+                let linksHtml = '';
+                if (test.reference_links && test.reference_links.length > 0) {
+                    linksHtml = `
+                        <div class="mb-4">
+                            <h4 class="text-sm font-semibold text-dark-text mb-2">관련 링크</h4>
+                            <ul class="space-y-2">
+                                ${test.reference_links.map(link => `
+                                    <li class="bg-dark-bg p-2 rounded border border-dark-border">
+                                        <a href="${link.url}" target="_blank" class="text-blue-400 hover:text-blue-300 text-sm flex items-start gap-2 break-all">
+                                            <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+                                            <span>${link.title || link.url}</span>
+                                        </a>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    `;
+                }
+
+                // 기간 정보 HTML
+                let periodHtml = '';
+                if (test.start_month || test.end_month) {
+                    const start = test.start_month || '';
+                    const end = test.end_month || '';
+                    const periodText = (start && end) ? `${start} ~ ${end}` : (start || end);
+                    
+                    periodHtml = `
+                        <div class="mb-4">
+                            <h4 class="text-sm font-semibold text-dark-text mb-2">시험 기간</h4>
+                            <div class="text-sm text-dark-text bg-dark-bg p-3 rounded border border-dark-border">
+                                <div class="flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-dark-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                    <span>${escapeHtml(periodText)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // 텍스트 정보 HTML (Markdown with DOMPurify)
+                const summaryHtml = test.test_summary ? `
+                    <div class="mb-4">
+                        <h4 class="text-sm font-semibold text-dark-text mb-2">시험 개요</h4>
+                        <div class="text-sm text-dark-text bg-dark-bg p-3 rounded border border-dark-border prose-invert max-w-none">
+                            ${DOMPurify.sanitize(marked.parse(test.test_summary))}
+                        </div>
+                    </div>
+                ` : '';
+
+                let formulationHtml = '';
+                if (test.formulation_info) {
+                    let isJson = false;
+                    let formulationData = null;
+                    try {
+                        const parsed = JSON.parse(test.formulation_info);
+                        if (Array.isArray(parsed)) {
+                            isJson = true;
+                            formulationData = parsed;
+                        }
+                    } catch (e) {
+                        // Not JSON, treat as text
+                    }
+
+                    if (isJson) {
+                        const rowsHtml = formulationData.map(row => `
+                            <tr class="bg-dark-card border-b border-dark-border hover:bg-dark-border/50 transition-colors">
+                                <td class="px-3 py-2 text-dark-muted whitespace-nowrap border-r border-dark-border/30 w-1/3 font-medium">${escapeHtml(row.item || '')}</td>
+                                <td class="px-3 py-2 text-dark-text">${escapeHtml(row.content || '')}</td>
+                            </tr>
+                        `).join('');
+
+                        formulationHtml = `
+                            <div class="mb-4">
+                                <h4 class="text-sm font-semibold text-dark-text mb-2">제형 정보</h4>
+                                <div class="overflow-hidden rounded border border-dark-border">
+                                    <table class="w-full text-sm text-left">
+                                        <thead class="text-xs text-dark-muted uppercase bg-dark-bg border-b border-dark-border">
+                                            <tr>
+                                                <th scope="col" class="px-3 py-2 border-r border-dark-border/30 w-1/3">항목</th>
+                                                <th scope="col" class="px-3 py-2">내용</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${rowsHtml}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        formulationHtml = `
+                            <div class="mb-4">
+                                <h4 class="text-sm font-semibold text-dark-text mb-2">제형 정보</h4>
+                                <div class="text-sm text-dark-text bg-dark-bg p-3 rounded border border-dark-border prose-invert max-w-none">
+                                    ${DOMPurify.sanitize(marked.parse(test.formulation_info))}
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+
+                // 패널 내용 채우기
+                infoContent.innerHTML = `
+                    ${periodHtml}
+                    ${summaryHtml}
+                    ${formulationHtml}
+                    ${imagesHtml}
+                    ${linksHtml}
+                `;
+            } else {
+                 infoContent.innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center text-dark-muted opacity-50">
+                        <svg class="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <p>등록된 추가 정보가 없습니다.</p>
+                    </div>
+                 `;
+            }
+            // 왼쪽 컨테이너 (메타데이터 및 정보)
+            const leftContainer = document.createElement('div');
+            leftContainer.className = 'flex items-center gap-4';
+            resultFooter.appendChild(leftContainer);
+
+            // 오른쪽 컨테이너 (액션 버튼)
+            const rightContainer = document.createElement('div');
+            rightContainer.className = 'flex items-center gap-2 ml-auto';
+            resultFooter.appendChild(rightContainer);
+
+            // 1. 유형 (Data Type)
+            const typeLabel = test.html_template ? 'HTML Report' : (test.gsheet_url || test.chart_data || test.chart_settings ? 'Chart Data' : 'No Data');
+            const typeColor = test.html_template ? 'text-green-400 border-green-400/30 bg-green-400/10' : 'text-blue-400 border-blue-400/30 bg-blue-400/10';
+            
+            const typeTag = document.createElement('div');
+            typeTag.className = `px-2 py-0.5 text-xs rounded border ${typeColor}`;
+            typeTag.textContent = typeLabel;
+            leftContainer.appendChild(typeTag);
+
+            // 2. 제품명 (Product Name)
+            addFooterItem(leftContainer, 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4', test.product_name || '제품명 없음');
+            
+            // 3. 등록일 (Created At)
+            addFooterItem(leftContainer, 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z', `등록: ${formatDate(test.created_at)}`);
+            
+            // 4. 원본소스 링크 (Source Link) - 구글 시트 URL이 있을 경우
+            if (test.gsheet_url) {
+                const sourceLink = document.createElement('a');
+                sourceLink.href = test.gsheet_url;
+                sourceLink.target = '_blank';
+                sourceLink.className = 'w-8 h-8 flex items-center justify-center rounded-full text-dark-muted hover:text-white hover:bg-white/10 transition-all ml-2';
+                sourceLink.title = '원본 소스 보기';
+                sourceLink.innerHTML = `
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                    </svg>
+                `;
+                leftContainer.appendChild(sourceLink);
+            }
+
+            // 데이터 보기 버튼
+            const viewDataBtn = document.createElement('button');
+            viewDataBtn.className = 'w-8 h-8 flex items-center justify-center rounded-full text-dark-muted hover:text-white hover:bg-white/10 transition-all ml-1';
+            viewDataBtn.title = '데이터 보기';
+            viewDataBtn.onclick = toggleDataPanel;
+            viewDataBtn.innerHTML = `
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+                </svg>
+            `;
+            leftContainer.appendChild(viewDataBtn);
+
+            // 정보 보기 버튼
+            const viewInfoBtn = document.createElement('button');
+            viewInfoBtn.className = 'w-8 h-8 flex items-center justify-center rounded-full text-dark-muted hover:text-white hover:bg-white/10 transition-all ml-1';
+            viewInfoBtn.title = '시험 정보 보기';
+            viewInfoBtn.onclick = toggleInfoPanel;
+            viewInfoBtn.innerHTML = `
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            `;
+            leftContainer.appendChild(viewInfoBtn);
+
+            // 인쇄 버튼
+            const printBtn = document.createElement('button');
+            printBtn.className = 'w-8 h-8 flex items-center justify-center rounded-full text-dark-muted hover:text-white hover:bg-white/10 transition-all ml-1';
+            printBtn.title = '인쇄';
+            printBtn.onclick = printPage;
+            printBtn.innerHTML = `
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                </svg>
+            `;
+            leftContainer.appendChild(printBtn);
+            
+            // 다운로드 버튼
+            const downloadBtn = document.createElement('button');
+            downloadBtn.className = 'w-8 h-8 flex items-center justify-center rounded-full text-dark-muted hover:text-white hover:bg-white/10 transition-all ml-1';
+            downloadBtn.title = '자료 다운로드';
+            downloadBtn.onclick = downloadContent;
+            downloadBtn.innerHTML = `
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
+            `;
+            leftContainer.appendChild(downloadBtn);
+
+            // --- 오른쪽 액션 버튼 (편집/삭제) 유지 ---
+            // 액션 버튼 추가
+            const editBtn = document.createElement('button');
+            editBtn.className = 'px-3 py-1.5 bg-dark-bg border border-dark-border text-dark-text rounded hover:bg-dark-border transition text-xs flex items-center gap-2';
+            editBtn.innerHTML = `
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                </svg>
+                편집
+            `;
+            editBtn.onclick = () => editTest(test.id);
+            rightContainer.appendChild(editBtn);
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'px-3 py-1.5 bg-dark-bg border border-dark-border text-red-400 rounded hover:bg-red-900/20 hover:border-red-900/50 transition text-xs flex items-center gap-2';
+            deleteBtn.innerHTML = `
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+                삭제
+            `;
+            deleteBtn.onclick = () => deleteTest(test.id, test.test_title);
+            rightContainer.appendChild(deleteBtn);
+        }
+
+        function addFooterItem(container, iconPath, text) {
+            const item = document.createElement('div');
+            item.className = 'flex items-center gap-1.5 text-dark-muted hover:text-white transition-colors cursor-default';
+            item.innerHTML = `
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${iconPath}"></path>
+                </svg>
+                <span>${escapeHtml(text)}</span>
+            `;
+            container.appendChild(item);
+        }
+
+        function editTest(id) {
+            window.location.href = `/lims/edit/${id}`;
+        }
+
+        async function deleteTest(id, title) {
+            if (!confirm(`"${title}" 시험을 삭제하시겠습니까?`)) {
+                return;
+            }
+
+            showLoading(true);
+            try {
+                const response = await fetch(`/lims/api/tests/${id}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error);
+                }
+
+                showToast(result.message, 'success');
+                
+                // 결과 패널 초기화
+                currentTestId = null;
+                currentTestData = null;
+                const resultFooter = document.getElementById('result-footer');
+                // resultFooter.classList.add('hidden'); // 상시 노출
+                // document.getElementById('footer-spacer').classList.remove('h-14');
+                // document.getElementById('footer-spacer').classList.add('h-0');
+                
+                // 푸터 내용 초기화 (안내 문구 표시)
+                resultFooter.innerHTML = '<span class="text-dark-muted">선택된 시험 없음</span>';
+                
+                // 플로팅 버튼 숨김
+                const floatingActions = document.getElementById('floating-actions');
+                if (floatingActions) floatingActions.classList.add('hidden');
+                
+                const resultBody = document.getElementById('result-body');
+                resultBody.innerHTML = `
+                    <div id="result-placeholder" class="h-full flex flex-col items-center justify-center text-dark-muted">
+                        <svg class="h-16 w-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                        <p class="text-lg">왼쪽 목록에서 시험을 선택하세요</p>
+                    </div>
+                `;
+
+                
+                // 목록 새로고침
+                await loadTests();
+            } catch (error) {
+                showToast('삭제 실패: ' + error.message, 'error');
+                console.error(error);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function toggleInfoPanel(event) {
+            if (event) {
+                event.stopPropagation();
+            }
+            const panel = document.getElementById('info-slide-panel');
+            panel.classList.toggle('translate-x-full');
+        }
+
+        // Close panel when clicking outside
+        document.addEventListener('click', function(event) {
+            const panel = document.getElementById('info-slide-panel');
+            if (!panel.classList.contains('translate-x-full') && !panel.contains(event.target)) {
+                panel.classList.add('translate-x-full');
+            }
+        });
+
+        // Close panel when pressing ESC
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                const infoPanel = document.getElementById('info-slide-panel');
+                if (!infoPanel.classList.contains('translate-x-full')) {
+                    infoPanel.classList.add('translate-x-full');
+                }
+                
+                const dataPanel = document.getElementById('data-slide-panel');
+                if (!dataPanel.classList.contains('-translate-y-full')) {
+                    dataPanel.classList.add('-translate-y-full');
+                }
+            }
+        });
+
+        function toggleDataPanel(event) {
+            if (event) {
+                event.stopPropagation();
+            }
+            const panel = document.getElementById('data-slide-panel');
+            
+            // 패널이 닫혀있는 상태에서 열 때 데이터 렌더링
+            if (panel.classList.contains('-translate-y-full')) {
+                renderDataTable();
+                panel.classList.remove('-translate-y-full');
+            } else {
+                panel.classList.add('-translate-y-full');
+            }
+        }
+        
+        function renderDataTable() {
+            const container = document.querySelector('#data-slide-panel #data-content');
+            if (!container) return;
+            
+            if (!currentChartData) {
+                container.innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center text-dark-muted opacity-50">
+                        <svg class="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <p>데이터가 없습니다.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const { columns, rows } = currentChartData;
+            
+            if (!columns || columns.length === 0) {
+                 container.innerHTML = '<div class="text-center py-10 text-dark-muted">데이터 컬럼이 없습니다.</div>';
+                 return;
+            }
+            
+            const tableHtml = `
+                <div class="relative overflow-x-auto shadow-md sm:rounded-lg h-full">
+                    <table class="w-full text-sm text-left text-gray-400">
+                        <thead class="text-xs text-gray-200 uppercase bg-dark-bg border-b border-dark-border sticky top-0">
+                            <tr>
+                                ${columns.map(col => `<th scope="col" class="px-6 py-3 whitespace-nowrap bg-dark-bg">${escapeHtml(col)}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows.map((row, idx) => `
+                                <tr class="bg-dark-card border-b border-dark-border hover:bg-dark-border/50 transition-colors">
+                                    ${row.map(cell => `<td class="px-6 py-4 whitespace-nowrap font-mono">${cell !== null ? escapeHtml(String(cell)) : '-'}</td>`).join('')}
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            container.innerHTML = tableHtml;
+        }
+
+        // Close data panel when clicking outside
+        document.addEventListener('click', function(event) {
+            const panel = document.getElementById('data-slide-panel');
+            if (panel && !panel.classList.contains('-translate-y-full') && !panel.contains(event.target)) {
+                 // 클릭된 요소가 토글 버튼인지 확인 (이벤트 버블링으로 처리되지만 안전장치)
+                 if (!event.target.closest('button[onclick*="toggleDataPanel"]')) {
+                    panel.classList.add('-translate-y-full');
+                 }
+            }
+        });
+
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('ko-KR', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            if (show) {
+                loading.classList.remove('hidden');
+            } else {
+                loading.classList.add('hidden');
+            }
+        }
+
+        // 차트 렌더링 (view.html 로직 참조)
+        function renderChart(columns, rows, settings) {
+             console.log('renderChart called', columns, rows, settings);
+             const ctx = document.getElementById('resultChart').getContext('2d');
+             
+             const xAxis = settings.x_axis || {};
+             const yAxis = settings.y_axis || {};
+             const scaleType = xAxis.scale_type || 'category'; // 'category' or 'linear'
+
+             // X축 라벨 추출 (첫 번째 컬럼 - 문자열 그대로 사용)
+             let labels = rows.map(row => row[0]);
+             let xValues = [];
+             
+             if (scaleType === 'linear') {
+                 // 숫자로 변환 (실패시 NaN)
+                 xValues = rows.map(row => parseFloat(row[0]));
+                 // 라벨은 사용하지 않거나, 포맷터에서 처리
+                 labels = null; 
+             }
+
+             const datasets = [];
+ 
+             // Design specified: Red color scheme as primary
+             const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22', '#1abc9c', '#34495e'];
+ 
+             // 각 컬럼별로 데이터셋 생성 (첫 번째 컬럼 제외)
+             for (let i = 1; i < columns.length; i++) {
+                 const color = colors[(i - 1) % colors.length];
+                 
+                 let dataPoints;
+                 if (scaleType === 'linear') {
+                     // {x, y} 형태 데이터 생성
+                     dataPoints = rows.map((row, idx) => ({
+                         x: xValues[idx],
+                         y: parseFloat(row[i]) || 0
+                     })).filter(pt => !isNaN(pt.x)); // X값이 숫자가 아닌 경우 제외
+                     // X값 기준 정렬 (선형 차트에서 순서 꼬임 방지)
+                     dataPoints.sort((a, b) => a.x - b.x);
+                 } else {
+                     // Y값 배열
+                     dataPoints = rows.map(row => parseFloat(row[i]) || 0);
+                 }
+                 
+                 const isBar = (settings.chart_type === 'bar');
+
+                 // 채우기 옵션 처리
+                 let fillOption = false;
+                 if (settings.fill === 'origin') fillOption = 'origin';
+                 else if (settings.fill === 'start') fillOption = 'start'; // Handle 'start' specifically
+                 else if (settings.fill === true || settings.fill === 'true') fillOption = true; // Fallback for old data
+                 else if (isBar) fillOption = true; // Bar charts default to filled
+
+                 // 배경색 처리 (일괄 설정 제거하고 데이터셋 색상 따라가되 투명도 적용)
+                 // 단, bar 차트는 fill=true일 때 solid가 아니라 원래 로직대로 처리하거나,
+                 // 사용자의 요청("원래처럼 배치색상에 따라 채우도록")에 따라 border color + alpha 사용
+                 
+                 // Hex to RGBA 변환 헬퍼 (간단 버전)
+                 const hexToRgba = (hex, alpha) => {
+                    const r = parseInt(hex.slice(1, 3), 16);
+                    const g = parseInt(hex.slice(3, 5), 16);
+                    const b = parseInt(hex.slice(5, 7), 16);
+                    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+                 };
+
+                 let bgColor;
+                 if (isBar) {
+                     bgColor = color; // Bar 차트는 불투명
+                 } else {
+                     // 선 그래프 등: 채우기 옵션이 켜져있으면 투명도 적용
+                     if (fillOption) {
+                        bgColor = hexToRgba(color, 0.2);
+                     } else {
+                        bgColor = color; // 채우기 없을 때 사용되지 않음
+                     }
+                 }
+                 
+                 datasets.push({
+                     label: columns[i],
+                     data: dataPoints,
+                     borderColor: color,
+                     backgroundColor: bgColor,
+                     borderWidth: isBar ? 0 : 3, 
+                     pointBackgroundColor: color,
+                     pointBorderColor: '#ffffff',
+                     pointBorderWidth: 2,
+                     pointRadius: 6,
+                     pointHoverRadius: 8,
+                     tension: 0.3,
+                     fill: fillOption
+                 });
+             }
+ 
+             const ySpecLine = settings.y_spec_line || settings.spec_line; // 하위 호환성
+             const xSpecLine = settings.x_spec_line;
+ 
+             // Annotation 설정 생성
+             const annotations = {};
+             if (ySpecLine && ySpecLine.show) {
+                 annotations.yLine = {
+                     type: 'line',
+                     yMin: ySpecLine.value,
+                     yMax: ySpecLine.value,
+                     borderColor: ySpecLine.color || '#ff0000',
+                     borderWidth: 2,
+                     borderDash: [5, 5],
+                     label: {
+                         display: true,
+                         content: ySpecLine.label || 'Y 기준선',
+                         position: 'end',
+                         backgroundColor: ySpecLine.color || '#ff0000',
+                         color: '#ffffff',
+                         font: { size: 12 }
+                     }
+                 };
+             }
+             if (xSpecLine && xSpecLine.show) {
+                 annotations.xLine = {
+                     type: 'line',
+                     xMin: xSpecLine.value,
+                     xMax: xSpecLine.value,
+                     borderColor: xSpecLine.color || '#00ff00',
+                     borderWidth: 2,
+                     borderDash: [5, 5],
+                     label: {
+                         display: true,
+                         content: xSpecLine.label || 'X 기준선',
+                         position: 'start',
+                         backgroundColor: xSpecLine.color || '#00ff00',
+                         color: '#ffffff',
+                         font: { size: 12 }
+                     }
+                 };
+             }
+
+             // Resolve CSS variables to computed values
+             const themeText = getCssVar('--chart-text');
+             const themeGrid = getCssVar('--chart-grid');
+             const themeAxis = getCssVar('--chart-axis');
+
+             const isRadial = ['pie', 'doughnut', 'radar', 'polarArea'].includes(settings.chart_type);
+             const scales = {
+                 x: {
+                     type: scaleType, // 'category' or 'linear'
+                     min: (scaleType === 'linear' && xAxis.min !== undefined) ? xAxis.min : undefined,
+                     max: (scaleType === 'linear' && xAxis.max !== undefined) ? xAxis.max : undefined,
+                     title: {
+                         display: true,
+                         text: xAxis.title || columns[0],
+                         color: themeAxis,
+                         font: { size: 16, weight: '600' },
+                         padding: { top: 10 }
+                     },
+                     ticks: {
+                         color: themeAxis,
+                         font: { size: 14 },
+                         maxRotation: 45,
+                         minRotation: 0,
+                         stepSize: (scaleType === 'linear' && xAxis.interval) ? xAxis.interval : undefined
+                     },
+                     grid: {
+                         color: themeGrid,
+                         borderColor: themeGrid,
+                         tickColor: themeGrid,
+                         drawBorder: true,
+                         display: true
+                     }
+                 },
+                 y: {
+                     title: {
+                         display: true,
+                         text: yAxis.title || 'Value',
+                         color: themeAxis,
+                         font: { size: 16, weight: '600' },
+                         padding: { bottom: 10 }
+                     },
+                     min: yAxis.min !== undefined ? yAxis.min : undefined,
+                     max: yAxis.max !== undefined ? yAxis.max : undefined,
+                     ticks: {
+                         color: themeAxis,
+                         font: { size: 14 },
+                         stepSize: yAxis.interval || undefined
+                     },
+                     grid: {
+                         color: themeGrid, // Subtle grid color
+                         borderColor: themeGrid,
+                         tickColor: themeGrid,
+                         borderDash: [2, 2],
+                         drawBorder: true,
+                         display: true
+                     },
+                     beginAtZero: true
+                 }
+             };
+
+             currentChart = new Chart(ctx, {
+                 type: settings.chart_type || 'line',
+                 data: {
+                     labels: labels, // Linear일 경우 null
+                     datasets: datasets.map(ds => ({
+                         ...ds,
+                         // Apply per-dataset settings if needed, or override here
+                         pointStyle: settings.point_style !== 'line' ? (settings.point_style || 'rectRounded') : false, // 'line' means no point
+                         tension: settings.line_tension !== undefined ? settings.line_tension : 0.3
+                     }))
+                 },
+                 options: {
+                     responsive: true,
+                     maintainAspectRatio: false,
+                     animation: {
+                         duration: settings.animation_duration !== undefined ? settings.animation_duration : 1000,
+                         easing: 'easeOutQuart'
+                     },
+                     layout: { padding: 20 },
+                     plugins: {
+                         legend: {
+                             display: settings.legend_position !== 'false',
+                             position: settings.legend_position !== 'false' ? (settings.legend_position || 'bottom') : 'top',
+                             labels: {
+                                 color: themeText,
+                                 font: { size: 14, weight: 'bold' },
+                                 padding: 20,
+                                 usePointStyle: true,
+                                 pointStyle: settings.point_style !== 'line' ? (settings.point_style || 'rectRounded') : 'rectRounded' 
+                             }
+                         },
+                         tooltip: {
+                             mode: 'index',
+                             intersect: false,
+                             backgroundColor: 'rgba(30, 41, 59, 0.9)',
+                             titleColor: '#f1f5f9',
+                             bodyColor: '#f1f5f9',
+                             borderColor: '#475569',
+                             borderWidth: 1,
+                             padding: 12,
+                             cornerRadius: 8,
+                             titleFont: { size: 14, weight: 'bold' },
+                             bodyFont: { size: 13 },
+                             callbacks: {
+                                 label: function(context) {
+                                     // 레이블(데이터셋 이름) 없이 값만 표시
+                                     if (context.parsed.y !== null) {
+                                         return ' ' + context.parsed.y;
+                                     }
+                                     return '';
+                                 }
+                             }
+                         },
+                         annotation: Object.keys(annotations).length > 0 ? {
+                             annotations: annotations
+                         } : undefined
+                     },
+                     scales: isRadial ? undefined : scales
+                 }
+             });
+         }
+
+        // Dark Mode Toggle
+        function toggleDarkMode() {
+            const html = document.documentElement;
+            const body = document.body;
+            // Check both html and body for robustness
+            const isDark = html.classList.contains('dark') || body.classList.contains('dark');
+            
+            const iconDark = document.getElementById('header-icon-dark');
+            const iconLight = document.getElementById('header-icon-light');
+
+            // 1. Toggle Parent
+            if (isDark) {
+                // Switch to Light
+                body.classList.remove('dark');
+                html.classList.remove('dark');
+                if (iconDark) iconDark.classList.add('hidden');
+                if (iconLight) iconLight.classList.remove('hidden');
+            } else {
+                // Switch to Dark
+                body.classList.add('dark');
+                html.classList.add('dark');
+                if (iconDark) iconDark.classList.remove('hidden');
+                if (iconLight) iconLight.classList.add('hidden');
+            }
+
+            // 2. Toggle Iframe (if exists)
+            const iframe = document.querySelector('#result-body iframe');
+            if (iframe && iframe.contentDocument) {
+                 const iBody = iframe.contentDocument.body;
+                 const iHtml = iframe.contentDocument.documentElement;
+                 
+                 // Tailwind dark mode works by adding 'dark' class to html or body
+                 // We sync it with the parent's new state
+                 if (isDark) { // Parent became light
+                     iBody.classList.remove('dark');
+                     iHtml.classList.remove('dark');
+                 } else { // Parent became dark
+                     iBody.classList.add('dark');
+                     iHtml.classList.add('dark');
+                 }
+            }
+        }
+
+        // Print Page
+        function printPage() {
+             const iframe = document.querySelector('#result-body iframe');
+             
+             if (iframe && iframe.contentWindow) {
+                 iframe.contentWindow.focus();
+                 iframe.contentWindow.print();
+             } else if (currentChart) {
+                 // 1. Save current theme state
+                 const originalColors = {
+                     text: currentChart.options.plugins.legend?.labels?.color,
+                     scales: {}
+                 };
+                 
+                 ['x', 'y'].forEach(axis => {
+                     if (currentChart.options.scales[axis]) {
+                         originalColors.scales[axis] = {
+                             ticks: currentChart.options.scales[axis].ticks.color,
+                             title: currentChart.options.scales[axis].title.color,
+                             grid: currentChart.options.scales[axis].grid.color,
+                             gridBorder: currentChart.options.scales[axis].grid.borderColor,
+                             gridTick: currentChart.options.scales[axis].grid.tickColor
+                         };
+                     }
+                 });
+
+                 // 2. Force Light Mode Colors
+                 const lightText = '#333333';
+                 const lightGrid = '#e5e7eb';
+                 const lightAxis = '#64748b';
+
+                 if (currentChart.options.plugins.legend) {
+                     currentChart.options.plugins.legend.labels.color = lightText;
+                 }
+
+                 ['x', 'y'].forEach(axis => {
+                     if (currentChart.options.scales[axis]) {
+                         currentChart.options.scales[axis].ticks.color = lightAxis;
+                         currentChart.options.scales[axis].title.color = lightAxis;
+                         if (currentChart.options.scales[axis].grid) {
+                             currentChart.options.scales[axis].grid.color = lightGrid;
+                             currentChart.options.scales[axis].grid.borderColor = lightGrid;
+                             currentChart.options.scales[axis].grid.tickColor = lightGrid;
+                         }
+                     }
+                 });
+
+                 // Update chart synchronously without animation
+                 currentChart.update('none');
+
+                 // 3. Capture Image with White Background
+                 const canvas = document.getElementById('resultChart');
+                 const compositeCanvas = document.createElement('canvas');
+                 compositeCanvas.width = canvas.width;
+                 compositeCanvas.height = canvas.height;
+                 const ctx = compositeCanvas.getContext('2d');
+                 
+                 // Fill white background
+                 ctx.fillStyle = '#ffffff';
+                 ctx.fillRect(0, 0, canvas.width, canvas.height);
+                 
+                 // Draw chart
+                 ctx.drawImage(canvas, 0, 0);
+                 
+                 const dataUrl = compositeCanvas.toDataURL('image/png');
+
+                 // 4. Restore Original Colors
+                 if (currentChart.options.plugins.legend) {
+                     currentChart.options.plugins.legend.labels.color = originalColors.text;
+                 }
+                 
+                 ['x', 'y'].forEach(axis => {
+                     if (currentChart.options.scales[axis]) {
+                         const saved = originalColors.scales[axis];
+                         if (saved) {
+                             currentChart.options.scales[axis].ticks.color = saved.ticks;
+                             currentChart.options.scales[axis].title.color = saved.title;
+                             if (currentChart.options.scales[axis].grid) {
+                                 currentChart.options.scales[axis].grid.color = saved.grid;
+                                 currentChart.options.scales[axis].grid.borderColor = saved.gridBorder;
+                                 currentChart.options.scales[axis].grid.tickColor = saved.gridTick;
+                             }
+                         }
+                     }
+                 });
+                 
+                 // Restore chart state
+                 currentChart.update('none');
+
+                 // 5. Open Print Window
+                 const printWin = window.open('', '_blank', 'width=900,height=600');
+                 printWin.document.write(`
+                    <html>
+                        <head>
+                            <title>${currentTestData ? currentTestData.test_title : 'Chart'}</title>
+                            <style>
+                                body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: white; }
+                                img { max-width: 100%; max-height: 100%; object-fit: contain; }
+                                @media print {
+                                    body { height: auto; display: block; }
+                                    img { max-width: 100%; height: auto; }
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            <img src="${dataUrl}">
+                            <script>
+                                window.onload = function() {
+                                    setTimeout(function() {
+                                        window.print();
+                                        window.close();
+                                    }, 250);
+                                };
+                            <\/script>
+                        </body>
+                    </html>
+                 `);
+                 printWin.document.close();
+             } else {
+                 window.print();
+             }
+        }
+
+        // Download Content (Chart Image)
+        function downloadContent() {
+            // Priority 1: Chart.js Instance (Native dashboard chart)
+            if (currentChart) {
+                const link = document.createElement('a');
+                link.download = (currentTestData ? currentTestData.test_title : 'chart') + '.png';
+                link.href = currentChart.toBase64Image();
+                link.click();
+                return;
+            }
+            
+            // Priority 2: Iframe Chart (HTML Template) - Corrected selector
+            const iframe = document.querySelector('#result-body iframe');
+            if (iframe) {
+                 try {
+                     const iframeCanvas = iframe.contentDocument.querySelector('canvas');
+                     if (iframeCanvas) {
+                        const link = document.createElement('a');
+                        link.download = (currentTestData ? currentTestData.test_title : 'chart') + '.png';
+                        // Handle canvas with transparent background if needed, but usually fine
+                        link.href = iframeCanvas.toDataURL('image/png');
+                        link.click();
+                        return;
+                     } else {
+                         showToast('저장할 차트가 발견되지 않았습니다.', 'info');
+                     }
+                 } catch(e) {
+                     console.error('Cannot access iframe content', e);
+                     showToast('차트 이미지 저장 실패', 'error');
+                 }
+            } else {
+                showToast('다운로드할 데이터가 없습니다.', 'info');
+            }
+        }
+
+        function getColor(index) {
+            const colors = [
+                '#3b82f6', // blue
+                '#10b981', // green
+                '#f59e0b', // amber
+                '#ef4444', // red
+                '#8b5cf6', // purple
+                '#ec4899', // pink
+                '#14b8a6', // teal
+                '#f97316'  // orange
+            ];
+            return colors[index % colors.length];
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
+            toast.innerHTML = `
+                <span style="font-size: 20px; font-weight: bold;">${icon}</span>
+                <span style="flex: 1;">${message}</span>
+            `;
+            
+            container.appendChild(toast);
+            
+            // 3초 후 자동 제거
+            setTimeout(() => {
+                toast.classList.add('hiding');
+                setTimeout(() => {
+                    container.removeChild(toast);
+                }, 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

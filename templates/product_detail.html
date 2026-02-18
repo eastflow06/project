@@ -1,0 +1,671 @@
+{% extends "base.html" %}
+{% block title %}
+{{ product.name }} - 정보
+{% endblock %}
+{% block content %}
+
+<div class="modern-container">
+
+    <div class="header-section"
+        style="border-bottom: 2px solid var(--border-color); padding-bottom: 20px; margin-bottom: 30px;">
+
+        <div style="font-size: 14px; color: var(--secondary-text); margin-bottom: 8px;">
+            <a href="{{ url_for('product_list') }}"
+                style="color: var(--link-color); text-decoration: none;">Products</a>
+            <span style="margin: 0 5px;">›</span>
+            <span>{{ product.name }}</span>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h1 class="title" style="margin: 0;">{{ product.name }}</h1>
+            <div style="display: flex; gap: 8px;">
+                <a href="{{ url_for('edit_product', product_id=product.id) }}" class="btn btn-primary">Edit</a>
+                <form action="{{ url_for('delete_product', product_id=product.id) }}" method="post"
+                    style="display:inline;" onsubmit="return confirm('정말로 삭제하시겠습니까?');">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+
+        <div
+            style="color: var(--text-color); line-height: 1.6; background-color: var(--stripe-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+            {{ product.description or "설명이 없습니다." }}
+        </div>
+
+        <!-- Category와 API를 세미콜론으로 구분하여 표시 -->
+        <div style="margin-top: 15px; display: flex; gap: 20px; flex-wrap: wrap;">
+            {% if product.category %}
+            <div>
+                {% for cat in product.category %}
+                <span style="color: #5a67d8; font-weight: 500;">{{ cat }}</span>{% if not loop.last %}<span
+                    style="color: var(--secondary-text); margin: 0 5px;">;</span>{% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if product.api %}
+            <div>
+                {% for item in product.api %}
+                <span style="color: #48bb78; font-weight: 500;">{{ item }}</span>{% if not loop.last %}<span
+                    style="color: var(--secondary-text); margin: 0 5px;">;</span>{% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+
+    <div class="tabs-nav">
+        <button class="tab-link active" onclick="showTab('related-projects', this)">Related Projects</button>
+        <button class="tab-link" onclick="showTab('related-tasks', this)">Tasks</button>
+        <button class="tab-link" onclick="showTab('related-memos', this)">Memos</button>
+    </div>
+
+    <div id="related-projects" class="tab-content active">
+        <div class="project-grid-wrapper">
+            <div class="project-grid-container">
+                <div class="pg-row pg-header">
+                    <div class="pg-cell pg-status-col">분류</div>
+                    <div class="pg-cell pg-content-col">진행</div>
+                    <div class="pg-cell pg-content-col">완료</div>
+                </div>
+
+                {% set total_projects = active_statuses_in_use | length %}
+
+                {% if total_projects > 0 %}
+                {% for status in active_statuses_in_use %}
+                {% set ongoing_projects = grouped_projects.get(status, {}).get('진행', []) %}
+                {% set finished_projects = grouped_projects.get(status, {}).get('완료', []) %}
+
+                <div class="pg-row">
+                    <div class="pg-cell pg-status-col pg-status-bg">{{ status }}</div>
+
+                    <div class="pg-cell pg-content-col">
+                        <ul class="p-list">
+                            {% for project in ongoing_projects %}
+                            <li><a href="{{ url_for('project', project_id=project.id) }}">{{ project.title }}</a></li>
+                            {% else %}
+                            <span style="color: var(--secondary-text);">-</span>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <div class="pg-cell pg-content-col">
+                        <ul class="p-list">
+                            {% for project in finished_projects %}
+                            <li><a href="{{ url_for('project', project_id=project.id) }}">{{ project.title }}</a></li>
+                            {% else %}
+                            <span style="color: var(--secondary-text);">-</span>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div style="padding: 30px; text-align: center; color: var(--secondary-text);">
+                    관련된 프로젝트가 없습니다.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div id="related-tasks" class="tab-content" style="display: none;">
+        <div style="overflow-x: auto;">
+            <table class="table" style="font-size: 1.4rem;">
+                <thead>
+                    <tr>
+                        <th class="task-col-date" style="width: 12%;">Date</th>
+                        <th class="task-col-title" style="width: 31%;">Title</th>
+                        <th class="task-col-status" style="width: 8%; text-align: center;">Status</th>
+                        <th class="task-col-project" style="width: 31%;">Project</th>
+                        <th class="task-col-due" style="width: 18%;">Due Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for task in todo_tasks %}
+                    <tr>
+                        <td class="task-col-date">{% if task.start_date %}{{ task.start_date.strftime('%Y-%m-%d') }}{%
+                            endif %}</td>
+                        <td class="task-col-title">
+                            <a href="{{ url_for('view_task', task_id=task.id) }}" class="content-link">
+                                {{ task.title }}
+                                {% if task.comment %}<span class="comment-icon">💬</span>{% endif %}
+                            </a>
+                        </td>
+                        <td class="task-col-status" style="text-align: center;">
+                            <span class="badge badge-todo task-text-badge">Todo</span>
+                            <i class="fas fa-hourglass-half task-icon-badge"
+                                style="color: var(--warning-color, #ff9800); display: none;"></i>
+                        </td>
+                        <td class="task-col-project">
+                            <a href="{{ url_for('project', project_id=task.project.id) }}"
+                                class="content-link text-secondary">
+                                {{ task.project.title }}
+                            </a>
+                        </td>
+                        <td class="task-col-due">{% if task.due_date %}{{ task.due_date.strftime('%Y-%m-%d') }}{% endif
+                            %}</td>
+                    </tr>
+                    {% endfor %}
+
+                    {% for task in done_tasks %}
+                    <tr class="row-done">
+                        <td class="task-col-date">{% if task.start_date %}{{ task.start_date.strftime('%Y-%m-%d') }}{%
+                            endif %}</td>
+                        <td class="task-col-title">
+                            <a href="{{ url_for('view_task', task_id=task.id) }}" class="content-link">
+                                {{ task.title }}
+                                {% if task.comment %}<span class="comment-icon">💬</span>{% endif %}
+                            </a>
+                        </td>
+                        <td class="task-col-status" style="text-align: center;">
+                            <span class="badge badge-done task-text-badge">Done</span>
+                            <i class="fas fa-check-circle task-icon-badge"
+                                style="color: var(--success-color, #4caf50); display: none;"></i>
+                        </td>
+                        <td class="task-col-project">
+                            <a href="{{ url_for('project', project_id=task.project.id) }}"
+                                class="content-link text-secondary">
+                                {{ task.project.title }}
+                            </a>
+                        </td>
+                        <td class="task-col-due">{% if task.finished_date %}{{ task.finished_date.strftime('%Y-%m-%d')
+                            }}{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+
+                    {% if not todo_tasks and not done_tasks %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 30px;">No tasks found.</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="related-memos" class="tab-content" style="display: none;">
+        <div class="tag-filters">
+            <a href="{{ url_for('product_detail', product_id=product.id, active_tab='related-memos') }}"
+                class="tag-btn {% if not selected_tag %}active{% endif %}">
+                All
+            </a>
+            {% for tag in used_tags %}
+            <a href="{{ url_for('product_detail', product_id=product.id, tag=tag.name, active_tab='related-memos') }}"
+                class="tag-btn {% if selected_tag == tag.name %}active{% endif %}">
+                {{ tag.name }}
+            </a>
+            {% endfor %}
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table class="table" id="memoTable">
+                <thead>
+                    <tr>
+                        <th class="col-date">Date</th>
+                        <th class="col-content">Content</th>
+                        <th class="col-tag">Tag</th>
+                        <th class="col-project">Project</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for memo in memos %}
+                    <tr class="memo-row {% if memo.tag and memo.tag.name == 'Pin' %}materials-pin-memo-row{% endif %}"
+                        onclick="location.href='{{ url_for('view_memo', memo_id=memo.id) }}'" style="cursor: pointer;">
+
+                        <td class="col-date">
+                            {% if memo.created_at %}{{ memo.created_at.strftime('%Y-%m-%d') }}{% endif %}
+                        </td>
+
+                        <td class="col-content">
+                            <div class="content-container">
+                                <a href="{{ url_for('view_memo', memo_id=memo.id) }}" class="content-text">
+                                    {{ memo.content | striptags }}
+                                </a>
+                                <span class="file-icons">
+                                    {% if memo.image_filename %}
+                                    <i class="fas fa-file-image" style="color: var(--product-blue);"></i>
+                                    {% endif %}
+                                    {% if memo.pdf_filename %}
+                                    <i class="fas fa-file-pdf" style="color: var(--danger-color);"></i>
+                                    {% endif %}
+                                    {% if memo.excel_filename %}
+                                    <i class="fas fa-file-excel" style="color: green;"></i>
+                                    {% endif %}
+                                    {% if memo.ppt_filename %}
+                                    <i class="fas fa-file-powerpoint" style="color: orange;"></i>
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </td>
+
+                        <td class="col-tag">
+                            {% if memo.tag %}{{ memo.tag.name }}{% endif %}
+                        </td>
+
+                        <td class="col-project">
+                            {% if memo.project %}
+                            {{ memo.project.title }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 30px;">No memos found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<style>
+    /* === 기존 스타일 (Tabs, Grid, Filters 등) === */
+    .tabs-nav {
+        display: flex;
+        border-bottom: 2px solid var(--border-color);
+        margin-bottom: 25px;
+        gap: 20px;
+    }
+
+    .tab-link {
+        background: none;
+        border: none;
+        border-bottom: 3px solid transparent;
+        padding: 10px 5px;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--secondary-text);
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-bottom: -2px;
+    }
+
+    .tab-link:hover {
+        color: var(--link-color);
+    }
+
+    .tab-link.active {
+        color: var(--link-color);
+        border-bottom-color: var(--link-color);
+    }
+
+    .project-grid-wrapper {
+        overflow-x: auto;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+    }
+
+    .project-grid-container {
+        display: grid;
+        min-width: 600px;
+    }
+
+    .pg-row {
+        display: grid;
+        grid-template-columns: 150px 1fr 1fr;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .pg-row:last-child {
+        border-bottom: none;
+    }
+
+    .pg-header {
+        background-color: var(--th-bg);
+        font-weight: bold;
+        color: var(--text-color);
+    }
+
+    .pg-cell {
+        padding: 15px;
+        display: flex;
+        align-items: center;
+    }
+
+    .pg-status-col {
+        justify-content: center;
+        border-right: 1px solid var(--border-color);
+        font-weight: 600;
+    }
+
+    .pg-content-col {
+        align-items: flex-start;
+        border-right: 1px solid var(--border-color);
+    }
+
+    .pg-content-col:last-child {
+        border-right: none;
+    }
+
+    .pg-status-bg {
+        background-color: var(--stripe-bg);
+    }
+
+    .p-list {
+        list-style-type: disc;
+        padding-left: 20px;
+        margin: 0;
+    }
+
+    .p-list li {
+        margin-bottom: 5px;
+        color: var(--text-color);
+    }
+
+    .p-list a {
+        color: var(--link-color);
+        text-decoration: none;
+    }
+
+    .p-list a:hover {
+        text-decoration: underline;
+    }
+
+    .tag-filters {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+
+    .tag-btn {
+        padding: 6px 14px;
+        border-radius: 20px;
+        background-color: var(--stripe-bg);
+        color: var(--text-color);
+        border: 1px solid var(--border-color);
+        text-decoration: none;
+        font-size: 14px;
+        transition: all 0.2s;
+    }
+
+    .tag-btn:hover {
+        background-color: var(--dropdown-hover-bg);
+    }
+
+    .tag-btn.active {
+        background-color: var(--link-color);
+        color: white;
+        border-color: var(--link-color);
+    }
+
+    .text-secondary {
+        color: var(--secondary-text);
+        font-weight: normal;
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 4px;
+        background-color: var(--stripe-bg);
+        border: 1px solid var(--border-color);
+        font-size: 12px;
+    }
+
+    .badge-todo {
+        background-color: var(--warning-color, #ff9800);
+        color: white;
+        border: none;
+    }
+
+    .badge-done {
+        background-color: var(--success-color, #4caf50);
+        color: white;
+        border: none;
+    }
+
+    .row-done {
+        background-color: rgba(0, 0, 0, 0.02);
+    }
+
+    body.dark-mode .row-done {
+        background-color: rgba(255, 255, 255, 0.02);
+    }
+
+    /* === Memos PC 스타일 === */
+    .col-date {
+        width: 9%;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .col-content {
+        width: 73%;
+    }
+
+    .col-tag {
+        width: 5%;
+        text-align: center;
+        color: var(--danger-color);
+        font-size: 0.9em;
+    }
+
+    .col-project {
+        width: 13%;
+        font-size: 0.9em;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 0;
+    }
+
+    .content-container {
+        display: flex;
+        align-items: center;
+        width: 100%;
+    }
+
+    .content-text {
+        font-size: 1.05rem;
+        flex-grow: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-decoration: none;
+        color: var(--text-color);
+        display: block;
+        min-width: 0;
+        font-weight: 500;
+    }
+
+    .content-text:hover {
+        color: var(--link-color);
+        text-decoration: underline;
+    }
+
+    .file-icons {
+        margin-left: 8px;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .memo-row:hover {
+        background-color: rgba(0, 0, 0, 0.03);
+    }
+
+    body.dark-mode .memo-row:hover {
+        background-color: rgba(255, 255, 255, 0.03);
+    }
+
+    .materials-pin-memo-row {
+        background-color: rgba(255, 235, 59, 0.1);
+    }
+
+    body.dark-mode .materials-pin-memo-row {
+        background-color: rgba(255, 235, 59, 0.05);
+    }
+
+    /* Task table font sizes for desktop */
+    .task-col-date {
+        font-size: 1.05rem;
+    }
+
+    .task-col-title {
+        font-size: 1.05rem;
+    }
+
+    .task-col-project {
+        font-size: 1.05rem;
+    }
+
+    .task-col-due {
+        font-size: 1.05rem;
+    }
+
+    /* ==========================================================================
+       [모바일 반응형 스타일]
+       ========================================================================== */
+    @media screen and (max-width: 768px) {
+
+        .modern-container {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 10px !important;
+            /* 좌우 10px 여백만 남김 (너무 딱 붙으면 보기 싫음) */
+            box-sizing: border-box;
+        }
+
+        table.table {
+            width: 100% !important;
+            table-layout: fixed;
+            /* 컬럼 너비 비율(%)을 정확하게 지키도록 설정 */
+        }
+
+        /* 3. 테이블 감싸는 div (스크롤 영역)도 꽉 채우기 */
+        div[style*="overflow-x: auto;"] {
+            width: 100% !important;
+            margin: 0 !important;
+        }
+
+        /* [Tasks] 관련 스타일 수정 (Due Date 표시 추가) */
+
+        /* 1. Project 컬럼 표시 및 스타일 설정 */
+        .task-col-project {
+            display: table-cell !important;
+            width: 31% !important;
+            font-size: 1.05rem !important;
+        }
+
+        /* 2. [새로 추가] Due Date(마감일) 표시 및 스타일 */
+        .task-col-due {
+            display: table-cell !important;
+            /* 강제로 보이게 함 */
+            width: 18% !important;
+            font-size: 1.05rem !important;
+            /* 공간 절약을 위해 폰트 축소 */
+            white-space: nowrap;
+            /* 날짜 줄바꿈 방지 */
+            color: var(--danger-color, #dc3545);
+            /* 마감일 강조 (선택사항) */
+            vertical-align: middle;
+        }
+
+        /* 3. Start Date(시작일) 스타일 조정 */
+        .task-col-date {
+            width: 12% !important;
+            font-size: 1.05rem !important;
+            white-space: nowrap;
+            color: var(--secondary-text);
+            /* 시작일은 연하게 (구분감) */
+            vertical-align: middle;
+        }
+
+        /* 4. Title(제목) 너비 재조정 */
+        .task-col-title {
+            display: table-cell !important;
+            width: 31% !important;
+            /* 남은 공간 차지 */
+            font-size: 1.05rem !important;
+            white-space: normal !important;
+            /* 제목이 길면 줄바꿈 허용 */
+            vertical-align: middle;
+            line-height: 1.3;
+        }
+
+        /* 5. Status(상태) 아이콘 */
+        .task-col-status {
+            width: 8% !important;
+            vertical-align: middle;
+        }
+
+        .task-text-badge {
+            display: none !important;
+        }
+
+        .task-icon-badge {
+            display: inline-block !important;
+            font-size: 1.2rem;
+        }
+
+        /* [Memos] 관련 스타일 */
+        /* 1. Tag, Project 컬럼 숨김 */
+        .col-tag,
+        .col-project {
+            display: none !important;
+        }
+
+        /* 2. Date 컬럼: 20%, 최소 90px, 폰트 16px */
+        .col-date {
+            width: 20% !important;
+            min-width: 90px !important;
+            white-space: nowrap !important;
+
+        }
+
+        /* 3. Content 컬럼: 나머지 자동, 폰트 16px */
+        .col-content {
+            width: auto !important;
+            display: table-cell !important;
+        }
+    }
+</style>
+
+<script>
+    function showTab(tabId, btn) {
+        document.querySelectorAll('.tab-link').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+
+        btn.classList.add('active');
+        document.getElementById(tabId).style.display = 'block';
+
+        const productId = window.location.pathname.split('/').pop();
+        localStorage.setItem(`lastTab_${productId}`, tabId);
+    }
+
+    function getUrlParameter(name) {
+        name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+        var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+        var results = regex.exec(location.search);
+        return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+    };
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const productId = window.location.pathname.split('/').pop();
+        const activeTabParam = getUrlParameter('active_tab');
+        const tagParam = getUrlParameter('tag');
+
+        let targetTab = 'related-projects';
+
+        if (activeTabParam) {
+            targetTab = activeTabParam;
+        } else if (tagParam) {
+            targetTab = 'related-memos';
+        } else {
+            const savedTab = localStorage.getItem(`lastTab_${productId}`);
+            if (savedTab) targetTab = savedTab;
+        }
+
+        const targetBtn = document.querySelector(`.tab-link[onclick*="${targetTab}"]`);
+        if (targetBtn) {
+            showTab(targetTab, targetBtn);
+        }
+    });
+</script>
+{% endblock %}

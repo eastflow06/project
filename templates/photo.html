@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>내 삶의 궤적</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            background-color: black;
+            color: white;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        #slideshow {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center center;
+        }
+        #message {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            font-size: 18px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    {% if photo_urls %}
+        <img id="slideshow" src="{{ photo_urls[0] }}" alt="슬라이드쇼" onclick="redirectToLogin()">
+    {% else %}
+        <div id="message">No images found.</div>
+    {% endif %}
+    <div id="message">Click or press Enter to login with Google</div>
+    <script>
+        let currentIndex = 0;
+        let images = {{ photo_urls|tojson }};
+        const slideshowElement = document.getElementById('slideshow');
+
+        console.log("Original Images Array:", images);
+
+        // 배열을 무작위로 섞는 함수
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // 슬라이드쇼 시작 전에 이미지 배열을 무작위로 섞음
+        shuffleArray(images);
+
+        console.log("Shuffled Images Array:", images);
+
+        function showNextImage() {
+            currentIndex = (currentIndex + 1) % images.length;
+            slideshowElement.src = images[currentIndex];
+        }
+
+        setInterval(showNextImage, 5000); // 5초 간격으로 이미지 변경
+
+        function redirectToLogin() {
+            window.location.href = "{{ url_for('auth.login') }}";
+        }
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                redirectToLogin();
+            }
+        });
+
+        document.addEventListener('click', function() {
+            redirectToLogin();
+        });
+    </script>
+</body>
+</html>

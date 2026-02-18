@@ -1,0 +1,44 @@
+# 환경 설정 (민감 정보)
+.env
+*.env
+instance/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+
+# 데이터베이스
+db/
+*.db
+*.sqlite3
+
+# 백업 파일
+*.backup*
+*.bak*
+*.bak
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+
+# 업로드/생성된 파일 (필요시 주석 해제)
+# static/uploads/
+# static/images/
+
+# OS 파일
+.DS_Store
+Thumbs.db
+
+# Data directories to exclude from backup
+/pdata/
+static/data/
+
+# Data directories to exclude from backup
+/pdata/
+static/data/

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}노트 목록{% endblock %}
+
+{% block content %}
+<div class="modern-container">
+    <div class="header-section" style="display: flex; justify-content: space-between; align-items: center;">
+        <h2 class="title" style="margin: 0;">
+            <i class="fas fa-sticky-note"></i> 나의 노트
+        </h2>
+        <div style="display: flex; gap: 10px;">
+            <a href="{{ url_for('note.image_gallery') }}" class="btn btn-secondary">
+                <i class="fas fa-images"></i> 이미지 갤러리
+            </a>
+            <a href="{{ url_for('note.create_or_edit_note') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> 새 노트 작성
+            </a>
+        </div>
+    </div>
+
+    <!-- Note Table Layout -->
+    <div class="table-responsive">
+        {% if notes %}
+        <table class="note-table">
+            <thead>
+                <tr>
+                    <th style="width: 60%;">제목</th>
+                    <th style="width: 25%;">작성일</th>
+                    <th style="width: 15%; text-align: center;">관리</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for note in notes %}
+                <tr onclick="location.href='{{ url_for('note.view_note_by_slug', slug=note.slug) }}'" style="cursor: pointer;">
+                    <td>
+                        <div class="note-title-cell">
+                            {{ note.title }}
+                        </div>
+                    </td>
+                    <td style="color: var(--secondary-text);">
+                        {{ note.created_at.strftime('%Y-%m-%d') }}
+                    </td>
+                    <td style="text-align: center;" onclick="event.stopPropagation();">
+                        <a href="{{ url_for('note.create_or_edit_note', note_id=note.id) }}" class="btn-sm btn-secondary" style="padding: 4px 8px; font-size: 0.85rem; border-radius: 4px; text-decoration: none;">
+                            <i class="fas fa-edit"></i> 편집
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-book-open" style="font-size: 48px; color: var(--border-color); margin-bottom: 20px;"></i>
+            <p>작성된 노트가 없습니다.</p>
+            <a href="{{ url_for('note.create_or_edit_note') }}" class="btn btn-primary" style="margin-top: 10px;">
+                첫 번째 노트 작성하기
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .table-responsive {
+        overflow-x: auto;
+    }
+
+    .modern-container {
+        width: 75%;
+        margin: 0 auto;
+    }
+
+    .note-table {
+        width: 100%;
+        border-collapse: collapse;
+        background-color: var(--input-bg); /* Use input-bg for table background (often slightly cleaner than main bg) */
+        border-radius: 8px;
+        overflow: hidden; /* For border-radius */
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    /* Reuse global table styles override or specific tweaks */
+    .note-table th {
+        background-color: var(--th-bg);
+        padding: 12px 15px;
+        text-align: left;
+        font-weight: 600;
+        border-bottom: 2px solid var(--border-color);
+        white-space: nowrap;
+    }
+
+    .note-table td {
+        padding: 12px 15px;
+        border-bottom: 1px solid var(--border-color);
+        vertical-align: middle;
+    }
+
+    .note-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .note-table tr:hover {
+        background-color: var(--hover-bg);
+    }
+
+    .note-title-cell {
+        font-weight: 500;
+        color: var(--text-color);
+    }
+    
+    /* Button inside table */
+    .btn-sm {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: background-color 0.2s;
+        border: 1px solid var(--border-color);
+        color: var(--text-color);
+    }
+    .btn-sm:hover {
+        background-color: var(--dropdown-hover-bg);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background-color: var(--input-bg);
+        border-radius: 12px;
+        border: 2px dashed var(--border-color);
+        color: var(--secondary-text);
+        margin-top: 20px;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .note-table th, .note-table td {
+            padding: 10px;
+        }
+    }
+</style>
+{% endblock %}

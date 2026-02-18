@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+{% block title %}
+Create InfoLink
+{% endblock %}
+{% block content %}
+
+<div class="modern-container" style="max-width: 800px;">
+    
+    <div class="header-section">
+        <h1 class="title">Create InfoLink</h1>
+        <p style="color: var(--secondary-text); margin-top: 5px;">새로운 정보 링크를 생성합니다.</p>
+    </div>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div style="margin-bottom: 20px;">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }}" 
+                         style="padding: 12px; border-radius: 8px; margin-bottom: 10px; 
+                                background-color: {% if category == 'error' %}var(--danger-color){% else %}var(--success-color){% endif %}; 
+                                color: white; opacity: 0.9;">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+    
+    <form id="infolink-form" method="post" enctype="multipart/form-data" class="form-card">
+        {% if config.WTF_CSRF_ENABLED %}
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        {% endif %}
+
+        <div class="form-group">
+            <label for="name" class="form-label">Name <span style="color: var(--danger-color);">*</span></label>
+            <input type="text" id="name" name="name" class="form-input" 
+                   value="{{ form_data.name if form_data else '' }}" required placeholder="링크 제목을 입력하세요">
+        </div>
+
+        <div class="form-group">
+            <label for="url" class="form-label">URL</label>
+            <input type="text" id="url" name="url" class="form-input" 
+                   value="{{ form_data.url if form_data else '' }}" placeholder="https://example.com">
+        </div>
+
+        <div class="form-group">
+            <label for="detail" class="form-label">Detail</label>
+            <textarea id="detail" name="detail" class="form-textarea" rows="4" 
+                      placeholder="상세 설명을 입력하세요">{{ form_data.detail if form_data else '' }}</textarea>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Categories</label>
+            <div class="toggle-group">
+                {% for category in categories %}
+                    <button type="button" class="toggle-chip category-btn" data-category="{{ category }}">
+                        {{ category }}
+                    </button>
+                {% endfor %}
+            </div>
+            <input type="hidden" name="selected_categories" id="selected-categories" value="{{ form_data.selected_categories if form_data else '' }}">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Subcategories</label>
+            <div class="toggle-group">
+                {% for subcategory in subcategories %}
+                    <button type="button" class="toggle-chip subcategory-btn" data-subcategory="{{ subcategory }}">
+                        {{ subcategory }}
+                    </button>
+                {% endfor %}
+            </div>
+            <input type="hidden" name="selected_subcategories" id="selected-subcategories" value="{{ form_data.selected_subcategories if form_data else '' }}">
+        </div>
+
+        <div class="form-group" style="background-color: var(--stripe-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+            <label for="image-upload-method" class="form-label" style="margin-bottom: 10px;">Image Upload</label>
+            <select id="image-upload-method" name="image_upload_method" class="form-select" style="margin-bottom: 15px;">
+                <option value="file">Upload Image File</option>
+                <option value="paste">Paste Image (Ctrl+V)</option>
+                <option value="url">Use Image URL</option>
+            </select>
+
+            <div id="image-file" class="upload-option">
+                <input type="file" id="images" name="images" accept="image/*" class="form-input" style="padding: 8px;">
+            </div>
+            
+            <div id="image-paste" class="upload-option" style="display: none;">
+                <div id="paste-area" tabindex="0">
+                    <span id="paste-text">
+                        <i class="fas fa-paste" style="font-size: 24px; margin-bottom: 10px; display: block;"></i>
+                        Paste image here (Ctrl+V)
+                    </span>
+                    <img id="pasted-image" alt="Pasted image">
+                </div>
+                <input type="hidden" id="pasted_image_data" name="pasted_image_data">
+                <button type="button" id="clear-pasted-image" class="btn btn-sm btn-secondary" style="margin-top: 10px; display: none;">Clear Image</button>
+            </div>
+            
+            <div id="image-url" class="upload-option" style="display: none;">
+                <input type="url" id="image_url" name="image_url" class="form-input" placeholder="https://example.com/image.jpg">
+                <div id="url-error" style="color: var(--danger-color); font-size: 0.9em; margin-top: 5px; display: none;">이미지를 불러올 수 없습니다.</div>
+                <img id="url-image-preview" alt="Image preview" style="max-width: 100%; margin-top: 10px; border-radius: 4px; display: none; border: 1px solid var(--border-color);">
+            </div>
+        </div>
+       
+        <div class="form-group">
+            <label for="attachment_file" class="form-label">Attachment</label>
+            <input type="file" id="attachment_file" name="attachment_file" class="form-input" style="padding: 8px;">
+            <small style="color: var(--secondary-text); font-size: 0.85em; display: block; margin-top: 5px;">
+                Supported: PDF, DOC, XLS, etc.
+            </small>
+        </div>
+
+        <div class="btn-group-right">
+            <a href="{{ url_for('infolinks') }}" class="btn btn-secondary">Cancel</a>
+            <button type="button" class="btn btn-reset" onclick="resetForm()">Reset</button>
+            <button type="submit" class="btn btn-save">Create</button>
+        </div>
+    </form>
+</div>
+
+<style>
+    /* 카테고리/서브카테고리 칩 스타일 */
+    .toggle-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .toggle-chip {
+        background-color: var(--bg-color);
+        border: 1px solid var(--border-color);
+        color: var(--text-color);
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .toggle-chip:hover {
+        background-color: var(--dropdown-hover-bg);
+        border-color: var(--link-color);
+    }
+
+    .toggle-chip.active {
+        background-color: var(--link-color);
+        color: white;
+        border-color: var(--link-color);
+    }
+
+    /* 붙여넣기 영역 스타일 */
+    #paste-area {
+        width: 100%;
+        min-height: 150px;
+        border: 2px dashed var(--border-color);
+        border-radius: 8px;
+        background-color: var(--bg-color);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        outline: none;
+        transition: all 0.2s;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    #paste-area:focus, #paste-area:hover {
+        border-color: var(--link-color);
+        background-color: var(--dropdown-hover-bg);
+    }
+
+    #paste-text {
+        color: var(--secondary-text);
+        pointer-events: none;
+    }
+
+    #pasted-image {
+        max-width: 100%;
+        max-height: 200px;
+        display: none;
+        object-fit: contain;
+    }
+</style>
+
+<script>
+    const selectedCategories = new Set();
+    const selectedSubcategories = new Set();
+    
+    // 카테고리 칩 토글
+    document.querySelectorAll('.category-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const category = this.getAttribute('data-category');
+            if (selectedCategories.has(category)) {
+                selectedCategories.delete(category);
+                this.classList.remove('active');
+            } else {
+                selectedCategories.add(category);
+                this.classList.add('active');
+            }
+            updateSelectedCategories();
+        });
+    });
+    
+    // 서브카테고리 칩 토글
+    document.querySelectorAll('.subcategory-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const subcategory = this.getAttribute('data-subcategory');
+            if (selectedSubcategories.has(subcategory)) {
+                selectedSubcategories.delete(subcategory);
+                this.classList.remove('active');
+            } else {
+                selectedSubcategories.add(subcategory);
+                this.classList.add('active');
+            }
+            updateSelectedSubcategories();
+        });
+    });
+
+    function updateSelectedCategories() {
+        document.getElementById('selected-categories').value = Array.from(selectedCategories).join(',');
+    }
+
+    function updateSelectedSubcategories() {
+        document.getElementById('selected-subcategories').value = Array.from(selectedSubcategories).join(',');
+    }
+
+    // 이미지 업로드 방식 전환
+    const imageUploadMethod = document.getElementById('image-upload-method');
+    const imageFile = document.getElementById('image-file');
+    const imagePaste = document.getElementById('image-paste');
+    const imageUrl = document.getElementById('image-url');
+
+    imageUploadMethod.addEventListener('change', function() {
+        imageFile.style.display = 'none';
+        imagePaste.style.display = 'none';
+        imageUrl.style.display = 'none';
+
+        switch (this.value) {
+            case 'file': imageFile.style.display = 'block'; break;
+            case 'paste': imagePaste.style.display = 'block'; break;
+            case 'url': imageUrl.style.display = 'block'; break;
+        }
+    });
+
+    // 붙여넣기 기능
+    const pasteArea = document.getElementById('paste-area');
+    const pasteText = document.getElementById('paste-text');
+    const pastedImage = document.getElementById('pasted-image');
+    const pastedImageData = document.getElementById('pasted_image_data');
+    const clearPastedImageBtn = document.getElementById('clear-pasted-image');
+
+    document.addEventListener('paste', function(e) {
+        if (imagePaste.style.display === 'block') handlePaste(e);
+    });
+
+    pasteArea.addEventListener('paste', handlePaste);
+    pasteArea.addEventListener('click', function() { this.focus(); });
+    
+    // 드래그 앤 드롭 지원
+    pasteArea.addEventListener('dragover', (e) => { e.preventDefault(); pasteArea.style.borderColor = 'var(--link-color)'; });
+    pasteArea.addEventListener('dragleave', (e) => { e.preventDefault(); pasteArea.style.borderColor = 'var(--border-color)'; });
+    pasteArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        pasteArea.style.borderColor = 'var(--border-color)';
+        const files = e.dataTransfer.files;
+        if (files.length > 0 && files[0].type.indexOf('image') !== -1) displayPastedImage(files[0]);
+    });
+
+    clearPastedImageBtn.addEventListener('click', clearPastedImage);
+
+    function handlePaste(e) {
+        const items = e.clipboardData.items;
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                e.preventDefault();
+                displayPastedImage(items[i].getAsFile());
+                break;
+            }
+        }
+    }
+
+    function displayPastedImage(file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            pastedImage.src = event.target.result;
+            pastedImage.style.display = 'block';
+            pasteText.style.display = 'none';
+            pastedImageData.value = event.target.result;
+            clearPastedImageBtn.style.display = 'inline-block';
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function clearPastedImage() {
+        pastedImage.style.display = 'none';
+        pastedImage.src = '';
+        pasteText.style.display = 'block';
+        pastedImageData.value = '';
+        clearPastedImageBtn.style.display = 'none';
+    }
+
+    // URL 미리보기
+    const imageUrlInput = document.getElementById('image_url');
+    const urlImagePreview = document.getElementById('url-image-preview');
+    const urlError = document.getElementById('url-error');
+
+    imageUrlInput.addEventListener('input', function() {
+        const url = this.value.trim();
+        if (url) {
+            const testImg = new Image();
+            testImg.onload = function() {
+                urlImagePreview.src = url;
+                urlImagePreview.style.display = 'block';
+                urlError.style.display = 'none';
+            };
+            testImg.onerror = function() {
+                urlImagePreview.style.display = 'none';
+                urlError.style.display = 'block';
+            };
+            testImg.src = url;
+        } else {
+            urlImagePreview.style.display = 'none';
+            urlError.style.display = 'none';
+        }
+    });
+
+    function resetForm() {
+        if (confirm('모든 내용을 초기화하시겠습니까?')) {
+            document.getElementById('infolink-form').reset();
+            selectedCategories.clear();
+            selectedSubcategories.clear();
+            document.querySelectorAll('.toggle-chip').forEach(btn => btn.classList.remove('active'));
+            updateSelectedCategories();
+            updateSelectedSubcategories();
+            
+            // 이미지 관련 초기화
+            imageUploadMethod.value = 'file';
+            const event = new Event('change');
+            imageUploadMethod.dispatchEvent(event);
+            clearPastedImage();
+            urlImagePreview.style.display = 'none';
+        }
+    }
+
+    // 초기 데이터 로드 (수정 모드 등)
+    document.addEventListener('DOMContentLoaded', function() {
+        const existingCategories = document.getElementById('selected-categories').value;
+        const existingSubcategories = document.getElementById('selected-subcategories').value;
+        
+        if (existingCategories) {
+            existingCategories.split(',').forEach(c => {
+                if(c) {
+                    selectedCategories.add(c);
+                    document.querySelector(`.category-btn[data-category="${c}"]`)?.classList.add('active');
+                }
+            });
+        }
+        if (existingSubcategories) {
+            existingSubcategories.split(',').forEach(s => {
+                if(s) {
+                    selectedSubcategories.add(s);
+                    document.querySelector(`.subcategory-btn[data-subcategory="${s}"]`)?.classList.add('active');
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

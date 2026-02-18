@@ -1,0 +1,589 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="memo-container">
+    <h1>답 메모 달기</h1>
+    {% if parent_memo %}
+    <div class="parent-memo">
+        <h3>Replying to Memo</h3>
+        <p>{{ parent_memo.content | truncate(100) }}</p>
+    </div>
+    {% endif %}
+    <form method="POST" action="{{ url_for('create_memo', parent_id=parent_memo.id if parent_memo else '', project_id=project_id) }}" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="created_at">Date:</label>
+            <input type="datetime-local" id="created_at" name="created_at" value="{{ datetime.now().strftime('%Y-%m-%dT%H:%M') }}" required style="width: 250px;">
+        </div>
+        
+        <div class="form-group">
+            <label for="project_id">Project:</label>
+            <select id="project_id" name="project_id" style="width: 350px;">
+                <option value="">-- 프로젝트 선택 --</option>
+                {% for status in project_statuses %}
+                    {% set projects_in_status = projects|selectattr('status', 'equalto', status)|list %}
+                    {% if projects_in_status %}
+                        <optgroup label="{{ status }}">
+                            {% for project in projects_in_status %}
+                                <option value="{{ project.id }}" {% if project.id == project_id %}selected{% endif %}>
+                                    {{ project.title }}
+                                </option>
+                            {% endfor %}
+                        </optgroup>
+                    {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="product">Product:</label>
+            <select id="product" name="product" style="width: 270px;">
+                <option value="">-- 제품 선택 --</option>
+                {% for product in products %}
+                <option value="{{ product.id }}">{{ product.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="tag">Tag:</label>
+            <select id="tag" name="tag" style="width: 270px;">
+                <option value="">-- Select a tag --</option>
+                {% for tag in tags %}
+                <option value="{{ tag.id }}">{{ tag.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="content">Content:</label>
+            <textarea id="content" name="content" required style="width: 750px;"></textarea>
+        </div>
+        
+        <!-- 이미지 업로드 방식 선택 -->
+        <div class="form-group">
+            <label>이미지 업로드 방식:</label>
+            <div class="upload-options">
+                <label class="radio-option">
+                    <input type="radio" name="image_option" value="file" checked>
+                    파일 업로드
+                </label>
+                <label class="radio-option">
+                    <input type="radio" name="image_option" value="paste">
+                    이미지 붙여넣기
+                </label>
+            </div>
+        </div>
+        
+        <!-- 파일 업로드 -->
+        <div class="form-group" id="file-upload-group">
+            <label for="file">Upload File (Max 5 images):</label>
+            <input type="file" id="file" name="file" accept="image/*,.pdf,.xls,.xlsx,.ppt,.pptx,.md" multiple="multiple" onchange="validateFileCount(this)">
+            <small style="display:block; color:#666; margin-top:5px; font-size: 0.9em;">
+                💡 Ctrl(또는 Command) 키를 누르고 클릭하여 여러 파일을 선택할 수 있습니다.
+            </small>
+        </div>
+        
+        <!-- 이미지 붙여넣기 영역 -->
+        <div class="form-group" id="paste-area-group" style="display: none;">
+            <label>이미지 붙여넣기:</label>
+            <div id="paste-area" class="paste-area">
+                여기를 클릭하고 Ctrl+V로 이미지를 붙여넣으세요
+            </div>
+            <canvas id="paste-canvas" style="display: none;"></canvas>
+            <input type="hidden" id="pasted_image_data" name="pasted_image_data">
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn-create">Create</button>
+            <button type="button" class="btn-cancel" onclick="window.history.back();">Cancel</button>
+        </div>
+    </form>
+</div>
+
+<style>
+/* 기존 스타일 */
+.memo-container {
+    width: 70%;
+    margin: 0 auto;
+    text-align: center;
+}
+.parent-memo {
+    background-color: #f8f8f8;
+    padding: 10px;
+    border-left: 4px solid red;
+    margin-bottom: 20px;
+    text-align: left;
+}
+#content {
+    width: 100%;
+    min-height: 150px;
+    padding: 8px;
+    font-size: 1.05rem;
+    line-height: 1.5;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+.form-group {
+    margin-bottom: 15px;
+    text-align: left;
+}
+.form-group input[type="datetime-local"], 
+.form-group select,
+.form-group textarea,
+.form-group input[type="file"] {
+    width: 150px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 6px 10px;
+}
+.form-group textarea {
+    width: 750px;
+    min-height: 150px;
+}
+.form-group input[type="file"] {
+    padding: 6px;
+    background-color: #f9f9f9;
+}
+.form-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 20px;
+}
+.btn-create, .btn-cancel {
+    padding: 10px 20px;
+    color: white;
+    background-color: #28a745;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-right: 20px;
+}
+.btn-cancel {
+    background-color: #78909C;
+}
+/* 메모 작성 폼만 스타일 적용 */
+.memo-container form {
+    border: 1px solid #ddd;
+    padding: 20px;
+    border-radius: 8px;
+    background-color: #fdfdfd;
+}
+
+body.dark-mode .memo-container form {
+    background-color: var(--form-bg);
+    border-color: var(--border-color);
+}
+.upload-options {
+    display: flex;
+    gap: 20px;
+    margin-top: 5px;
+}
+
+.radio-option {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: normal;
+}
+
+.radio-option input[type="radio"] {
+    margin-right: 8px;
+    width: auto;
+}
+
+.paste-area {
+    width: 750px;
+    height: 150px;
+    border: 2px dashed #ccc;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background-color: #f9f9f9;
+    color: #666;
+    font-size: 14px;
+    margin-top: 5px;
+    transition: border-color 0.3s;
+}
+
+.paste-area:hover {
+    border-color: #007bff;
+    background-color: #f0f8ff;
+}
+
+.paste-area.dragover {
+    border-color: #28a745;
+    background-color: #f0fff0;
+}
+
+.paste-preview {
+    max-width: 200px;
+    max-height: 150px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+/* ========================================
+   다크모드 스타일 (CSS 변수 기반)
+   ======================================== */
+
+/* 컨테이너 */
+.memo-container {
+    color: var(--text-color);
+}
+
+/* 제목 */
+h1 {
+    color: var(--text-color);
+}
+
+/* 부모 메모 */
+.parent-memo {
+    background-color: var(--stripe-bg);
+    border-left-color: var(--danger-color);
+    color: var(--text-color);
+}
+
+.parent-memo h3 {
+    color: var(--text-color);
+}
+
+.parent-memo p {
+    color: var(--text-color);
+}
+
+/* 폼 배경은 위에서 이미 처리됨 */
+
+/* 라벨 */
+.form-group label {
+    color: var(--text-color);
+}
+
+/* 입력 필드 */
+input[type="datetime-local"],
+select,
+textarea,
+input[type="file"] {
+    background-color: var(--input-bg) !important;
+    color: var(--input-text) !important;
+    border-color: var(--border-color) !important;
+}
+
+input[type="datetime-local"]:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--link-color) !important;
+    outline: none;
+}
+
+/* placeholder */
+input::placeholder,
+textarea::placeholder {
+    color: var(--secondary-text) !important;
+}
+
+/* optgroup */
+optgroup {
+    background-color: var(--input-bg);
+    color: var(--link-color);
+    font-weight: bold;
+}
+
+option {
+    background-color: var(--input-bg);
+    color: var(--input-text);
+}
+
+/* 라디오 옵션 */
+.radio-option {
+    color: var(--text-color);
+}
+
+/* 업로드 옵션 영역 */
+.upload-options {
+    background-color: var(--stripe-bg);
+    border-color: var(--border-color);
+}
+
+/* 붙여넣기 영역 */
+.paste-area {
+    background-color: var(--input-bg);
+    border-color: var(--border-color);
+    color: var(--secondary-text);
+}
+
+.paste-area:hover {
+    border-color: var(--link-color);
+    background-color: var(--stripe-bg);
+}
+
+.paste-area.dragover {
+    border-color: #4CAF50;
+    background-color: var(--stripe-bg);
+}
+
+#paste-placeholder {
+    color: var(--secondary-text);
+}
+
+#paste-placeholder i {
+    color: var(--secondary-text);
+}
+
+/* 버튼 */
+.btn-create {
+    background-color: #28a745;
+    color: white;
+    border: none;
+}
+
+.btn-create:hover {
+    background-color: #218838;
+}
+
+body.dark-mode .btn-create {
+    background-color: #2ea043 !important;
+    color: #e0e0e0;
+}
+
+body.dark-mode .btn-create:hover {
+    background-color: #38b450 !important;
+}
+
+.btn-cancel {
+    background-color: #78909C;
+    color: white;
+}
+
+.btn-cancel:hover {
+    background-color: #5f7580;
+}
+
+body.dark-mode .btn-cancel {
+    background-color: #3d3d3d !important;
+    color: #bbb !important;
+    border: 1px solid #888;
+}
+
+body.dark-mode .btn-cancel:hover {
+    background-color: #555 !important;
+    color: white !important;
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+    .memo-container {
+        width: 95%;
+    }
+    
+    .form-group textarea,
+    .paste-area {
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .form-group select {
+        width: 100%;
+        max-width: 350px;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const radioButtons = document.querySelectorAll('input[name="image_option"]');
+    const fileUploadGroup = document.getElementById('file-upload-group');
+    const pasteAreaGroup = document.getElementById('paste-area-group');
+    const pasteArea = document.getElementById('paste-area');
+    const pasteCanvas = document.getElementById('paste-canvas');
+    const pastedImageData = document.getElementById('pasted_image_data');
+
+    // 업로드 방식 변경 처리
+    radioButtons.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'file') {
+                fileUploadGroup.style.display = 'block';
+                pasteAreaGroup.style.display = 'none';
+                pastedImageData.value = '';
+            } else if (this.value === 'paste') {
+                fileUploadGroup.style.display = 'none';
+                pasteAreaGroup.style.display = 'block';
+                document.getElementById('file').value = '';
+            }
+        });
+    });
+
+    // 붙여넣기 영역 클릭 시 포커스
+    pasteArea.addEventListener('click', function() {
+        this.focus();
+    });
+
+    // 붙여넣기 이벤트 처리
+    pasteArea.addEventListener('paste', function(e) {
+        e.preventDefault();
+        const items = e.clipboardData.items;
+        
+        for (let item of items) {
+            if (item.type.indexOf('image') !== -1) {
+                const file = item.getAsFile();
+                const reader = new FileReader();
+                
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.onload = function() {
+                        // 캔버스에 이미지 그리기
+                        const ctx = pasteCanvas.getContext('2d');
+                        pasteCanvas.width = img.width;
+                        pasteCanvas.height = img.height;
+                        ctx.drawImage(img, 0, 0);
+                        
+                        // base64 데이터 저장
+                        const dataURL = pasteCanvas.toDataURL('image/png');
+                        pastedImageData.value = dataURL;
+                        
+                        // 미리보기 표시
+                        pasteArea.innerHTML = `
+                            <div>
+                                <img src="${dataURL}" class="paste-preview" alt="붙여넣은 이미지">
+                                <p>이미지가 붙여넣어졌습니다.</p>
+                            </div>
+                        `;
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+                break;
+            }
+        }
+    });
+
+    // 드래그 앤 드롭 처리
+    pasteArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('dragover');
+    });
+
+    pasteArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+    });
+
+    pasteArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0 && files[0].type.indexOf('image') !== -1) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    const ctx = pasteCanvas.getContext('2d');
+                    pasteCanvas.width = img.width;
+                    pasteCanvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    
+                    const dataURL = pasteCanvas.toDataURL('image/png');
+                    pastedImageData.value = dataURL;
+                    
+                    pasteArea.innerHTML = `
+                        <div>
+                            <img src="${dataURL}" class="paste-preview" alt="드롭된 이미지">
+                            <p>이미지가 업로드되었습니다.</p>
+                        </div>
+                    `;
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(files[0]);
+        }
+    });
+
+    // 프로젝트 선택에 따른 제품 필터링
+    const projectSelect = document.getElementById('project_id');
+    const productSelect = document.getElementById('product');
+    
+    if (projectSelect && productSelect) {
+        // 초기 모든 제품 목록 저장
+        const allProducts = Array.from(productSelect.options).slice(1); // 첫 번째 "-- 제품 선택 --" 옵션 제외
+        
+        projectSelect.addEventListener('change', function() {
+            const projectId = this.value;
+            
+            if (projectId) {
+                // 선택된 프로젝트의 제품만 표시
+                fetch(`/get_products/${projectId}`)
+                    .then(response => response.json())
+                    .then(products => {
+                        // 기존 옵션들 제거 (첫 번째 기본 옵션 제외)
+                        while (productSelect.children.length > 1) {
+                            productSelect.removeChild(productSelect.lastChild);
+                        }
+                        
+                        // 해당 프로젝트의 제품들만 추가
+                        products.forEach(product => {
+                            const option = document.createElement('option');
+                            option.value = product.id;
+                            option.textContent = product.name;
+                            productSelect.appendChild(option);
+                        });
+                        
+                        // 제품이 없는 경우 메시지 표시
+                        if (products.length === 0) {
+                            const option = document.createElement('option');
+                            option.value = '';
+                            option.textContent = '-- 이 프로젝트에 연결된 제품이 없습니다 --';
+                            option.disabled = true;
+                            productSelect.appendChild(option);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('제품 목록을 가져오는데 실패했습니다:', error);
+                        // 에러 발생 시 모든 제품 표시
+                        restoreAllProducts();
+                    });
+            } else {
+                // 프로젝트가 선택되지 않은 경우 모든 제품 표시
+                restoreAllProducts();
+            }
+        });
+        
+    // 모든 제품을 다시 표시하는 함수
+        function restoreAllProducts() {
+            // 기존 옵션들 제거 (첫 번째 기본 옵션 제외)
+            while (productSelect.children.length > 1) {
+                productSelect.removeChild(productSelect.lastChild);
+            }
+            
+            // 모든 제품 다시 추가
+            allProducts.forEach(option => {
+                productSelect.appendChild(option.cloneNode(true));
+            });
+        }
+    }
+});
+
+function validateFileCount(input) {
+    if (input.files.length > 0) {
+        let imageCount = 0;
+        const imageExts = ['jpg', 'jpeg', 'png', 'gif'];
+        
+        for (let i = 0; i < input.files.length; i++) {
+            const fileName = input.files[i].name;
+            const ext = fileName.split('.').pop().toLowerCase();
+            if (imageExts.includes(ext)) {
+                imageCount++;
+            }
+        }
+        
+        if (imageCount > 5) {
+            alert('이미지는 최대 5장까지만 업로드할 수 있습니다.');
+            input.value = ''; // 선택 초기화
+        }
+    }
+}
+
+</script>
+{% endblock %}

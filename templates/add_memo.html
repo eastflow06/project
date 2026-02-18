@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="memo-container">
+    <h1>답 메모 달기</h1>
+    {% if parent_memo %}
+    <div class="parent-memo">
+        <h3>Replying to Memo</h3>
+        <p>{{ parent_memo.content | truncate(100) }}</p>
+    </div>
+    {% endif %}
+    <form method="POST" action="{{ url_for('create_memo', parent_id=parent_memo.id, project_id=parent_memo.project_id) }}" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="created_at">Date:</label>
+            <input type="datetime-local" id="created_at" name="created_at" value="{{ datetime.now().strftime('%Y-%m-%dT%H:%M') }}" required style="width: 250px;">
+        </div>
+        <div class="form-group">
+            <label for="tag">Tag:</label>
+            <select id="tag" name="tag" style="width: 270px;">
+                <option value="">-- Select a tag --</option>
+                {% for tag in tags %}
+                <option value="{{ tag.id }}">{{ tag.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="content">Content:</label>
+            <textarea id="content" name="content" required style="width: 750px;"></textarea>
+        </div>
+        <div class="form-group">
+            <label for="file">Upload File:</label>
+            <input type="file" id="file" name="file" accept=".png,.jpg,.jpeg,.gif,.pdf,.xls,.xlsx,.ppt,.pptx,.md">
+        </div>
+        <div class="form-actions">
+            <button type="button" class="btn-cancel" onclick="window.history.back();">Cancel</button>
+            <button type="submit" class="btn-create">Create Memo</button>
+        </div>
+    </form>
+</div>
+<style>
+/* 스타일 추가 */
+.memo-container {
+    width: 70%;
+    margin: 0 auto;
+    text-align: center;
+}
+.parent-memo {
+    background-color: #f8f8f8;
+    padding: 10px;
+    border-left: 4px solid red;
+    margin-bottom: 20px;
+    text-align: left;
+}
+.form-group {
+    margin-bottom: 15px;
+    text-align: left;
+}
+.form-group input[type="datetime-local"], 
+.form-group select {
+    width: 150px; /* Width for Date and Tag fields */
+}
+.form-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px; /* Space between buttons */
+    margin-top: 20px;
+}
+.btn-create, .btn-cancel {
+    padding: 10px 20px;
+    color: white;
+    background-color: #28a745;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.btn-cancel {
+    background-color: #dc3545; /* Red color for cancel button */
+}
+</style>
+{% endblock %}

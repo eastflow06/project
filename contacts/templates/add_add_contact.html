@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}연락처 추가{% endblock %}
+{% block content %}
+
+<style>
+    /* 로컬 스타일: 이 페이지에만 필요한 레이아웃 조정 */
+    
+    /* 체크박스 커스텀 */
+    .favorite-checkbox {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+        padding: 10px 0;
+    }
+    
+    .favorite-checkbox input {
+        width: 18px;
+        height: 18px;
+        margin-right: 10px;
+        cursor: pointer;
+        accent-color: var(--highlight, #e64980); /* 체크박스 색상 */
+    }
+    
+    .favorite-checkbox label {
+        margin-bottom: 0;
+        cursor: pointer;
+        font-weight: 500;
+        color: var(--text-color);
+    }
+
+    /* 버튼 그룹 레이아웃 */
+    .button-group {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 30px;
+        gap: 15px;
+    }
+
+    .btn-submit {
+        background-color: #e64980;
+        color: white;
+        border: none;
+        flex: 1;
+    }
+    
+    .btn-back {
+        background-color: var(--stripe-bg);
+        color: var(--text-secondary);
+        border: 1px solid var(--border-color);
+        flex: 1;
+    }
+
+    /* 다크모드 대응 */
+    body.dark-mode .btn-back {
+        background-color: var(--input-bg);
+        color: var(--text-color);
+    }
+    
+    /* 모바일 대응 */
+    @media (max-width: 480px) {
+        .button-group {
+            flex-direction: column-reverse; /* 모바일에서는 저장 버튼이 위로 */
+        }
+        .btn { width: 100%; }
+    }
+</style>
+
+<div class="modern-container">
+    <div class="form-card" style="max-width: 600px; margin: 0 auto;">
+        
+        <h1 class="title" style="justify-content: center; margin-bottom: 30px; color: #e64980;">
+            연락처 추가
+        </h1>
+        
+        <form method="POST">
+            <div class="form-group">
+                <label for="name" class="form-label">이름</label>
+                <input type="text" id="name" name="name" class="form-input" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="position" class="form-label">직급</label>
+                <input type="text" id="position" name="position" class="form-input" list="position-suggestions" required>
+                <datalist id="position-suggestions">
+                    {% for pos in unique_positions %}
+                    <option value="{{ pos }}">
+                    {% endfor %}
+                </datalist>
+            </div>
+            
+            <div class="form-group">
+                <label for="department" class="form-label">부서</label>
+                <input type="text" id="department" name="department" class="form-input" list="department-suggestions" required>
+                <datalist id="department-suggestions">
+                    {% for dept in unique_departments %}
+                    <option value="{{ dept }}">
+                    {% endfor %}
+                </datalist>
+            </div>
+            
+            <div class="form-group">
+                <label for="phone" class="form-label">연락처</label>
+                <input type="text" id="phone" name="phone" class="form-input" placeholder="000-0000-0000" maxlength="13" required oninput="formatPhoneNumber(this)">
+            </div>
+            
+            <div class="form-group">
+                <label for="extension" class="form-label">내선</label>
+                <input type="text" id="extension" name="extension" class="form-input" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="email" class="form-label">이메일</label>
+                <input type="email" id="email" name="email" class="form-input" placeholder="name@example.com">
+            </div>
+            
+            <div class="favorite-checkbox">
+                <input type="checkbox" id="is_favorite" name="is_favorite">
+                <label for="is_favorite">즐겨찾기에 추가</label>
+            </div>
+            
+            <div class="button-group">
+                <a href="{{ url_for('contact.index') }}" class="btn btn-back">뒤로 가기</a>
+                <button type="submit" class="btn btn-submit">연락처 추가</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // 전화번호 자동 포맷팅 함수
+    function formatPhoneNumber(input) {
+        // 모든 하이픈 제거
+        let value = input.value.replace(/-/g, '');
+        
+        // 숫자만 남기기
+        value = value.replace(/\D/g, '');
+        
+        // 값이 없으면 아무것도 하지 않음
+        if (!value) {
+            input.value = '';
+            return;
+        }
+        
+        // 하이픈 추가 로직
+        if (value.length <= 3) {
+            input.value = value;
+        } else if (value.length <= 7) {
+            input.value = value.slice(0, 3) + '-' + value.slice(3);
+        } else {
+            input.value = value.slice(0, 3) + '-' + value.slice(3, 7) + '-' + value.slice(7, 11);
+        }
+    }
+    
+    // 페이지 로드 시 이미 값이 있다면 포맷팅 적용
+    window.onload = function() {
+        const phoneInput = document.getElementById('phone');
+        if (phoneInput && phoneInput.value) {
+            formatPhoneNumber(phoneInput);
+        }
+    };
+</script>
+{% endblock %}

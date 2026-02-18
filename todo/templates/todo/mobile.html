@@ -1,0 +1,3010 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Tasks</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            /* Dark Mode Colors */
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #242424;
+            --bg-tertiary: #2d2d2d;
+            
+            /* Glassmorphism */
+            --glass-bg: rgba(45, 45, 45, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-shadow: rgba(0, 0, 0, 0.3);
+            
+            /* Text Colors */
+            --text-primary: #e8e8e8;
+            --text-secondary: #a0a0a0;
+            --text-tertiary: #707070;
+            
+            /* Accent Colors */
+            --accent-blue: #4285f4;
+            --accent-blue-hover: #5a95f5;
+            --accent-red: #ea4335;
+            --accent-yellow: #fbbc04;
+            --accent-green: #34a853;
+            
+            /* UI Elements */
+            --border-color: rgba(255, 255, 255, 0.08);
+            --divider-color: rgba(255, 255, 255, 0.06);
+            --hover-bg: rgba(255, 255, 255, 0.05);
+            --active-bg: rgba(66, 133, 244, 0.15);
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            font-size: 4vw;
+        }
+        
+        /* Main Container */
+        .mobile-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            position: relative;
+        }
+        
+        /* Top Header with Glassmorphism */
+        .mobile-header {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px var(--glass-shadow);
+        }
+        
+        .mobile-header h1 {
+            font-size: 5.6vw;
+            font-weight: 500;
+            color: var(--text-secondary);
+            letter-spacing: -0.3px;
+            margin: 0;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .header-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 1.1rem;
+        }
+        
+        .header-btn:active {
+            background: var(--hover-bg);
+            transform: scale(0.95);
+        }
+        
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        
+        /* Tab Navigation */
+        .mobile-tabs {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            padding: 0 12px;
+        }
+        
+        .mobile-tabs::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .mobile-tab {
+            flex-shrink: 0;
+            padding: 14px 20px;
+            color: var(--text-tertiary);
+            font-size: 3.6vw;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .mobile-tab i {
+            font-size: 4vw;
+        }
+        
+        .mobile-tab.active {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+        }
+        
+        .mobile-tab:active {
+            background: var(--hover-bg);
+        }
+        
+        /* Date Display */
+        .date-display {
+            padding: 16px 20px 8px;
+            color: var(--text-tertiary);
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: none;
+        }
+        
+        .date-display.show {
+            display: block;
+        }
+        
+        /* Task List Container */
+        .task-list-container {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 12px 16px 100px;
+        }
+        
+        .task-list-container::-webkit-scrollbar {
+            width: 0;
+        }
+        
+        /* Section Header */
+        .section-header {
+            padding: 12px 8px 8px;
+            color: var(--text-tertiary);
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Task Item with Glassmorphism */
+        .task-item {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .task-item:active {
+            transform: scale(0.98);
+            background: rgba(45, 45, 45, 0.85);
+        }
+        
+        .task-item.completed {
+            opacity: 0.6;
+        }
+        
+        /* Custom Checkbox */
+        .task-checkbox {
+            width: 24px;
+            height: 24px;
+            min-width: 24px;
+            border: 2px solid var(--text-tertiary);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            margin-top: 2px;
+        }
+        
+        .task-checkbox:active {
+            transform: scale(0.9);
+        }
+        
+        .task-checkbox.completed {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+        
+        .task-checkbox.completed::after {
+            content: '✓';
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        /* Task Content */
+        .task-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 0;
+        }
+        
+        .task-title {
+            font-size: 4vw;
+            font-weight: 400;
+            color: var(--text-primary);
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+        
+        .task-item.completed .task-title {
+            text-decoration: line-through;
+            color: var(--text-secondary);
+        }
+        
+        .task-subtitle {
+            font-size: 0.85rem;
+            color: var(--text-tertiary);
+            background: rgba(255, 255, 255, 0.03);
+            padding: 6px 10px;
+            border-radius: 6px;
+            border-left: 2px solid var(--accent-blue);
+            margin-top: 4px;
+        }
+        
+        /* Task Meta */
+        .task-meta {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 4px;
+        }
+        
+        .task-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 3.4vw;
+            color: var(--text-secondary);
+        }
+        
+        .task-meta-item i {
+            font-size: 3.6vw;
+            opacity: 0.7;
+        }
+        
+        /* Task Star */
+        .task-star {
+            color: var(--text-tertiary);
+            font-size: 1.2rem;
+            cursor: pointer;
+            margin-top: 2px;
+            transition: all 0.2s ease;
+        }
+        
+        .task-star:active {
+            transform: scale(1.2);
+        }
+        
+        .task-star.important {
+            color: var(--accent-yellow);
+        }
+        
+        /* Completed Section */
+        .completed-section {
+            margin-top: 24px;
+        }
+        
+        .completed-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .completed-header:active {
+            background: var(--hover-bg);
+            border-radius: 8px;
+        }
+        
+        .completed-header i {
+            font-size: 0.75rem;
+            transition: transform 0.2s ease;
+        }
+        
+        .completed-header.open i {
+            transform: rotate(90deg);
+        }
+        
+        .completed-tasks {
+            display: none;
+            margin-top: 8px;
+        }
+        
+        .completed-tasks.show {
+            display: block;
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: var(--text-tertiary);
+        }
+        
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.2;
+        }
+        
+        .empty-state p {
+            font-size: 1rem;
+            font-weight: 400;
+        }
+        
+        /* Floating Action Button */
+        .fab {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-blue-hover) 100%);
+            box-shadow: 0 4px 20px rgba(66, 133, 244, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            z-index: 90;
+            transition: all 0.2s ease;
+            border: none;
+        }
+        
+        .fab:active {
+            transform: scale(0.9);
+            box-shadow: 0 2px 10px rgba(66, 133, 244, 0.3);
+        }
+        
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+            z-index: 100;
+            box-shadow: 0 -2px 10px var(--glass-shadow);
+        }
+        
+        .bottom-nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 12px 8px;
+            color: var(--text-tertiary);
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border-radius: 8px;
+            position: relative;
+        }
+        
+        .bottom-nav-item:active {
+            background: var(--hover-bg);
+        }
+        
+        .bottom-nav-item.active {
+            color: var(--accent-blue);
+        }
+        
+        .bottom-nav-fab {
+            position: relative;
+            margin-top: -20px;
+        }
+        
+        .bottom-nav-fab .bottom-nav-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-blue-hover) 100%);
+            box-shadow: 0 4px 12px rgba(66, 133, 244, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+        }
+        
+        .bottom-nav-fab:active .bottom-nav-icon {
+            transform: scale(0.9);
+            box-shadow: 0 2px 8px rgba(66, 133, 244, 0.3);
+        }
+        
+        .bottom-nav-icon {
+            font-size: 1.5rem;
+        }
+        
+        .bottom-nav-label {
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+        
+        /* Modal Overlay */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            z-index: 200;
+            align-items: flex-end;
+            animation: fadeIn 0.2s ease;
+        }
+        
+        .modal-overlay.show {
+            display: flex;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        /* Modal Content */
+        .modal-content {
+            background: var(--bg-secondary);
+            border-radius: 20px 20px 0 0;
+            width: 100%;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 24px 20px calc(24px + env(safe-area-inset-bottom));
+            animation: slideUp 0.3s ease;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        
+        .modal-title {
+            font-size: 5.2vw;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .modal-close {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.3rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        
+        .modal-close:active {
+            background: var(--hover-bg);
+            transform: scale(0.9);
+        }
+        
+        /* Form Elements */
+        .form-input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 4vw;
+            font-family: inherit;
+            margin-bottom: 16px;
+            transition: all 0.2s ease;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            background: rgba(45, 45, 45, 0.9);
+        }
+        
+        .form-input::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        .form-textarea {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 4vw;
+            font-family: inherit;
+            margin-bottom: 0;
+            transition: all 0.2s ease;
+            resize: vertical;
+        }
+
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            background: rgba(45, 45, 45, 0.9);
+        }
+
+        .form-textarea::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        .form-option {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--divider-color);
+            cursor: pointer;
+        }
+        
+        .form-option:last-child {
+            border-bottom: none;
+        }
+        
+        .form-option-label {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-primary);
+            font-size: 4vw;
+        }
+        
+        .form-option-label i {
+            font-size: 4.4vw;
+            width: 20px;
+            text-align: center;
+        }
+        
+        /* Custom Checkbox/Toggle */
+        .custom-checkbox {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .custom-checkbox.checked {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+        
+        /* Date Input */
+        input[type="date"] {
+            border: none;
+            background: transparent;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+        
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(0.7);
+            cursor: pointer;
+        }
+        
+        input[type="date"]:focus {
+            outline: none;
+            background: var(--hover-bg);
+        }
+        
+        /* Primary Button */
+        .btn-primary {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 10px;
+            background: var(--accent-blue);
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 10px rgba(66, 133, 244, 0.3);
+        }
+        
+        .btn-primary:active {
+            transform: scale(0.98);
+            background: var(--accent-blue-hover);
+        }
+        
+        /* Bottom Sheet Menu */
+        .bottom-sheet {
+            background: var(--bg-secondary);
+            border-radius: 20px 20px 0 0;
+            width: 100%;
+            padding: 20px 0 calc(20px + env(safe-area-inset-bottom));
+            animation: slideUp 0.3s ease;
+        }
+        
+        .bottom-sheet-handle {
+            width: 40px;
+            height: 4px;
+            background: var(--text-tertiary);
+            border-radius: 2px;
+            margin: 0 auto 20px;
+            opacity: 0.3;
+        }
+        
+        .bottom-sheet-item {
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .bottom-sheet-item:active {
+            background: var(--hover-bg);
+        }
+        
+        .bottom-sheet-item i {
+            font-size: 1.2rem;
+            width: 24px;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+        
+        .bottom-sheet-item.danger {
+            color: var(--accent-red);
+        }
+        
+        .bottom-sheet-item.danger i {
+            color: var(--accent-red);
+        }
+        
+        .bottom-sheet-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 24px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .bottom-sheet-header i {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+        }
+        
+        .bottom-sheet-divider {
+            height: 1px;
+            background: var(--divider-color);
+            margin: 8px 0;
+        }
+        
+        .item-count {
+            margin-left: auto;
+            font-size: 0.9rem;
+            color: var(--text-tertiary);
+            font-weight: 500;
+        }
+        
+        /* Icon Grid for New List Modal */
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin: 20px 0;
+        }
+        
+        .icon-option {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .icon-option:active {
+            transform: scale(0.95);
+        }
+        
+        .icon-option.selected {
+            background: var(--active-bg);
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+        
+        /* Icon Options Container for Add Task Modal */
+        .icon-options-container {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            padding: 16px 0 24px;
+            margin: 8px 0 12px;
+        }
+        
+        .icon-option-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .icon-option-item:active {
+            transform: scale(0.95);
+        }
+        
+        .icon-option-circle {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+            transition: all 0.3s ease;
+        }
+        
+        .icon-option-item.active .icon-option-circle {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: white;
+        }
+        
+        .icon-option-item.active .icon-option-circle i.far {
+            font-weight: 900;
+        }
+        
+        .icon-option-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        .icon-option-item.active .icon-option-label {
+            color: var(--accent-blue);
+        }
+        
+        /* Calendar Date Picker Styles */
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            margin-bottom: 16px;
+        }
+        
+        .calendar-header span {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .calendar-nav {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .calendar-nav-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        
+        .calendar-nav-btn:active {
+            background: var(--hover-bg);
+        }
+        
+        .calendar-weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+        
+        .calendar-weekdays div {
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+            padding: 8px 0;
+            font-weight: 500;
+        }
+        
+        .calendar-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            margin-bottom: 24px;
+        }
+        
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            color: var(--text-primary);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .calendar-day:hover {
+            background: var(--hover-bg);
+        }
+        
+        .calendar-day.today {
+            border: 2px solid var(--accent-blue);
+            font-weight: 600;
+        }
+        
+        .calendar-day.selected {
+            background: var(--accent-blue);
+            color: white;
+            font-weight: 600;
+        }
+        
+        .calendar-day.selected.today {
+            background: var(--accent-blue);
+            border: 2px solid var(--accent-blue);
+        }
+        
+        .calendar-day.other-month {
+            color: var(--text-tertiary);
+            opacity: 0.4;
+        }
+        
+        .date-picker-options {
+            border-top: 1px solid var(--divider-color);
+            padding-top: 16px;
+        }
+        
+        .date-picker-option {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .date-picker-option:active {
+            background: var(--hover-bg);
+        }
+        
+        .date-picker-option span {
+            font-size: 1rem;
+            color: var(--text-primary);
+        }
+        
+        .date-picker-option i {
+            color: var(--text-tertiary);
+            font-size: 0.9rem;
+        }
+        
+        /* Task Detail Checkbox */
+        .task-detail-checkbox {
+            width: 24px;
+            height: 24px;
+            min-width: 24px;
+            border: 2px solid var(--text-tertiary);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            margin-top: 2px;
+        }
+        
+        .task-detail-checkbox:active {
+            transform: scale(0.9);
+        }
+        
+        .task-detail-checkbox.completed {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+        
+        .task-detail-checkbox.completed::after {
+            content: '✓';
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        /* Steps */
+        .steps-section {
+            margin-top: 20px;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 12px 12px 16px;
+            margin-left: 10px;  /* 들여쓰기 */
+            margin-bottom: 6px;
+            background: var(--bg-tertiary);
+            border-left: 3px solid var(--border-color);
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        
+        .step-checkbox {
+            width: 20px;
+            height: 20px;
+            min-width: 20px;
+            border: 2px solid var(--text-tertiary);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        
+        .step-checkbox.completed {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+        
+        .step-checkbox.completed::after {
+            content: '✓';
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .step-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            outline: none;
+        }
+        
+        .step-item.completed .step-input {
+            text-decoration: line-through;
+            color: var(--text-secondary);
+        }
+        
+        .step-delete-btn {
+            background: none;
+            border: none;
+            color: var(--text-tertiary);
+            cursor: pointer;
+            padding: 4px;
+            font-size: 1rem;
+        }
+        
+        .date-picker-btn {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 6px 10px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .date-picker-btn:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            background: rgba(45, 45, 45, 0.9);
+        }
+
+        .date-picker-btn::-webkit-calendar-picker-indicator {
+            filter: invert(0.7);
+            cursor: pointer;
+        }
+        
+        .time-picker-container {
+            display: none;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--divider-color);
+        }
+        
+        .time-picker-container.show {
+            display: block;
+        }
+        
+        .time-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-family: inherit;
+        }
+        
+        .repeat-options {
+            display: none;
+            padding: 16px 0;
+        }
+        
+        .repeat-options.show {
+            display: block;
+        }
+        
+        .repeat-option {
+            padding: 14px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            border-bottom: 1px solid var(--divider-color);
+        }
+        
+        .repeat-option:last-child {
+            border-bottom: none;
+        }
+        
+        .repeat-check {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .repeat-check.selected {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+        
+        .repeat-check.selected::after {
+            content: '✓';
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-container">
+        <div class="mobile-header">
+            <h1 id="pageTitle">오늘 할 일</h1>
+        </div>
+        
+        <div class="mobile-tabs">
+            <div class="mobile-tab active" onclick="switchTab('my_day', this)">
+                <i class="fas fa-sun"></i>
+                <span>오늘 할 일</span>
+            </div>
+            <div class="mobile-tab" onclick="switchTab('important', this)">
+                <i class="far fa-star"></i>
+                <span>중요</span>
+            </div>
+            <div class="mobile-tab" onclick="switchTab('planned', this)">
+                <i class="far fa-calendar-alt"></i>
+                <span>계획된 일정</span>
+            </div>
+            <div class="mobile-tab" onclick="switchTab('tasks', this)">
+                <i class="fas fa-inbox"></i>
+                <span>Tasks</span>
+            </div>
+            <div class="mobile-tab" onclick="switchTab('project_tasks', this)">
+                <i class="fas fa-project-diagram"></i>
+                <span>프로젝트</span>
+            </div>
+        </div>
+        
+        <div class="date-display show" id="dateDisplay"></div>
+        
+        <div class="task-list-container" id="taskList">
+        </div>
+        
+        <div class="bottom-nav">
+            <a href="#" class="bottom-nav-item" onclick="openListMenu(); return false;">
+                <div class="bottom-nav-icon"><i class="fas fa-bars"></i></div>
+            </a>
+            <a href="#" class="bottom-nav-item bottom-nav-fab" onclick="openAddTask(); return false;">
+                <div class="bottom-nav-icon"><i class="fas fa-plus"></i></div>
+            </a>
+            <a href="#" class="bottom-nav-item" onclick="openOptionsMenu(); return false;">
+                <div class="bottom-nav-icon"><i class="fas fa-ellipsis-v"></i></div>
+            </a>
+        </div>
+    </div>
+    
+    <!-- Add Task Modal -->
+    <div class="modal-overlay" id="addTaskModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">새 할 일</div>
+                <button class="modal-close" onclick="closeModal('addTaskModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <input type="text" class="form-input" id="taskTitle" placeholder="할 일 입력" autofocus>
+            
+            <div class="icon-options-container">
+                <div class="icon-option-item" id="noteOption" onclick="toggleNoteOption()">
+                    <div class="icon-option-circle">
+                        <i class="fas fa-sticky-note"></i>
+                    </div>
+                    <div class="icon-option-label">노트</div>
+                </div>
+                
+                <div class="icon-option-item" id="dueDateOption" onclick="toggleIconOption(this, 'dueDateCheck')">
+                    <div class="icon-option-circle">
+                        <i class="far fa-clock"></i>
+                    </div>
+                    <div class="icon-option-label">일정</div>
+                </div>
+                
+                <div class="icon-option-item" id="importantOption" onclick="toggleIconOption(this, 'importantCheck')">
+                    <div class="icon-option-circle">
+                        <i class="far fa-star"></i>
+                    </div>
+                    <div class="icon-option-label">중요</div>
+                </div>
+            </div>
+            
+            <textarea id="taskNote" class="form-textarea" placeholder="노트 작성..." style="display: none; margin-top: 16px; min-height: 100px; resize: vertical;"></textarea>
+
+            <input type="hidden" id="importantCheck" value="false">
+            <input type="hidden" id="dueDateCheck" value="false">
+            <input type="date" id="dueDate" style="display: none;">
+
+            <button class="btn-primary" onclick="addTask()">추가</button>
+        </div>
+    </div>
+    
+    <!-- Task Detail Modal -->
+    <div class="modal-overlay" id="taskDetailModal">
+        <div class="modal-content" style="max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <div class="modal-title">할 일 상세</div>
+                <button class="modal-close" onclick="closeTaskDetail()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div style="display: flex; align-items: flex-start; gap: 14px; margin-bottom: 20px;">
+                <div class="task-detail-checkbox" id="taskDetailCheckbox" onclick="toggleTaskDetailComplete()"></div>
+                <input type="text" class="form-input" id="taskDetailTitle" placeholder="할 일 입력" style="flex: 1; margin-bottom: 0;">
+                <button class="modal-close" id="taskStarBtn" onclick="toggleTaskDetailStar()" style="width: 40px; height: 40px;">
+                    <i class="far fa-star"></i>
+                </button>
+            </div>
+            
+            <div class="form-option" onclick="toggleTaskDetailMyDay()">
+                <div class="form-option-label">
+                    <i class="far fa-sun" id="taskDetailMyDayIcon"></i>
+                    <span id="taskDetailMyDayText">오늘 할 일에 추가</span>
+                </div>
+            </div>
+            
+            <div class="form-option">
+                <div class="form-option-label">
+                    <i class="far fa-clock"></i>
+                    <span>마감일</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-secondary); cursor: pointer; white-space: nowrap;">
+                        <input type="checkbox" id="taskDetailAllDay" onchange="toggleDetailAllDay()">
+                        <span>종일</span>
+                    </label>
+                    <input type="datetime-local" id="taskDetailDueDate" class="date-picker-btn" onchange="updateTaskDueDate()">
+                </div>
+            </div>
+
+            <div class="form-option" id="calendarSyncOption" onclick="toggleCalendarSync()" style="display: none; cursor: pointer;">
+                <div class="form-option-label">
+                    <i class="far fa-calendar-plus" id="calendarSyncIcon"></i>
+                    <span id="calendarSyncText">캘린더에 추가</span>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 10px; font-weight: 600;">하위 할 일</div>
+                <div id="taskStepsList"></div>
+                <div style="display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 10px 12px; background: var(--bg-tertiary); border-radius: 10px; border: 1px solid var(--border-color);">
+                    <input type="text" 
+                        id="newStepInput" 
+                        placeholder="하위 할 일 추가..." 
+                        autocomplete="off"
+                        enterkeyhint="done"
+                        onkeydown="handleNewStep(event)" 
+                        style="flex: 1; border: none; background: transparent; color: var(--text-primary); font-size: 0.95rem; outline: none; padding: 4px;">
+                    <button type="button" 
+                            onclick="addNewStepFromInput()" 
+                            style="padding: 6px 14px; border: none; border-radius: 6px; background: var(--accent-blue); color: white; font-size: 0.85rem; font-weight: 500; cursor: pointer; white-space: nowrap;">
+                        추가
+                    </button>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 10px; font-weight: 600;">메모</div>
+                <textarea id="taskDetailMemo" placeholder="메모 추가" class="form-input" style="min-height: 100px; resize: vertical; font-family: inherit;"></textarea>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn-primary" onclick="deleteTaskDetail()" style="background: var(--accent-red); width: auto; padding: 16px 20px;">
+                    <i class="fas fa-trash"></i>
+                </button>
+                <button class="btn-primary" onclick="saveTaskDetail()" style="flex: 1;">저장</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Options Menu Modal -->
+    <div class="modal-overlay" id="optionsMenuModal">
+        <div class="bottom-sheet">
+            <div class="bottom-sheet-handle"></div>
+            
+            <div style="padding: 8px 24px; color: #888; font-size: 0.85rem; font-weight: 500;">정렬 기준</div>
+            
+            <div class="bottom-sheet-item" onclick="setSortOrder('custom')">
+                <i class="fas fa-check" id="sort-custom-check" style="font-size:0.9rem; color:#4285f4;"></i>
+                <span>내가 정렬한 대로</span>
+            </div>
+            <div class="bottom-sheet-item" onclick="setSortOrder('date')">
+                <i class="fas fa-check" id="sort-date-check" style="font-size:0.9rem; color:transparent;"></i>
+                <span>날짜</span>
+            </div>
+            <div class="bottom-sheet-item" onclick="setSortOrder('due')">
+                <i class="fas fa-check" id="sort-due-check" style="font-size:0.9rem; color:transparent;"></i>
+                <span>기한</span>
+            </div>
+            <div class="bottom-sheet-item" onclick="setSortOrder('starred')">
+                <i class="fas fa-check" id="sort-starred-check" style="font-size:0.9rem; color:transparent;"></i>
+                <span>중요 표시</span>
+            </div>
+            <div class="bottom-sheet-item" onclick="setSortOrder('title')">
+                <i class="fas fa-check" id="sort-title-check" style="font-size:0.9rem; color:transparent;"></i>
+                <span>제목</span>
+            </div>
+            
+            <div class="bottom-sheet-divider"></div>
+            
+            <div class="bottom-sheet-item" id="renameListMenuItem" onclick="renameCurrentList()">
+                <i class="fas fa-edit"></i>
+                <span>목록 이름 변경</span>
+            </div>
+            <div class="bottom-sheet-item" id="deleteListMenuItem" onclick="deleteCurrentList()">
+                <i class="fas fa-trash"></i>
+                <span>목록 삭제</span>
+            </div>
+            
+            <div class="bottom-sheet-divider"></div>
+            
+            <div class="bottom-sheet-item" onclick="alert('프린트 기능은 곧 추가될 예정입니다.'); closeModal('optionsMenuModal');">
+                <i class="fas fa-print"></i>
+                <span>목록 인쇄</span>
+            </div>
+            <div class="bottom-sheet-item" onclick="deleteCompletedTasks()">
+                <i class="fas fa-check-double"></i>
+                <span>완료된 할 일 모두 삭제</span>
+            </div>
+            <div class="bottom-sheet-item" onclick="alert('정리 기능은 곧 추가될 예정입니다.'); closeModal('optionsMenuModal');">
+                <i class="fas fa-broom"></i>
+                <span>오래된 할 일 정리</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- List Menu Modal -->
+    <div class="modal-overlay" id="listMenuModal">
+        <div class="bottom-sheet">
+            <div class="bottom-sheet-handle"></div>
+            <div class="bottom-sheet-header">
+                <i class="fas fa-list"></i>
+                <span>목록</span>
+            </div>
+            <div class="bottom-sheet-divider"></div>
+            
+            <!-- Default Lists -->
+            <div class="bottom-sheet-item" onclick="switchTabFromMenu('my_day')">
+                <i class="fas fa-sun" style="color: var(--accent-blue);"></i>
+                <span>오늘 할 일</span>
+                <span class="item-count" id="menu-count-my_day">0</span>
+            </div>
+            <div class="bottom-sheet-item" onclick="switchTabFromMenu('important')">
+                <i class="far fa-star" style="color: var(--accent-yellow);"></i>
+                <span>중요</span>
+                <span class="item-count" id="menu-count-important">0</span>
+            </div>
+            <div class="bottom-sheet-item" onclick="switchTabFromMenu('planned')">
+                <i class="far fa-calendar-alt" style="color: var(--accent-green);"></i>
+                <span>계획된 일정</span>
+                <span class="item-count" id="menu-count-planned">0</span>
+            </div>
+            <div class="bottom-sheet-item" onclick="switchTabFromMenu('tasks')">
+                <i class="fas fa-inbox" style="color: var(--text-secondary);"></i>
+                <span>Tasks</span>
+                <span class="item-count" id="menu-count-tasks">0</span>
+            </div>
+            
+            <div class="bottom-sheet-divider"></div>
+            
+            <!-- Custom Lists -->
+            <div id="customListMenuItems"></div>
+            
+            <div class="bottom-sheet-divider"></div>
+            
+            <!-- Project Tasks -->
+            <div class="bottom-sheet-item" onclick="switchTabFromMenu('project_tasks')">
+                <i class="fas fa-project-diagram" style="color: var(--accent-blue);"></i>
+                <span>프로젝트 작업</span>
+            </div>
+            
+            <div class="bottom-sheet-divider"></div>
+            
+            <div class="bottom-sheet-item" onclick="openCreateListModal()">
+                <i class="fas fa-plus" style="color: var(--accent-blue);"></i>
+                <span style="color: var(--accent-blue);">새 목록</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create List Modal -->
+    <div class="modal-overlay" id="createListModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">새 목록</div>
+                <button class="modal-close" onclick="closeModal('createListModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <input type="text" class="form-input" id="listName" placeholder="목록 이름 입력" autofocus>
+            <div class="form-option"><div class="form-option-label"><i class="fas fa-palette"></i><span>아이콘 선택</span></div></div>
+            <div class="icon-grid">
+                <div class="icon-option" data-icon="folder" onclick="selectIcon(this)"><i class="fas fa-folder"></i></div>
+                <div class="icon-option" data-icon="briefcase" onclick="selectIcon(this)"><i class="fas fa-briefcase"></i></div>
+                <div class="icon-option" data-icon="home" onclick="selectIcon(this)"><i class="fas fa-home"></i></div>
+                <div class="icon-option" data-icon="heart" onclick="selectIcon(this)"><i class="fas fa-heart"></i></div>
+            </div>
+            <button class="btn-primary" onclick="createList()">목록 만들기</button>
+        </div>
+    </div>
+    
+    <!-- Date Picker Modal -->
+    <div class="modal-overlay" id="datePickerModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">날짜 및 시간</div>
+                <button class="modal-close" onclick="closeDatePicker()">
+                    완료
+                </button>
+            </div>
+            
+            <div class="calendar-header">
+                <span id="calendarMonth">2026년 1월</span>
+                <div class="calendar-nav">
+                    <button class="calendar-nav-btn" onclick="changeMonth(-1)">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <button class="calendar-nav-btn" onclick="changeMonth(1)">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="calendar-weekdays">
+                <div>일</div>
+                <div>월</div>
+                <div>화</div>
+                <div>수</div>
+                <div>목</div>
+                <div>금</div>
+                <div>토</div>
+            </div>
+            <div class="calendar-days" id="calendarDays"></div>
+            
+            <!-- Time Picker -->
+            <div class="time-picker-container" id="timePickerContainer">
+                <label style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 0.9rem;">시간</label>
+                <input type="time" class="time-input" id="timeInput">
+            </div>
+            
+            <div class="date-picker-options">
+                <div class="date-picker-option" onclick="toggleTimePicker()">
+                    <span>시간 설정</span>
+                    <i class="fas fa-chevron-right" id="timePickerIcon"></i>
+                </div>
+                <div class="date-picker-option" onclick="toggleRepeatOptions()">
+                    <span id="repeatText">반복 안함</span>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            </div>
+            
+            <!-- Repeat Options -->
+            <div class="repeat-options" id="repeatOptions">
+                <div class="repeat-option" onclick="selectRepeat('none')">
+                    <span>반복 안함</span>
+                    <div class="repeat-check selected" id="repeat-none"></div>
+                </div>
+                <div class="repeat-option" onclick="selectRepeat('daily')">
+                    <span>매일</span>
+                    <div class="repeat-check" id="repeat-daily"></div>
+                </div>
+                <div class="repeat-option" onclick="selectRepeat('weekly')">
+                    <span>매주</span>
+                    <div class="repeat-check" id="repeat-weekly"></div>
+                </div>
+                <div class="repeat-option" onclick="selectRepeat('monthly')">
+                    <span>매월</span>
+                    <div class="repeat-check" id="repeat-monthly"></div>
+                </div>
+                <div class="repeat-option" onclick="selectRepeat('yearly')">
+                    <span>매년</span>
+                    <div class="repeat-check" id="repeat-yearly"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast Message -->
+    <div class="toast-message" id="toastMessage"></div>
+    
+    <script>
+        // State
+        let currentTab = 'my_day';
+        let currentListId = null;
+        let currentListTitle = null;
+        let currentTaskId = null;
+        let currentTaskData = null;
+        let allCustomLists = [];
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            updateDate();
+            loadLists();
+            loadTasks();
+            initSwipeGesture();
+        });
+        
+        // Toast message function
+        function showToast(message, duration = 2000) {
+            const toast = document.getElementById('toastMessage');
+            toast.textContent = message;
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, duration);
+        }
+        
+        function updateDate() {
+            const now = new Date();
+            const options = { month: 'long', day: 'numeric', weekday: 'long' };
+            document.getElementById('dateDisplay').textContent = now.toLocaleDateString('ko-KR', options);
+        }
+        
+        // Tab switching
+        function switchTab(tab, element) {
+            currentTab = tab;
+            currentListId = null;
+            currentListTitle = null;
+            
+            document.querySelectorAll('.mobile-tab').forEach(t => t.classList.remove('active'));
+            
+            if (element) {
+                element.classList.add('active');
+            }
+            
+            const titles = {
+                'my_day': '오늘 할 일',
+                'important': '중요',
+                'planned': '계획된 일정',
+                'tasks': 'Tasks',
+                'project_tasks': '프로젝트'
+            };
+            
+            document.getElementById('pageTitle').textContent = titles[tab] || 'Tasks';
+            
+            const dateDisplay = document.getElementById('dateDisplay');
+            if (tab === 'my_day') {
+                dateDisplay.classList.add('show');
+            } else {
+                dateDisplay.classList.remove('show');
+            }
+            
+            loadTasks();
+        }
+
+        // Swipe gesture for tab navigation
+        function initSwipeGesture() {
+            const tabOrder = ['my_day', 'important', 'planned', 'tasks', 'project_tasks'];
+            const taskListContainer = document.querySelector('.task-list-container');
+
+            let touchStartX = 0;
+            let touchEndX = 0;
+            let touchStartY = 0;
+            let touchEndY = 0;
+
+            taskListContainer.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+                touchStartY = e.changedTouches[0].screenY;
+            }, { passive: true });
+
+            taskListContainer.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                touchEndY = e.changedTouches[0].screenY;
+                handleSwipe();
+            }, { passive: true });
+
+            function handleSwipe() {
+                const swipeThreshold = 50; // minimum distance for swipe
+                const horizontalDistance = touchEndX - touchStartX;
+                const verticalDistance = Math.abs(touchEndY - touchStartY);
+
+                // Only trigger if horizontal swipe is dominant (not vertical scroll)
+                if (Math.abs(horizontalDistance) < swipeThreshold || verticalDistance > Math.abs(horizontalDistance)) {
+                    return;
+                }
+
+                const currentIndex = tabOrder.indexOf(currentTab);
+                if (currentIndex === -1) return;
+
+                let newIndex;
+                if (horizontalDistance > 0) {
+                    // Swipe right - go to previous tab
+                    newIndex = currentIndex - 1;
+                } else {
+                    // Swipe left - go to next tab
+                    newIndex = currentIndex + 1;
+                }
+
+                // Check bounds
+                if (newIndex >= 0 && newIndex < tabOrder.length) {
+                    const newTab = tabOrder[newIndex];
+                    const tabElement = document.querySelector(`.mobile-tab[onclick*="${newTab}"]`);
+                    switchTab(newTab, tabElement);
+                }
+            }
+        }
+
+        function switchTabFromMenu(tab) {
+            closeModal('listMenuModal');
+            
+            currentTab = tab;
+            currentListId = null;
+            currentListTitle = null;
+            
+            // Update mobile tabs
+            document.querySelectorAll('.mobile-tab').forEach(t => t.classList.remove('active'));
+            const tabElements = {
+                'my_day': 0,
+                'important': 1,
+                'planned': 2,
+                'tasks': 3,
+                'project_tasks': 4
+            };
+            const tabIndex = tabElements[tab];
+            if (tabIndex !== undefined) {
+                document.querySelectorAll('.mobile-tab')[tabIndex].classList.add('active');
+            }
+            
+            const titles = {
+                'my_day': '오늘 할 일',
+                'important': '중요',
+                'planned': '계획된 일정',
+                'tasks': 'Tasks',
+                'project_tasks': '프로젝트'
+            };
+            
+            document.getElementById('pageTitle').textContent = titles[tab] || 'Tasks';
+            
+            const dateDisplay = document.getElementById('dateDisplay');
+            if (tab === 'my_day') {
+                dateDisplay.classList.add('show');
+            } else {
+                dateDisplay.classList.remove('show');
+            }
+            
+            loadTasks();
+        }
+        
+        function switchToCustomList(listId, listTitle) {
+            closeModal('listMenuModal');
+            
+            currentTab = null;
+            currentListId = listId;
+            currentListTitle = listTitle;
+            
+            // Clear active tabs
+            document.querySelectorAll('.mobile-tab').forEach(t => t.classList.remove('active'));
+            
+            document.getElementById('pageTitle').textContent = listTitle;
+            document.getElementById('dateDisplay').classList.remove('show');
+            
+            loadTasks();
+        }
+        
+        // Load custom lists
+        async function loadLists() {
+            try {
+                const res = await fetch('/todo/api/lists');
+                allCustomLists = await res.json();
+                
+                // Update menu
+                const container = document.getElementById('customListMenuItems');
+                container.innerHTML = '';
+                
+                allCustomLists.forEach(list => {
+                    const item = document.createElement('div');
+                    item.className = 'bottom-sheet-item';
+                    item.onclick = () => switchToCustomList(list.id, list.title);
+                    item.innerHTML = `
+                        <i class="fas fa-list-ul" style="color: var(--text-secondary);"></i>
+                        <span>${list.title}</span>
+                        <span class="item-count">${list.count || 0}</span>
+                    `;
+                    container.appendChild(item);
+                });
+                
+                // Update counts
+                updateListCounts();
+            } catch (error) {
+                console.error('Failed to load lists:', error);
+            }
+        }
+        
+        async function updateListCounts() {
+            // Update counts for default lists
+            const filters = ['my_day', 'important', 'planned', 'tasks'];
+            
+            for (const filter of filters) {
+                try {
+                    const res = await fetch(`/todo/api/items?filter=${filter}`);
+                    const tasks = await res.json();
+                    const activeCount = tasks.filter(t => !t.completed).length;
+                    
+                    const countEl = document.getElementById(`menu-count-${filter}`);
+                    if (countEl) {
+                        countEl.textContent = activeCount;
+                    }
+                } catch (error) {
+                    console.error(`Failed to load count for ${filter}:`, error);
+                }
+            }
+        }
+        
+        async function loadTasks() {
+            try {
+                let url;
+                
+                if (currentTab === 'project_tasks') {
+                    url = '/todo/api/project/tasks';
+                } else if (currentTab) {
+                    url = `/todo/api/items?filter=${currentTab}`;
+                } else if (currentListId) {
+                    url = `/todo/api/items?list_id=${currentListId}`;
+                } else {
+                    url = '/todo/api/items?filter=tasks';
+                }
+
+                const res = await fetch(url);
+                if (!res.ok) {
+                    console.error('API Error:', res.status, res.statusText);
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                
+                let tasks = await res.json();
+                console.log('Loaded tasks:', tasks);
+
+                if (currentTab === 'project_tasks') {
+                    tasks = tasks.map(t => ({
+                        id: t.id,
+                        content: t.title,
+                        completed: false,
+                        is_important: false,
+                        is_project_task: true,
+                        project_title: t.project_title,
+                        due_date: t.due_date,
+                        original_data: t
+                    }));
+                } else {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    
+                    tasks = tasks.filter(task => {
+                        if (currentTab === 'my_day' && task.is_my_day && task.my_day_date) {
+                            const myDayDate = new Date(task.my_day_date);
+                            myDayDate.setHours(0, 0, 0, 0);
+                            return myDayDate.getTime() === today.getTime();
+                        }
+                        return true;
+                    });
+                }
+
+                allLoadedTasks = tasks;
+                
+                const sortedTasks = sortTasks([...tasks], currentSortOrder);
+                renderTasks(sortedTasks);
+            } catch (error) {
+                console.error('Failed to load tasks:', error);
+                renderEmptyState();
+            }
+        }
+        
+        function renderTasks(tasks) {
+            const container = document.getElementById('taskList');
+            container.innerHTML = '';
+            
+            if (!tasks || tasks.length === 0) {
+                renderEmptyState();
+                return;
+            }
+            
+            const activeTasks = tasks.filter(t => !t.completed);
+            const completedTasks = tasks.filter(t => t.completed);
+            
+            // Active tasks section
+            if (activeTasks.length > 0) {
+                // 기한 정렬일 때는 날짜별로 그룹화
+                if (currentSortOrder === 'due') {
+                    renderTasksByDueDate(activeTasks, container);
+                } else {
+                    const section = document.createElement('div');
+                    section.className = 'section-header';
+                    section.textContent = '할 일';
+                    container.appendChild(section);
+                    activeTasks.forEach(task => container.appendChild(createTaskElement(task)));
+                }
+            }
+            
+            // Completed tasks section - ALWAYS show if there are completed tasks
+            if (completedTasks.length > 0) {
+                const section = document.createElement('div');
+                section.className = 'completed-section';
+                const header = document.createElement('div');
+                header.className = 'completed-header';
+                header.onclick = function() { toggleCompletedUI(this); };
+                header.innerHTML = `<i class="fas fa-chevron-right"></i><span>완료됨 (${completedTasks.length}개)</span>`;
+                
+                const content = document.createElement('div');
+                content.className = 'completed-tasks';
+                completedTasks.forEach(task => content.appendChild(createTaskElement(task)));
+                
+                section.appendChild(header);
+                section.appendChild(content);
+                container.appendChild(section);
+            }
+        }
+        
+        function renderTasksByDueDate(tasks, container) {
+            // 기한 있는 것과 없는 것 분리
+            const tasksWithDue = tasks.filter(t => t.due_date);
+            const tasksWithoutDue = tasks.filter(t => !t.due_date);
+            
+            // 날짜별로 그룹화
+            const groupedByDate = {};
+            tasksWithDue.forEach(task => {
+                const date = new Date(task.due_date);
+                const dateKey = date.toLocaleDateString('ko-KR', { 
+                    year: 'numeric',
+                    month: 'long', 
+                    day: 'numeric',
+                    weekday: 'short'
+                });
+                
+                if (!groupedByDate[dateKey]) {
+                    groupedByDate[dateKey] = [];
+                }
+                groupedByDate[dateKey].push(task);
+            });
+            
+            // 날짜순으로 정렬된 키 배열
+            const sortedDates = Object.keys(groupedByDate).sort((a, b) => {
+                const dateA = new Date(groupedByDate[a][0].due_date);
+                const dateB = new Date(groupedByDate[b][0].due_date);
+                return dateA - dateB;
+            });
+            
+            // 날짜별로 렌더링
+            sortedDates.forEach(dateKey => {
+                const header = document.createElement('div');
+                header.className = 'section-header';
+                header.textContent = `기한: ${dateKey}`;
+                container.appendChild(header);
+                
+                groupedByDate[dateKey].forEach(task => {
+                    container.appendChild(createTaskElement(task));
+                });
+            });
+            
+            // 기한 없는 것들
+            if (tasksWithoutDue.length > 0) {
+                const header = document.createElement('div');
+                header.className = 'section-header';
+                header.textContent = '기한 없음';
+                container.appendChild(header);
+                
+                tasksWithoutDue.forEach(task => {
+                    container.appendChild(createTaskElement(task));
+                });
+            }
+        }
+        
+        function createTaskElement(task) {
+            const div = document.createElement('div');
+            div.className = `task-item ${task.completed ? 'completed' : ''}`;
+            
+            if (task.is_project_task) {
+                 div.style.cursor = 'default';
+                 
+                 const importBtn = document.createElement('div');
+                 importBtn.className = 'task-checkbox';
+                 importBtn.style.border = 'none';
+                 importBtn.style.color = 'var(--accent-blue)';
+                 importBtn.style.fontSize = '1.2rem';
+                 importBtn.innerHTML = '<i class="fas fa-plus-circle"></i>';
+                 importBtn.onclick = function(e) {
+                     e.stopPropagation();
+                     importProjectTask(task.original_data.title, task.due_date, task.project_title);
+                 };
+
+                 const content = document.createElement('div');
+                 content.className = 'task-content';
+                 
+                 const projectTag = `<span style="font-size:0.75rem; background:rgba(66, 133, 244, 0.1); color:var(--accent-blue); padding:2px 6px; border-radius:4px; margin-left:6px; display:inline-block;">${task.project_title}</span>`;
+                 
+                 content.innerHTML = `<div class="task-title">${task.content}${projectTag}</div>`;
+                 
+                 if (task.due_date) {
+                     const dateStr = new Date(task.due_date).toLocaleDateString();
+                      const meta = document.createElement('div');
+                      meta.className = 'task-meta';
+                      meta.innerHTML = `<div class="task-meta-item"><i class="far fa-calendar"></i><span>${dateStr}</span></div>`;
+                      content.appendChild(meta);
+                 }
+
+                 div.appendChild(importBtn);
+                 div.appendChild(content);
+                 
+            } else {
+                const checkbox = document.createElement('div');
+                checkbox.className = `task-checkbox ${task.completed ? 'completed' : ''}`;
+                checkbox.onclick = function(e) {
+                    e.stopPropagation();
+                    toggleTaskComplete(task.id, !task.completed);
+                };
+                
+                const content = document.createElement('div');
+                content.className = 'task-content';
+                content.onclick = function() { openTaskDetail(task.id); };
+                content.innerHTML = `<div class="task-title">${task.content}</div>`;
+                
+                const meta = document.createElement('div');
+                meta.className = 'task-meta';
+                
+                // 기한 표시 - 모든 탭에서 표시
+                if (task.due_date) {
+                     const dateStr = new Date(task.due_date).toLocaleDateString('ko-KR', {
+                         month: 'short',
+                         day: 'numeric'
+                     });
+                     const dateItem = document.createElement('div');
+                     dateItem.className = 'task-meta-item';
+                     dateItem.innerHTML = `<i class="far fa-calendar"></i><span>${dateStr}</span>`;
+                     meta.appendChild(dateItem);
+                }
+                
+                if (meta.children.length > 0) {
+                     content.appendChild(meta);
+                }
+
+                const star = document.createElement('div');
+                star.className = `task-star ${task.is_important ? 'important' : ''}`;
+                star.innerHTML = task.is_important ? '<i class="fas fa-star"></i>' : '<i class="far fa-star"></i>';
+                star.onclick = function(e) {
+                    e.stopPropagation();
+                    toggleTaskImportant(task.id, !task.is_important);
+                };
+                
+                div.appendChild(checkbox);
+                div.appendChild(content);
+                div.appendChild(star);
+            }
+            
+            return div;
+        }
+        
+        async function toggleTaskComplete(taskId, completed) {
+            try {
+                await fetch(`/todo/api/items/${taskId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ completed })
+                });
+                loadTasks();
+            } catch (error) { console.error(error); }
+        }
+        
+        async function toggleTaskImportant(taskId, important) {
+            try {
+                await fetch(`/todo/api/items/${taskId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_important: important })
+                });
+                loadTasks();
+            } catch (error) { console.error(error); }
+        }
+        
+        function toggleCompletedUI(header) {
+            header.classList.toggle('open');
+            header.nextElementSibling.classList.toggle('show');
+        }
+        
+        function renderEmptyState() {
+            document.getElementById('taskList').innerHTML = `
+                <div class="empty-state"><i class="fas fa-check-circle"></i><p>할 일이 없습니다</p></div>`;
+        }
+
+        // Modal management
+        function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+        function toggleCheckbox(el) { el.classList.toggle('checked'); }
+        
+        // Icon option toggle
+        function toggleIconOption(element, checkId) {
+            if (checkId === 'dueDateCheck') {
+                if (!element.classList.contains('active')) {
+                    element.classList.add('active');
+                    document.getElementById(checkId).value = 'true';
+                    openDatePicker();
+                } else {
+                    element.classList.remove('active');
+                    document.getElementById(checkId).value = 'false';
+                    const dateInput = document.getElementById('dueDate');
+                    dateInput.value = '';
+                }
+                return;
+            }
+            
+            element.classList.toggle('active');
+            const checkInput = document.getElementById(checkId);
+            checkInput.value = element.classList.contains('active') ? 'true' : 'false';
+        }
+        
+        // Calendar
+        let currentCalendarDate = new Date();
+        let selectedDate = null;
+        let selectedTime = null;
+        let selectedRepeat = 'none';
+        
+        function openDatePicker() {
+            renderCalendar();
+            document.getElementById('datePickerModal').classList.add('show');
+        }
+        
+        function closeDatePicker() {
+            document.getElementById('datePickerModal').classList.remove('show');
+            if (selectedDate) {
+                const dateInput = document.getElementById('dueDate');
+                let dateValue;
+                
+                // If time is selected, it's not all-day
+                if (selectedTime) {
+                    const year = selectedDate.getFullYear();
+                    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                    const day = String(selectedDate.getDate()).padStart(2, '0');
+                    dateValue = `${year}-${month}-${day}T${selectedTime}:00`;
+                    dateInput.setAttribute('data-all-day', 'false');
+                } else {
+                    // No time selected = all-day event
+                    const year = selectedDate.getFullYear();
+                    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                    const day = String(selectedDate.getDate()).padStart(2, '0');
+                    dateValue = `${year}-${month}-${day}`;
+                    dateInput.setAttribute('data-all-day', 'true');
+                }
+                
+                dateInput.value = dateValue;
+            }
+            
+            // Reset for next time
+            selectedTime = null;
+            document.getElementById('timeInput').value = '';
+            document.getElementById('timePickerContainer').classList.remove('show');
+            document.getElementById('timePickerIcon').className = 'fas fa-chevron-right';
+        }
+        
+        function renderCalendar() {
+            const year = currentCalendarDate.getFullYear();
+            const month = currentCalendarDate.getMonth();
+            
+            const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+            document.getElementById('calendarMonth').textContent = `${year}년 ${monthNames[month]}`;
+            
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const daysInPrevMonth = new Date(year, month, 0).getDate();
+            
+            const calendarDays = document.getElementById('calendarDays');
+            calendarDays.innerHTML = '';
+            
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            for (let i = firstDay - 1; i >= 0; i--) {
+                const day = daysInPrevMonth - i;
+                const dayEl = document.createElement('div');
+                dayEl.className = 'calendar-day other-month';
+                dayEl.textContent = day;
+                calendarDays.appendChild(dayEl);
+            }
+            
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayEl = document.createElement('div');
+                dayEl.className = 'calendar-day';
+                dayEl.textContent = day;
+                
+                const dayDate = new Date(year, month, day);
+                dayDate.setHours(0, 0, 0, 0);
+                
+                // Check if today
+                if (dayDate.getTime() === today.getTime()) {
+                    dayEl.classList.add('today');
+                }
+                
+                // Check if selected
+                if (selectedDate && dayDate.getTime() === selectedDate.getTime()) {
+                    dayEl.classList.add('selected');
+                }
+                
+                dayEl.onclick = function() {
+                    selectedDate = dayDate;
+                    renderCalendar();
+                };
+                
+                calendarDays.appendChild(dayEl);
+            }
+            
+            const totalCells = calendarDays.children.length;
+            const remainingCells = 42 - totalCells;
+            for (let day = 1; day <= remainingCells; day++) {
+                const dayEl = document.createElement('div');
+                dayEl.className = 'calendar-day other-month';
+                dayEl.textContent = day;
+                calendarDays.appendChild(dayEl);
+            }
+        }
+        
+        function changeMonth(delta) {
+            currentCalendarDate.setMonth(currentCalendarDate.getMonth() + delta);
+            renderCalendar();
+        }
+        
+        function toggleTimePicker() {
+            const container = document.getElementById('timePickerContainer');
+            const icon = document.getElementById('timePickerIcon');
+            
+            if (container.classList.contains('show')) {
+                container.classList.remove('show');
+                icon.className = 'fas fa-chevron-right';
+            } else {
+                container.classList.add('show');
+                icon.className = 'fas fa-chevron-down';
+                
+                // Focus on time input
+                setTimeout(() => {
+                    document.getElementById('timeInput').focus();
+                }, 100);
+            }
+        }
+        
+        function toggleRepeatOptions() {
+            const options = document.getElementById('repeatOptions');
+            options.classList.toggle('show');
+        }
+        
+        function selectRepeat(type) {
+            selectedRepeat = type;
+            
+            // Update UI
+            document.querySelectorAll('.repeat-check').forEach(check => {
+                check.classList.remove('selected');
+            });
+            document.getElementById('repeat-' + type).classList.add('selected');
+            
+            // Update text
+            const texts = {
+                'none': '반복 안함',
+                'daily': '매일',
+                'weekly': '매주',
+                'monthly': '매월',
+                'yearly': '매년'
+            };
+            document.getElementById('repeatText').textContent = texts[type];
+            
+            // Close options
+            document.getElementById('repeatOptions').classList.remove('show');
+        }
+        
+        // Update time when input changes
+        document.addEventListener('DOMContentLoaded', () => {
+            const timeInput = document.getElementById('timeInput');
+            if (timeInput) {
+                timeInput.addEventListener('change', (e) => {
+                    selectedTime = e.target.value;
+                });
+            }
+        });
+
+        async function addTask() {
+            const content = document.getElementById('taskTitle').value.trim();
+            if (!content) return;
+
+            const memo = document.getElementById('taskNote').value.trim();
+            const dueDateValue = document.getElementById('dueDate').value;
+            const dueDateInput = document.getElementById('dueDate');
+
+            let dueDate = null;
+            let isAllDay = true;
+
+            if (dueDateValue) {
+                const allDayAttr = dueDateInput.getAttribute('data-all-day');
+                isAllDay = allDayAttr === 'true';
+                dueDate = dueDateValue;
+            }
+
+            // Determine list_id and is_my_day based on current tab
+            let listId = currentListId || 1;
+            let isMyDay = currentTab === 'my_day';
+
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const localDate = `${year}-${month}-${day}`;
+
+            const data = {
+                content,
+                list_id: listId,
+                is_my_day: isMyDay,
+                my_day_date: isMyDay ? localDate : null,
+                is_important: document.getElementById('importantCheck').value === 'true',
+                due_date: dueDate,
+                is_all_day: isAllDay,
+                memo: memo || null
+            };
+            
+            try {
+                await fetch('/todo/api/items', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                closeModal('addTaskModal');
+                document.getElementById('taskTitle').value = '';
+                document.getElementById('taskNote').value = '';
+                document.getElementById('dueDate').value = '';
+                document.getElementById('dueDate').removeAttribute('data-all-day');
+                loadTasks();
+                loadLists(); // Refresh counts
+            } catch (error) { console.error(error); }
+        }
+
+        async function importProjectTask(title, dueDate, projectTitle) {
+            if (!confirm(`'${title}' 작업을 내 할 일에 추가하시겠습니까?`)) return;
+
+            const content = `${title} [${projectTitle}]`;
+            const body = {
+                content: content,
+                list_id: 1,
+                due_date: (dueDate && dueDate !== 'null') ? dueDate : null
+            };
+
+            try {
+                await fetch('/todo/api/items', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(body)
+                });
+                showToast('할 일에 추가되었습니다.');
+                loadTasks();
+            } catch (e) {
+                console.error(e);
+                alert('오류 발생');
+            }
+        }
+
+        function openAddTask() {
+            document.getElementById('taskTitle').value = '';
+            document.getElementById('taskNote').value = '';
+            document.getElementById('taskNote').style.display = 'none';
+            document.getElementById('dueDate').value = '';
+            document.getElementById('dueDate').style.display = 'none';
+
+            document.getElementById('noteOption').classList.remove('active');
+            document.getElementById('dueDateOption').classList.remove('active');
+            document.getElementById('importantOption').classList.remove('active');
+
+            document.getElementById('importantCheck').value = 'false';
+            document.getElementById('dueDateCheck').value = 'false';
+
+            if (currentTab === 'important') {
+                document.getElementById('importantOption').classList.add('active');
+                document.getElementById('importantCheck').value = 'true';
+            } else if (currentTab === 'planned') {
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+                const today = `${year}-${month}-${day}`;
+                document.getElementById('dueDate').value = today;
+                document.getElementById('dueDate').style.display = 'block';
+                document.getElementById('dueDate').style.marginTop = '16px';
+                document.getElementById('dueDateOption').classList.add('active');
+                document.getElementById('dueDateCheck').value = 'true';
+            }
+
+            document.getElementById('addTaskModal').classList.add('show');
+        }
+
+        function toggleNoteOption() {
+            const noteOption = document.getElementById('noteOption');
+            const noteTextarea = document.getElementById('taskNote');
+
+            if (noteOption.classList.contains('active')) {
+                noteOption.classList.remove('active');
+                noteTextarea.style.display = 'none';
+            } else {
+                noteOption.classList.add('active');
+                noteTextarea.style.display = 'block';
+            }
+        }
+
+        // Task Detail Functions
+        async function openTaskDetail(taskId) {
+            currentTaskId = taskId;
+            
+            try {
+                const res = await fetch(`/todo/api/items?filter=${currentTab}`);
+                const tasks = await res.json();
+                const task = tasks.find(t => t.id === taskId);
+                
+                if (!task) {
+                    console.error('Task not found');
+                    return;
+                }
+                
+                currentTaskData = task;
+                
+                document.getElementById('taskDetailTitle').value = task.content;
+                document.getElementById('taskDetailCheckbox').className = `task-detail-checkbox ${task.completed ? 'completed' : ''}`;
+                document.getElementById('taskStarBtn').querySelector('i').className = task.is_important ? 'fas fa-star' : 'far fa-star';
+                
+                const myDayIcon = document.getElementById('taskDetailMyDayIcon');
+                const myDayText = document.getElementById('taskDetailMyDayText');
+                if (task.is_my_day) {
+                    myDayIcon.className = 'fas fa-sun';
+                    myDayText.textContent = '오늘 할 일에 추가됨';
+                    myDayText.style.color = 'var(--accent-blue)';
+                } else {
+                    myDayIcon.className = 'far fa-sun';
+                    myDayText.textContent = '오늘 할 일에 추가';
+                    myDayText.style.color = 'var(--text-primary)';
+                }
+                
+                // Due date and all-day checkbox
+                const allDayCheckbox = document.getElementById('taskDetailAllDay');
+                if (task.due_date) {
+                    // Parse the date string from server
+                    const serverDate = new Date(task.due_date);
+                    
+                    if (task.is_all_day) {
+                        // All-day: show only date (in local timezone)
+                        const year = serverDate.getFullYear();
+                        const month = String(serverDate.getMonth() + 1).padStart(2, '0');
+                        const day = String(serverDate.getDate()).padStart(2, '0');
+                        const dateOnly = `${year}-${month}-${day}`;
+                        
+                        document.getElementById('taskDetailDueDate').value = dateOnly;
+                        document.getElementById('taskDetailDueDate').type = 'date';
+                        allDayCheckbox.checked = true;
+                    } else {
+                        // With time: show datetime in local timezone
+                        const year = serverDate.getFullYear();
+                        const month = String(serverDate.getMonth() + 1).padStart(2, '0');
+                        const day = String(serverDate.getDate()).padStart(2, '0');
+                        const hours = String(serverDate.getHours()).padStart(2, '0');
+                        const minutes = String(serverDate.getMinutes()).padStart(2, '0');
+                        const dateTimeLocal = `${year}-${month}-${day}T${hours}:${minutes}`;
+                        
+                        document.getElementById('taskDetailDueDate').value = dateTimeLocal;
+                        document.getElementById('taskDetailDueDate').type = 'datetime-local';
+                        allDayCheckbox.checked = false;
+                    }
+                } else {
+                    document.getElementById('taskDetailDueDate').value = '';
+                    document.getElementById('taskDetailDueDate').type = 'datetime-local';
+                    allDayCheckbox.checked = false;
+                }
+                
+                document.getElementById('taskDetailMemo').value = task.memo || '';
+
+                renderSteps(task.steps || []);
+
+                // 캘린더 연동 옵션 표시/숨김
+                const calendarOption = document.getElementById('calendarSyncOption');
+                const calendarIcon = document.getElementById('calendarSyncIcon');
+                const calendarText = document.getElementById('calendarSyncText');
+
+                if (task.due_date) {
+                    // 일정이 있으면 캘린더 옵션 표시
+                    calendarOption.style.display = 'flex';
+
+                    if (task.google_event_id) {
+                        // 이미 캘린더에 추가됨
+                        calendarIcon.className = 'fas fa-calendar-check';
+                        calendarIcon.style.color = 'var(--accent-blue)';
+                        calendarText.textContent = '캘린더에 추가됨';
+                        calendarText.style.color = 'var(--accent-blue)';
+                    } else {
+                        // 캘린더에 추가되지 않음
+                        calendarIcon.className = 'far fa-calendar-plus';
+                        calendarIcon.style.color = '';
+                        calendarText.textContent = '캘린더에 추가';
+                        calendarText.style.color = 'var(--text-primary)';
+                    }
+                } else {
+                    // 일정이 없으면 캘린더 옵션 숨김
+                    calendarOption.style.display = 'none';
+                }
+
+                document.getElementById('taskDetailModal').classList.add('show');
+            } catch (error) {
+                console.error('Failed to load task:', error);
+            }
+        }
+        
+        function toggleDetailAllDay() {
+            const checkbox = document.getElementById('taskDetailAllDay');
+            const dateInput = document.getElementById('taskDetailDueDate');
+            
+            if (checkbox.checked) {
+                // 종일: date 타입으로 변경
+                const currentValue = dateInput.value;
+                if (currentValue) {
+                    const dateOnly = currentValue.split('T')[0];
+                    dateInput.type = 'date';
+                    dateInput.value = dateOnly;
+                } else {
+                    dateInput.type = 'date';
+                }
+            } else {
+                // 시간 포함: datetime-local 타입으로 변경
+                const currentValue = dateInput.value;
+                if (currentValue) {
+                    dateInput.type = 'datetime-local';
+                    dateInput.value = currentValue + 'T09:00';
+                } else {
+                    dateInput.type = 'datetime-local';
+                }
+            }
+        }
+        
+        function renderSteps(steps) {
+            const container = document.getElementById('taskStepsList');
+            container.innerHTML = '';
+            
+            if (!steps || steps.length === 0) {
+                container.innerHTML = '<div style="color: var(--text-tertiary); font-size: 0.9rem; padding: 10px 0;">하위 할 일이 없습니다</div>';
+                return;
+            }
+            
+            steps.forEach((step, index) => {
+                const div = document.createElement('div');
+                div.className = `step-item ${step.completed ? 'completed' : ''}`;
+                div.innerHTML = `
+                    <div class="step-checkbox ${step.completed ? 'completed' : ''}" onclick="toggleStep(${index})"></div>
+                    <input type="text" class="step-input" value="${step.text}" onchange="updateStepText(${index}, this.value)">
+                    <button class="step-delete-btn" onclick="deleteStep(${index})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+        }
+        
+        async function toggleTaskDetailComplete() {
+            if (!currentTaskData) return;
+            
+            const newStatus = !currentTaskData.completed;
+            
+            try {
+                await fetch(`/todo/api/items/${currentTaskId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ completed: newStatus })
+                });
+                
+                currentTaskData.completed = newStatus;
+                document.getElementById('taskDetailCheckbox').className = `task-detail-checkbox ${newStatus ? 'completed' : ''}`;
+                loadTasks();
+            } catch (error) {
+                console.error('Failed to toggle complete:', error);
+            }
+        }
+        
+        async function toggleTaskDetailStar() {
+            if (!currentTaskData) return;
+            
+            const newStatus = !currentTaskData.is_important;
+            
+            try {
+                await fetch(`/todo/api/items/${currentTaskId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_important: newStatus })
+                });
+                
+                currentTaskData.is_important = newStatus;
+                document.getElementById('taskStarBtn').querySelector('i').className = newStatus ? 'fas fa-star' : 'far fa-star';
+                loadTasks();
+            } catch (error) {
+                console.error('Failed to toggle important:', error);
+            }
+        }
+        
+        async function toggleTaskDetailMyDay() {
+            if (!currentTaskData) return;
+            
+            const newStatus = !currentTaskData.is_my_day;
+            
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const localDate = `${year}-${month}-${day}`;
+            
+            try {
+                await fetch(`/todo/api/items/${currentTaskId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        is_my_day: newStatus,
+                        my_day_date: newStatus ? localDate : null
+                    })
+                });
+                
+                currentTaskData.is_my_day = newStatus;
+                currentTaskData.my_day_date = newStatus ? localDate : null;
+                
+                const myDayIcon = document.getElementById('taskDetailMyDayIcon');
+                const myDayText = document.getElementById('taskDetailMyDayText');
+                if (newStatus) {
+                    myDayIcon.className = 'fas fa-sun';
+                    myDayText.textContent = '오늘 할 일에 추가됨';
+                    myDayText.style.color = 'var(--accent-blue)';
+                } else {
+                    myDayIcon.className = 'far fa-sun';
+                    myDayText.textContent = '오늘 할 일에 추가';
+                    myDayText.style.color = 'var(--text-primary)';
+                }
+                
+                loadTasks();
+            } catch (error) {
+                console.error('Failed to toggle my day:', error);
+            }
+        }
+        
+        async function saveTaskDetail() {
+            if (!currentTaskId) return;
+            
+            const dueDateValue = document.getElementById('taskDetailDueDate').value;
+            const allDayCheckbox = document.getElementById('taskDetailAllDay');
+            
+            let dueDate = null;
+            let isAllDay = false;
+            
+            if (dueDateValue) {
+                dueDate = dueDateValue;
+                isAllDay = allDayCheckbox.checked;
+            }
+            
+            const updates = {
+                content: document.getElementById('taskDetailTitle').value,
+                due_date: dueDate,
+                is_all_day: isAllDay,
+                memo: document.getElementById('taskDetailMemo').value,
+                steps: currentTaskData.steps || []
+            };
+            
+            try {
+                await fetch(`/todo/api/items/${currentTaskId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updates)
+                });
+                
+                closeTaskDetail();
+                loadTasks();
+            } catch (error) {
+                console.error('Failed to save task:', error);
+            }
+        }
+        
+        async function deleteTaskDetail() {
+            if (!currentTaskId || !confirm('이 할 일을 삭제하시겠습니까?')) return;
+            
+            try {
+                await fetch(`/todo/api/items/${currentTaskId}`, {
+                    method: 'DELETE'
+                });
+                
+                closeTaskDetail();
+                loadTasks();
+            } catch (error) {
+                console.error('Failed to delete task:', error);
+            }
+        }
+        
+        function closeTaskDetail() {
+            document.getElementById('taskDetailModal').classList.remove('show');
+            currentTaskId = null;
+            currentTaskData = null;
+        }
+
+        // 구글 캘린더 연동/해제
+        async function toggleCalendarSync() {
+            if (!currentTaskId || !currentTaskData) {
+                console.log('No current task');
+                return;
+            }
+
+            console.log('Toggle calendar sync for task:', currentTaskId);
+            console.log('Current task data:', currentTaskData);
+
+            const calendarIcon = document.getElementById('calendarSyncIcon');
+            const calendarText = document.getElementById('calendarSyncText');
+
+            try {
+                if (currentTaskData.google_event_id) {
+                    // 캘린더에서 제거
+                    console.log('Removing from calendar...');
+                    const res = await fetch(`/todo/api/items/${currentTaskId}/calendar`, {
+                        method: 'DELETE'
+                    });
+
+                    console.log('Delete response status:', res.status);
+
+                    if (res.ok) {
+                        currentTaskData.google_event_id = null;
+                        calendarIcon.className = 'far fa-calendar-plus';
+                        calendarIcon.style.color = '';
+                        calendarText.textContent = '캘린더에 추가';
+                        calendarText.style.color = 'var(--text-primary)';
+                        showToast('캘린더에서 제거되었습니다');
+                        loadTasks();
+                    } else {
+                        const error = await res.json();
+                        console.error('Delete error:', error);
+                        showToast(error.error || '캘린더 제거 실패');
+                    }
+                } else {
+                    // 캘린더에 추가
+                    console.log('Adding to calendar...');
+                    const res = await fetch(`/todo/api/items/${currentTaskId}/calendar`, {
+                        method: 'POST'
+                    });
+
+                    console.log('POST response status:', res.status);
+                    const responseData = await res.json();
+                    console.log('POST response data:', responseData);
+
+                    if (res.ok) {
+                        currentTaskData.google_event_id = responseData.event_id;
+                        calendarIcon.className = 'fas fa-calendar-check';
+                        calendarIcon.style.color = 'var(--accent-blue)';
+                        calendarText.textContent = '캘린더에 추가됨';
+                        calendarText.style.color = 'var(--accent-blue)';
+                        showToast('캘린더에 추가되었습니다');
+                        loadTasks();
+                    } else {
+                        console.error('POST error:', responseData);
+                        showToast(responseData.error || '캘린더 추가 실패');
+                    }
+                }
+            } catch (error) {
+                console.error('Calendar sync error:', error);
+                showToast('오류: ' + error.message);
+            }
+        }
+
+        // 마감일 변경 시 저장 및 캘린더 옵션 업데이트
+        async function updateTaskDueDate() {
+            if (!currentTaskId || !currentTaskData) return;
+
+            const dueDateValue = document.getElementById('taskDetailDueDate').value;
+            const isAllDay = document.getElementById('taskDetailAllDay').checked;
+
+            try {
+                // 마감일 저장
+                await fetch(`/todo/api/items/${currentTaskId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        due_date: dueDateValue || null,
+                        is_all_day: isAllDay
+                    })
+                });
+
+                // currentTaskData 업데이트
+                currentTaskData.due_date = dueDateValue || null;
+                currentTaskData.is_all_day = isAllDay;
+
+                // 캘린더 옵션 표시/숨김
+                const calendarOption = document.getElementById('calendarSyncOption');
+                if (dueDateValue) {
+                    calendarOption.style.display = 'flex';
+                } else {
+                    calendarOption.style.display = 'none';
+                    // 마감일이 제거되었으면 캘린더에서도 제거
+                    if (currentTaskData.google_event_id) {
+                        await fetch(`/todo/api/items/${currentTaskId}/calendar`, {
+                            method: 'DELETE'
+                        });
+                        currentTaskData.google_event_id = null;
+                    }
+                }
+
+                loadTasks();
+            } catch (error) {
+                console.error('Failed to update due date:', error);
+            }
+        }
+
+        // 새 하위 할 일 추가 함수 (+ 버튼용)
+        function addNewStepFromInput() {
+            const input = document.getElementById('newStepInput');
+            if (!input) return;
+            
+            const text = input.value.trim();
+            
+            if (!text) {
+                input.focus();
+                return;
+            }
+            
+            if (!currentTaskData.steps) {
+                currentTaskData.steps = [];
+            }
+            
+            // 새 하위 할 일 추가
+            currentTaskData.steps.push({
+                id: Date.now(),
+                text: text,
+                completed: false
+            });
+            
+            // 입력 필드 초기화
+            input.value = '';
+            
+            // UI 업데이트
+            renderSteps(currentTaskData.steps);
+            
+            // 포커스 유지
+            setTimeout(() => {
+                input.focus();
+            }, 100);
+        }
+
+        // Steps Management
+        function handleNewStep(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                addNewStepFromInput(); // 같은 함수 호출
+            }
+        }
+        
+        async function toggleStep(index) {
+            if (!currentTaskData.steps) return;
+            
+            currentTaskData.steps[index].completed = !currentTaskData.steps[index].completed;
+            renderSteps(currentTaskData.steps);
+        }
+        
+        async function updateStepText(index, text) {
+            if (!currentTaskData.steps) return;
+            
+            currentTaskData.steps[index].text = text;
+        }
+        
+        async function deleteStep(index) {
+            if (!currentTaskData.steps) return;
+            
+            currentTaskData.steps.splice(index, 1);
+            renderSteps(currentTaskData.steps);
+        }
+        
+        // Other UI functions
+        function openOptionsMenu() { 
+            // Update menu items based on current view
+            const renameItem = document.getElementById('renameListMenuItem');
+            const deleteItem = document.getElementById('deleteListMenuItem');
+            
+            // Disable rename/delete for default views (filters)
+            if (currentTab === 'my_day' || currentTab === 'important' || currentTab === 'planned' || currentTab === 'tasks' || currentTab === 'project_tasks') {
+                renameItem.style.opacity = '0.5';
+                renameItem.style.pointerEvents = 'none';
+                deleteItem.style.opacity = '0.5';
+                deleteItem.style.pointerEvents = 'none';
+            } else {
+                renameItem.style.opacity = '1';
+                renameItem.style.pointerEvents = 'auto';
+                deleteItem.style.opacity = '1';
+                deleteItem.style.pointerEvents = 'auto';
+            }
+            
+            document.getElementById('optionsMenuModal').classList.add('show');
+        }
+        
+        // Sort order state
+        let currentSortOrder = 'custom';
+        let allLoadedTasks = []; // Store loaded tasks for re-sorting
+
+        function setSortOrder(order) {
+            currentSortOrder = order;
+            
+            // Update check marks
+            ['custom', 'date', 'due', 'starred', 'title'].forEach(type => {
+                const check = document.getElementById(`sort-${type}-check`);
+                if (check) {
+                    check.style.color = (type === order) ? '#4285f4' : 'transparent';
+                }
+            });
+            
+            // Close menu
+            closeModal('optionsMenuModal');
+            
+            // Re-render with new sort order
+            if (allLoadedTasks && allLoadedTasks.length > 0) {
+                const sorted = sortTasks([...allLoadedTasks], order);
+                renderTasks(sorted);
+            }
+        }
+
+        function sortTasks(tasks, order) {
+            switch(order) {
+                case 'date':
+                    // 날짜: 마감일 기준 정렬 (가까운 순 → 먼 순 → 없음)
+                    return tasks.sort((a, b) => {
+                        if (!a.due_date && !b.due_date) return 0;
+                        if (!a.due_date) return 1; // a는 뒤로 (기한 없음)
+                        if (!b.due_date) return -1; // b는 뒤로 (기한 없음)
+                        return new Date(a.due_date) - new Date(b.due_date); // 가까운 날짜가 먼저
+                    });
+                case 'due':
+                    // 기한: 있음/없음 그룹핑
+                    return tasks.sort((a, b) => {
+                        const aHasDue = !!a.due_date;
+                        const bHasDue = !!b.due_date;
+                        if (aHasDue === bHasDue) return 0;
+                        return aHasDue ? -1 : 1; // 기한 있는 것 먼저
+                    });
+                case 'starred':
+                    return tasks.sort((a, b) => {
+                        if (a.is_important === b.is_important) return 0;
+                        return a.is_important ? -1 : 1; // Important first
+                    });
+                case 'title':
+                    return tasks.sort((a, b) => {
+                        return (a.content || '').localeCompare(b.content || '');
+                    });
+                case 'custom':
+                default:
+                    return tasks; // Keep original order
+            }
+        }
+        
+        async function renameCurrentList() {
+            if (currentTab === 'my_day' || currentTab === 'important' || currentTab === 'planned' || currentTab === 'tasks' || currentTab === 'project_tasks') {
+                alert('기본 목록은 이름을 변경할 수 없습니다.');
+                return;
+            }
+            
+            const newName = prompt('새 목록 이름:');
+            if (!newName) return;
+            
+            // Implement list rename logic here
+            alert('목록 이름 변경 기능은 추후 구현 예정입니다.');
+            closeModal('optionsMenuModal');
+        }
+
+        async function deleteCurrentList() {
+            if (currentTab === 'my_day' || currentTab === 'important' || currentTab === 'planned' || currentTab === 'tasks' || currentTab === 'project_tasks') {
+                alert('기본 목록은 삭제할 수 없습니다.');
+                return;
+            }
+            
+            if (!confirm('이 목록을 삭제하시겠습니까?')) return;
+            
+            // Implement list delete logic here
+            alert('목록 삭제 기능은 추후 구현 예정입니다.');
+            closeModal('optionsMenuModal');
+        }
+        
+        async function deleteCompletedTasks() {
+            if (!confirm('완료된 모든 할 일을 삭제하시겠습니까?')) return;
+            
+            const completedTasks = allLoadedTasks.filter(t => t.completed);
+            
+            for (const task of completedTasks) {
+                try {
+                    await fetch(`/todo/api/items/${task.id}`, {method: 'DELETE'});
+                } catch (error) {
+                    console.error('Failed to delete task:', error);
+                }
+            }
+            
+            closeModal('optionsMenuModal');
+            loadTasks();
+            showToast(`${completedTasks.length}개의 완료된 할 일이 삭제되었습니다.`);
+        }
+        
+        function openListMenu() { 
+            loadLists(); // Refresh lists before showing
+            document.getElementById('listMenuModal').classList.add('show'); 
+        }
+        function openCreateListModal() { 
+            closeModal('listMenuModal'); 
+            document.getElementById('createListModal').classList.add('show'); 
+        }
+        function selectIcon(el) {
+            document.querySelectorAll('.icon-option').forEach(opt => opt.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+        
+        async function createList() {
+            const name = document.getElementById('listName').value.trim();
+            if (!name) {
+                alert('목록 이름을 입력하세요.');
+                return;
+            }
+            
+            try {
+                await fetch('/todo/api/lists', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: name })
+                });
+                
+                closeModal('createListModal');
+                document.getElementById('listName').value = '';
+                
+                // Reload lists
+                await loadLists();
+                
+                showToast('목록이 생성되었습니다.');
+            } catch (error) {
+                console.error('Failed to create list:', error);
+                alert('목록 생성에 실패했습니다.');
+            }
+        }
+
+        // Close modals on background click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) overlay.classList.remove('show');
+            });
+        });
+    </script>
+</body>
+</html>

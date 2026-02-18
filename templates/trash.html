@@ -1,0 +1,330 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .trash-container {
+        max-width: 1400px;
+        margin: 20px auto;
+        padding: 20px;
+    }
+    
+    .trash-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid rgba(255,255,255,0.2);
+    }
+    
+    .trash-header h1 {
+        color: white;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .empty-trash-btn {
+        background: #d73a49;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s;
+    }
+    
+    .empty-trash-btn:hover {
+        background: #cb2431;
+        transform: scale(1.05);
+    }
+    
+    .date-group {
+        margin-bottom: 40px;
+    }
+    
+    .date-header {
+        color: rgba(255,255,255,0.7);
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 20px;
+        padding: 10px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 6px;
+    }
+    
+    .trash-items {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 20px;
+        padding: 10px;
+    }
+    
+    /* 포스트잇 스타일 (회전 없음, 보드 기본 크기) */
+    .sticky-note {
+        width: 210px;
+        min-height: 200px;
+        padding: 15px;
+        border-radius: 4px;
+        box-shadow: 4px 4px 12px rgba(0,0,0,0.3);
+        position: relative;
+        transition: all 0.2s;
+    }
+    
+    .sticky-note:hover {
+        transform: scale(1.05);
+        box-shadow: 6px 6px 16px rgba(0,0,0,0.4);
+        z-index: 10;
+    }
+    
+    .note-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(0,0,0,0.1);
+    }
+    
+    .trash-actions {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .action-btn {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        border-radius: 4px;
+        padding: 4px 8px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.2s;
+        color: #333;
+    }
+    
+    .action-btn:hover {
+        background: rgba(255,255,255,0.4);
+        transform: scale(1.1);
+    }
+    
+    .restore-btn {
+        background: #28a745;
+        color: white;
+    }
+    
+    .restore-btn:hover {
+        background: #218838;
+    }
+    
+    .delete-btn {
+        background: #d73a49;
+        color: white;
+    }
+    
+    .delete-btn:hover {
+        background: #cb2431;
+    }
+    
+    .note-content {
+        color: #333;
+        font-size: 14px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        overflow-wrap: break-word;
+        max-height: 150px;
+        overflow: hidden;
+    }
+    
+    .note-footer {
+        margin-top: 10px;
+        font-size: 11px;
+        color: #666;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    
+    /* 폴라로이드 스타일 (회전 없음) */
+    .polaroid-item {
+        width: 200px;
+        background: white;
+        padding: 15px;
+        padding-bottom: 50px;
+        box-shadow: 4px 4px 12px rgba(0,0,0,0.3);
+        border-radius: 2px;
+        position: relative;
+        transition: all 0.2s;
+    }
+    
+    .polaroid-item:hover {
+        transform: scale(1.05);
+        box-shadow: 6px 6px 16px rgba(0,0,0,0.4);
+        z-index: 10;
+    }
+    
+    .polaroid-item.borderless {
+        padding-bottom: 15px;
+    }
+    
+    .polaroid-img-wrapper {
+        width: 100%;
+        height: 150px;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f5f5f5;
+    }
+    
+    .polaroid-img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+    
+    .polaroid-caption {
+        margin-top: 10px;
+        text-align: center;
+        font-size: 13px;
+        color: #333;
+        font-family: 'Gowun Dodum', sans-serif;
+    }
+    
+    .empty-message {
+        text-align: center;
+        padding: 60px 20px;
+        color: rgba(255,255,255,0.5);
+        font-size: 18px;
+    }
+</style>
+
+<div class="trash-container">
+    <div class="trash-header">
+        <h1>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:32px; height:32px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+            </svg>
+            휴지통
+        </h1>
+        <button class="empty-trash-btn" onclick="emptyTrash()">휴지통 비우기</button>
+    </div>
+    
+    {% if deleted_items_by_date %}
+        {% for date_str, items in deleted_items_by_date.items() %}
+        <div class="date-group">
+            <div class="date-header">{{ date_str }}</div>
+            <div class="trash-items">
+                {% for item in items %}
+                    {% if item.meta_data and item.meta_data.smemo_type == 'note' %}
+                        <!-- 포스트잇 -->
+                        <div class="sticky-note" style="background-color: {{ item.meta_data.color or '#fff7d1' }};">
+                            <div class="note-header">
+                                <div class="trash-actions">
+                                    <button class="action-btn restore-btn" onclick="restoreItem({{ item.id }})" title="되돌리기">↺</button>
+                                    <button class="action-btn delete-btn" onclick="deleteItemPermanently({{ item.id }})" title="완전삭제">✕</button>
+                                </div>
+                            </div>
+                            <div class="note-content">{{ item.content }}</div>
+                            <div class="note-footer">
+                                {% if item.meta_data.tags %}
+                                    <span>#{{ item.meta_data.tags }}</span>
+                                {% endif %}
+                                {% if item.meta_data.deadline %}
+                                    <span>📅 {{ item.meta_data.deadline }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% elif item.meta_data and item.meta_data.smemo_type == 'photo' %}
+                        <!-- 폴라로이드 이미지 -->
+                        <div class="polaroid-item {% if not item.meta_data.caption %}borderless{% endif %}">
+                            <div class="note-header">
+                                <div class="trash-actions">
+                                    <button class="action-btn restore-btn" onclick="restoreItem({{ item.id }})" title="되돌리기">↺</button>
+                                    <button class="action-btn delete-btn" onclick="deleteItemPermanently({{ item.id }})" title="완전삭제">✕</button>
+                                </div>
+                            </div>
+                            <div class="polaroid-img-wrapper">
+                                {% if item.image_filename %}
+                                    <img src="/mymemo/uploads/{{ item.image_filename }}" class="polaroid-img">
+                                {% elif item.content %}
+                                    <img src="{{ item.content }}" class="polaroid-img">
+                                {% endif %}
+                            </div>
+                            {% if item.meta_data.caption %}
+                                <div class="polaroid-caption">{{ item.meta_data.caption }}</div>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-message">
+            <p>휴지통이 비어있습니다</p>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+async function restoreItem(id) {
+    if (!confirm('이 항목을 복원하시겠습니까?')) return;
+    
+    try {
+        const res = await fetch(`/api/mymemo/restore/${id}`, {
+            method: 'POST'
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('복원 실패: ' + (data.message || 'Unknown error'));
+        }
+    } catch (e) {
+        alert('Error: ' + e);
+    }
+}
+
+async function deleteItemPermanently(id) {
+    if (!confirm('이 항목을 완전히 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) return;
+    
+    try {
+        const res = await fetch(`/api/mymemo/delete-permanently/${id}`, {
+            method: 'POST'
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('삭제 실패: ' + (data.message || 'Unknown error'));
+        }
+    } catch (e) {
+        alert('Error: ' + e);
+    }
+}
+
+async function emptyTrash() {
+    if (!confirm('휴지통을 비우시겠습니까?\n모든 항목이 완전히 삭제됩니다.')) return;
+    
+    try {
+        const res = await fetch('/api/mymemo/empty-trash', {
+            method: 'POST'
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            alert(`${data.deleted_count}개의 항목이 삭제되었습니다.`);
+            location.reload();
+        } else {
+            alert('실패: ' + (data.message || 'Unknown error'));
+        }
+    } catch (e) {
+        alert('Error: ' + e);
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,979 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    /* 전체 레이아웃 */
+    .board-container {
+        display: flex;
+        height: calc(100vh - 60px);
+        overflow: hidden;
+        background-color: #f0f0f0;
+    }
+
+    /* 사이드바 */
+    .sidebar {
+        width: 250px;
+        background: #fff;
+        border-right: 1px solid #ddd;
+        padding: 20px;
+        overflow-y: auto;
+        flex-shrink: 0;
+        transition: width 0.3s;
+    }
+    .dark-mode .sidebar {
+        background: #2c2c2c;
+        border-right: 1px solid #444;
+    }
+
+    .folder-group {
+        margin-bottom: 20px;
+    }
+    .folder-title {
+        font-weight: bold;
+        margin-bottom: 10px;
+        color: #555;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        user-select: none;
+    }
+    .folder-title .toggle-icon {
+        margin-right: 5px;
+        transition: transform 0.2s;
+    }
+    .folder-title.collapsed .toggle-icon {
+        transform: rotate(-90deg);
+    }
+    .dark-mode .folder-title { color: #ccc; }
+    
+    .folder-list {
+        list-style: none;
+        padding-left: 10px;
+        transition: max-height 0.3s ease-out, opacity 0.2s;
+        overflow: hidden;
+        max-height: 1000px;
+        opacity: 1;
+    }
+    .folder-list.collapsed {
+        max-height: 0;
+        opacity: 0;
+    }
+    .folder-item {
+        padding: 8px;
+        cursor: pointer;
+        border-radius: 5px;
+        margin-bottom: 5px;
+        color: #333;
+        display: flex;
+        align-items: center;
+    }
+    .folder-item:hover, .folder-item.active {
+        background-color: #e9ecef;
+    }
+    .dark-mode .folder-item { color: #ddd; }
+    .dark-mode .folder-item:hover, .dark-mode .folder-item.active {
+        background-color: #444;
+    }
+    .folder-icon { margin-right: 8px; color: #f39c12; }
+
+    /* 메인 보드 영역 */
+    .board-area {
+        flex-grow: 1;
+        position: relative;
+        overflow: auto;
+        padding: 20px;
+        background-image: radial-gradient(#ccc 1px, transparent 1px);
+        background-size: 20px 20px;
+    }
+    .dark-mode .board-area {
+        background-color: #1e1e1e;
+        background-image: radial-gradient(#444 1px, transparent 1px);
+    }
+
+    /* 포스트잇 카드 */
+    .memo-card {
+        position: absolute;
+        width: 200px;
+        min-height: 150px;
+        background-color: #fff7d1;
+        padding: 15px;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+        border-radius: 2px;
+        cursor: move;
+        transition: transform 0.1s, box-shadow 0.2s;
+        font-family: 'Gowun Dodum', sans-serif;
+        display: flex;
+        flex-direction: column;
+        resize: both;
+        overflow: auto;
+        min-width: 150px;
+        max-width: 500px;
+        max-height: 600px;
+    }
+    .memo-card::after {
+        content: '';
+        position: absolute;
+        bottom: 2px;
+        right: 2px;
+        width: 12px;
+        height: 12px;
+        background: linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.2) 50%);
+        cursor: nwse-resize;
+        pointer-events: none;
+    }
+    .memo-card:hover {
+        z-index: 1000 !important;
+        box-shadow: 4px 4px 15px rgba(0,0,0,0.2);
+    }
+    
+    /* 드래그 프리뷰 스타일 */
+    .memo-card.drag-preview {
+        opacity: 0.8;
+        transform: rotate(3deg);
+        box-shadow: 6px 6px 20px rgba(0,0,0,0.3);
+        pointer-events: none;
+        z-index: 9999;
+    }
+    
+    /* 색상 테마 */
+    .card-yellow { background-color: #fff7d1; }
+    .card-blue { background-color: #d1e7ff; }
+    .card-green { background-color: #d1ffdb; }
+    .card-pink { background-color: #ffd1d1; }
+    .card-purple { background-color: #ebd1ff; }
+
+    .dark-mode .memo-card { color: #000; }
+
+    /* 이미지 전용 카드 */
+    .memo-card.image-only {
+        padding: 0;
+        overflow: visible;
+    }
+    .memo-card.image-only .memo-header {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: rgba(255,255,255,0.8);
+        padding: 5px 10px;
+        margin: 0;
+    }
+    .memo-card.image-only .memo-image-full {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    /* 썸네일 이미지 */
+    .memo-thumbnail {
+        width: 100%;
+        max-height: 80px;
+        object-fit: cover;
+        border-radius: 4px;
+        margin-top: 8px;
+    }
+
+    /* 파일 아이콘 */
+    .memo-file-badge {
+        display: inline-flex;
+        align-items: center;
+        background: rgba(0,0,0,0.1);
+        padding: 3px 6px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        margin-top: 5px;
+    }
+
+    .memo-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        font-size: 0.8rem;
+        color: #666;
+    }
+    .memo-content {
+        flex-grow: 1;
+        white-space: pre-wrap;
+        overflow: hidden;
+    }
+    .memo-tags {
+        margin-top: 10px;
+        font-size: 0.75rem;
+    }
+    .badge {
+        background: rgba(0,0,0,0.1);
+        padding: 2px 5px;
+        border-radius: 4px;
+        margin-right: 2px;
+    }
+
+    /* 링크 아이콘 */
+    .linked-icon {
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        background: #fff;
+        border-radius: 50%;
+        padding: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        color: #2ecc71;
+        z-index: 10;
+        cursor: pointer;
+    }
+
+    /* 플로팅 버튼 */
+    .fab {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 60px;
+        height: 60px;
+        background-color: #007bff;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        cursor: pointer;
+        z-index: 2000;
+        transition: transform 0.2s;
+    }
+    .fab:hover { transform: scale(1.1); }
+
+    /* Modal 커스텀 */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 3000;
+        align-items: center;
+        justify-content: center;
+    }
+    .modal-content {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        width: 400px;
+        max-width: 90%;
+    }
+    .dark-mode .modal-content {
+        background: #333;
+        color: #fff;
+    }
+    .form-group { margin-bottom: 15px; }
+    .form-control {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background: #fdfdfd;
+    }
+    .dark-mode .form-control {
+        background: #444;
+        border: 1px solid #555;
+        color: #fff;
+    }
+    .btn-group { display: flex; justify-content: flex-end; gap: 10px; }
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .btn-primary { background: #007bff; color: white; }
+    .btn-danger { background: #dc3545; color: white; }
+    .btn-success { background: #28a745; color: white; }
+    .btn-secondary { background: #6c757d; color: white; }
+
+</style>
+
+<div class="board-container">
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <h3>My Board</h3>
+        <hr>
+        <div class="folder-group">
+            <div class="folder-title" onclick="filterBoard('all')">📚 전체 보기</div>
+        </div>
+
+        <div class="folder-group">
+            <div class="folder-title" onclick="toggleFolder(this)">
+                <span class="toggle-icon">▼</span>📂 프로젝트
+            </div>
+            <ul class="folder-list" id="project-list">
+                <li class="folder-item" data-type="project" data-id="unassigned" onclick="filterBoard('project', null); event.stopPropagation();">
+                    <span class="folder-icon">📁</span> 미지정
+                </li>
+                {% for p in projects %}
+                <li class="folder-item drop-target" data-type="project" data-id="{{ p.id }}" onclick="filterBoard('project', {{ p.id }}); event.stopPropagation();">
+                    <span class="folder-icon">📁</span> {{ p.title }}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="folder-group">
+            <div class="folder-title" onclick="toggleFolder(this)">
+                <span class="toggle-icon">▼</span>📦 제품
+            </div>
+            <ul class="folder-list" id="product-list">
+                {% for p in products %}
+                <li class="folder-item drop-target" data-type="product" data-id="{{ p.id }}" onclick="filterBoard('product', {{ p.id }}); event.stopPropagation();">
+                    <span class="folder-icon">📦</span> {{ p.name }}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="folder-group">
+            <div class="folder-title" onclick="toggleFolder(this)">
+                <span class="toggle-icon">▼</span>📋 조사 주제
+            </div>
+            <ul class="folder-list" id="titleList">
+                <!-- JavaScript로 동적 로딩 -->
+            </ul>
+        </div>
+    </div>
+
+    <!-- Main Board -->
+    <div class="board-area" id="board-area">
+        <!-- Memos will be rendered here -->
+        {% for memo in mymemos %}
+        <div class="memo-card card-yellow {% if memo.image_filename and not memo.content.strip() %}image-only{% endif %}" 
+             id="memo-{{ memo.id }}"
+             data-id="{{ memo.id }}"
+             data-project-id="{{ memo.project_id or '' }}"
+             data-product-id="{{ memo.product_id or '' }}"
+             data-title="{{ memo.title or '' }}"
+             data-image-filename="{{ memo.image_filename or '' }}"
+             data-file-filename="{{ memo.file_filename or '' }}"
+             style="left: {{ (memo.meta_data or {}).get('x', 100) }}px; 
+                    top: {{ (memo.meta_data or {}).get('y', 100) }}px;
+                    {% if (memo.meta_data or {}).get('width') %}width: {{ memo.meta_data.get('width') }}px;{% endif %}
+                    {% if (memo.meta_data or {}).get('height') %}height: {{ memo.meta_data.get('height') }}px;{% endif %}"
+             draggable="true">
+            
+            <input type="checkbox" class="memo-select" data-memo-id="{{ memo.id }}" 
+                   style="position:absolute; top:5px; left:5px; z-index:5; cursor:pointer;">
+            
+            {% if memo.linked_note_id %}
+            <div class="linked-icon note-action" 
+                 data-memo-id="{{ memo.id }}" 
+                 data-note-id="{{ memo.linked_note_id }}" 
+                 title="노트 보기" 
+                 style="cursor: pointer; color: #e74c3c;"
+                 onclick="window.open('/pdata/note/view/{{ memo.linked_note_id }}', '_blank'); event.stopPropagation();">
+                <i class="fas fa-book"></i>
+            </div>
+            {% endif %}
+
+            <div class="memo-header">
+                <span>
+                    {% if memo.project %}[{{ memo.project.title }}]{% endif %}
+                </span>
+                <i class="fas fa-ellipsis-v" onclick="openEditModal({{ memo.id }}); event.stopPropagation();"></i>
+            </div>
+            
+            {% if memo.image_filename and not memo.content.strip() %}
+            <img class="memo-image-full" src="/mymemo/uploads/{{ memo.image_filename }}" alt="memo image" onclick="openEditModal({{ memo.id }}); event.stopPropagation();" style="cursor: pointer;">
+            {% else %}
+            <div class="memo-content">{{ memo.content }}</div>
+            {% if memo.image_filename %}
+            <img class="memo-thumbnail" src="/mymemo/uploads/{{ memo.image_filename }}" alt="thumbnail">
+            {% endif %}
+            {% if memo.file_filename %}
+            <div class="memo-file-badge"><i class="fas fa-paperclip"></i> 파일 첨부됨</div>
+            {% endif %}
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Floating Action Button -->
+<div class="fab" onclick="openCreateModal()">
+    <i class="fas fa-plus"></i>
+</div>
+
+<!-- Edit/Create Modal -->
+<div id="memoModal" class="modal-overlay">
+    <div class="modal-content">
+        <h3 id="modalTitle">새 메모</h3>
+        <input type="hidden" id="editMemoId">
+        
+        <div class="form-group">
+            <label>제목 (선택사항)</label>
+            <input type="text" id="memoTitle" class="form-control" 
+                   list="titleSuggestions" 
+                   placeholder="예: 신제품 예비조사">
+            <datalist id="titleSuggestions">
+                <!-- JavaScript로 동적 로딩 -->
+            </datalist>
+        </div>
+
+        <div class="form-group">
+            <label>내용</label>
+            <textarea id="memoContent" class="form-control" rows="5"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label>프로젝트 연결</label>
+            <select id="memoProject" class="form-control">
+                <option value="">선택 안함</option>
+                {% for p in projects %}
+                <option value="{{ p.id }}">{{ p.title }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>제품 연결</label>
+            <select id="memoProduct" class="form-control">
+                <option value="">선택 안함</option>
+                {% for p in products %}
+                <option value="{{ p.id }}">{{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>이미지 첨부</label>
+            <input type="file" id="memoImage" class="form-control" accept="image/*">
+            <div id="currentImage" style="display:none; margin-top:10px;">
+                <img id="imagePreview" src="" style="max-width:100%; max-height:100px; border-radius:4px;">
+                <button type="button" class="btn btn-sm btn-danger" onclick="deleteImage()" style="margin-left:10px;">삭제</button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>파일 첨부</label>
+            <input type="file" id="memoFile" class="form-control">
+            <div id="currentFile" style="display:none; margin-top:10px;">
+                <a id="fileLink" href="#" target="_blank"><i class="fas fa-file"></i> <span id="fileName"></span></a>
+                <button type="button" class="btn btn-sm btn-danger" onclick="deleteFile()" style="margin-left:10px;">삭제</button>
+            </div>
+        </div>
+        
+        <input type="hidden" id="deleteImageFlag" value="false">
+        <input type="hidden" id="deleteFileFlag" value="false">
+
+        <div class="btn-group">
+            <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+            <button id="btnPromote" class="btn btn-success" style="display:none;" onclick="promoteToNote()">📝 노트로 확장</button>
+            <button id="btnDelete" class="btn btn-danger" style="display:none;" onclick="deleteMemo()">삭제</button>
+            <button class="btn btn-primary" onclick="saveMemo()">저장</button>
+        </div>
+    </div>
+</div>
+
+<!-- Action Bar for Selected Memos -->
+<div id="actionBar" style="display:none; position:fixed; bottom:30px; left:50%; transform:translateX(-50%); 
+     background:#fff; padding:15px 25px; box-shadow:0 4px 15px rgba(0,0,0,0.3); 
+     border-radius:10px; z-index:2500; align-items:center; gap:15px;">
+    <span id="selectedCount" style="font-weight:bold; color:#333;">0개 선택됨</span>
+    <button class="btn btn-primary" onclick="mergeToNote()" style="margin-left:10px;">
+        📝 Note로 통합
+    </button>
+    <button class="btn btn-secondary" onclick="clearSelection()" style="margin-left:5px;">
+        취소
+    </button>
+</div>
+
+<style>
+    .dark-mode #actionBar {
+        background: #2c2c2c;
+        border: 1px solid #444;
+    }
+    .dark-mode #selectedCount {
+        color: #ddd;
+    }
+</style>
+
+<script>
+    // === Data & State ===
+    let currentFilter = { type: 'all', id: null };
+    let dragOffset = { x: 0, y: 0 };
+    let draggedElement = null;
+    let dragPreview = null;
+
+    // === Board Logic ===
+    const boardArea = document.getElementById('board-area');
+
+    // Drag & Drop for Positioning - 개선된 버전
+    document.addEventListener('dragstart', function(e) {
+        if (e.target.classList.contains('memo-card')) {
+            draggedElement = e.target;
+            const rect = draggedElement.getBoundingClientRect();
+            dragOffset.x = e.clientX - rect.left;
+            dragOffset.y = e.clientY - rect.top;
+            
+            e.dataTransfer.effectAllowed = "move";
+            
+            // 원본 숨기기 (잔상 제거)
+            setTimeout(() => e.target.style.opacity = '0', 0);
+            
+            // 빈 드래그 이미지
+            const emptyImage = new Image();
+            emptyImage.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+            e.dataTransfer.setDragImage(emptyImage, 0, 0);
+            
+            // 커서 따라다니는 프리뷰 생성
+            dragPreview = e.target.cloneNode(true);
+            dragPreview.style.position = 'fixed';
+            dragPreview.style.pointerEvents = 'none';
+            dragPreview.style.opacity = '1.0';
+            dragPreview.style.zIndex = '9999';
+            // 초기 위치 설정
+            dragPreview.style.left = rect.left + 'px';
+            dragPreview.style.top = rect.top + 'px';
+            document.body.appendChild(dragPreview);
+        }
+    });
+
+    document.addEventListener('drag', function(e) {
+        if (dragPreview && e.clientX !== 0 && e.clientY !== 0) {
+            dragPreview.style.left = (e.clientX - dragOffset.x) + 'px';
+            dragPreview.style.top = (e.clientY - dragOffset.y) + 'px';
+        }
+    });
+
+    document.addEventListener('dragend', function(e) {
+        if (draggedElement) {
+            draggedElement.style.opacity = '1';
+            
+            // 프리뷰 제거
+            if (dragPreview) {
+                document.body.removeChild(dragPreview);
+                dragPreview = null;
+            }
+            
+            // 드롭 위치 계산 (Board Area 기준)
+            const boardRect = boardArea.getBoundingClientRect();
+            let x = e.clientX - boardRect.left - dragOffset.x + boardArea.scrollLeft;
+            let y = e.clientY - boardRect.top - dragOffset.y + boardArea.scrollTop;
+
+            // 경계 체크
+            x = Math.max(0, x);
+            y = Math.max(0, y);
+
+            draggedElement.style.left = x + 'px';
+            draggedElement.style.top = y + 'px';
+
+            // 서버 저장
+            const id = draggedElement.dataset.id;
+            updatePosition(id, x, y);
+
+            draggedElement = null;
+        }
+    });
+    
+    // Drag Over to allow Drop
+    boardArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+    });
+
+    // Sidebar Drop (Linking)
+    document.querySelectorAll('.drop-target').forEach(item => {
+        item.addEventListener('dragover', e => {
+            e.preventDefault();
+            item.classList.add('active');
+        });
+        item.addEventListener('dragleave', e => {
+            item.classList.remove('active');
+        });
+        item.addEventListener('drop', e => {
+            e.preventDefault();
+            item.classList.remove('active');
+            if (draggedElement) {
+                const type = item.dataset.type;
+                const targetId = item.dataset.id;
+                const memoId = draggedElement.dataset.id;
+                
+                if (confirm(`이 메모를 '${item.innerText.trim()}'에 연결하시겠습니까?`)) {
+                    linkMemo(memoId, type, targetId);
+                }
+            }
+        });
+    });
+
+    // === API Calls ===
+    function updatePosition(id, x, y) {
+        fetch(`/api/mymemo/update_position/${id}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ x: x, y: y })
+        });
+    }
+
+    function linkMemo(id, type, targetId) {
+        let data = {};
+        if (type === 'project') data = { project_id: targetId };
+        if (type === 'product') data = { product_id: targetId };
+
+        fetch(`/api/mymemo/update/${id}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        }).then(res => res.json()).then(data => {
+            if(data.success) location.reload();
+        });
+    }
+
+    function saveMemo() {
+        const id = document.getElementById('editMemoId').value;
+        const title = document.getElementById('memoTitle').value;
+        const content = document.getElementById('memoContent').value;
+        const projectId = document.getElementById('memoProject').value;
+        const productId = document.getElementById('memoProduct').value;
+        const imageInput = document.getElementById('memoImage');
+        const fileInput = document.getElementById('memoFile');
+        const deleteImageFlag = document.getElementById('deleteImageFlag').value;
+        const deleteFileFlag = document.getElementById('deleteFileFlag').value;
+
+        const url = id ? `/api/mymemo/update/${id}` : '/api/mymemo/create';
+        
+        const formData = new FormData();
+        formData.append('title', title || '');
+        formData.append('content', content);
+        formData.append('project_id', projectId || '');
+        formData.append('product_id', productId || '');
+        
+        if (!id) {
+            formData.append('meta_data', JSON.stringify({ x: 100, y: 100 }));
+        }
+        
+        if (imageInput.files.length > 0) {
+            formData.append('image', imageInput.files[0]);
+        }
+        
+        if (fileInput.files.length > 0) {
+            formData.append('file', fileInput.files[0]);
+        }
+        
+        formData.append('delete_image', deleteImageFlag);
+        formData.append('delete_file', deleteFileFlag);
+
+        fetch(url, {
+            method: 'POST',
+            body: formData
+        }).then(res => res.json()).then(res => {
+            if(res.success) location.reload();
+            else alert('저장 실패: ' + res.message);
+        });
+    }
+
+    function deleteMemo() {
+        const id = document.getElementById('editMemoId').value;
+        if(confirm('정말 삭제하시겠습니까?')) {
+            fetch(`/api/mymemo/delete/${id}`, {
+                method: 'POST'
+            }).then(res => res.json()).then(res => {
+                if(res.success) location.reload();
+            });
+        }
+    }
+
+    function promoteToNote() {
+        const id = document.getElementById('editMemoId').value;
+        if(confirm('이 내용을 바탕으로 정식 노트를 생성하시겠습니까?')) {
+            fetch(`/api/mymemo/create_linked_memo/${id}`, {
+                method: 'POST'
+            }).then(res => res.json()).then(res => {
+                if(res.success) {
+                    alert('노트가 생성되었습니다!');
+                    location.reload();
+                } else {
+                    alert('실패: ' + res.message);
+                }
+            });
+        }
+    }
+
+    function handleNoteAction(memoId, noteId) {
+        if (noteId) {
+            window.open(`/pdata/note/s/${noteId}`, '_blank');
+        } else {
+            fetch(`/api/mymemo/create_linked_memo/${memoId}`, {
+                method: 'POST'
+            }).then(res => res.json()).then(res => {
+                if(res.success) {
+                    window.open(`/pdata/note/edit/${res.note_id}`, '_blank');
+                    location.reload();
+                } else {
+                    alert('노트 생성 실패: ' + res.message);
+                }
+            });
+        }
+    }
+
+    // === UI Functions ===
+    function filterBoard(type, id) {
+        currentFilter = { type, id };
+        const cards = document.querySelectorAll('.memo-card');
+        
+        cards.forEach(card => {
+            let visible = true;
+            if (type === 'project') {
+                visible = (card.dataset.projectId == id) || (id === 'unassigned' && !card.dataset.projectId);
+            } else if (type === 'product') {
+                visible = (card.dataset.productId == id);
+            }
+            
+            card.style.display = visible ? 'flex' : 'none';
+        });
+
+        document.querySelectorAll('.folder-item').forEach(item => {
+            item.classList.remove('active');
+            if(item.dataset.type === type && item.dataset.id == id) {
+                item.classList.add('active');
+            }
+        });
+    }
+
+    function toggleFolder(folderTitle) {
+        const folderGroup = folderTitle.parentElement;
+        const folderList = folderGroup.querySelector('.folder-list');
+        
+        folderTitle.classList.toggle('collapsed');
+        folderList.classList.toggle('collapsed');
+        
+        const folderId = folderList.id;
+        if (folderId) {
+            const isCollapsed = folderList.classList.contains('collapsed');
+            localStorage.setItem(`folder_${folderId}_collapsed`, isCollapsed);
+        }
+    }
+
+    function restoreFolderStates() {
+        document.querySelectorAll('.folder-list[id]').forEach(list => {
+            const folderId = list.id;
+            const isCollapsed = localStorage.getItem(`folder_${folderId}_collapsed`) === 'true';
+            
+            if (isCollapsed) {
+                const folderTitle = list.parentElement.querySelector('.folder-title');
+                folderTitle.classList.add('collapsed');
+                list.classList.add('collapsed');
+            }
+        });
+    }
+
+    const resizeObserver = new ResizeObserver(entries => {
+        for (let entry of entries) {
+            const memoCard = entry.target;
+            if (memoCard.classList.contains('memo-card')) {
+                clearTimeout(memoCard.resizeTimeout);
+                memoCard.resizeTimeout = setTimeout(() => {
+                    const width = memoCard.offsetWidth;
+                    const height = memoCard.offsetHeight;
+                    const id = memoCard.dataset.id;
+                    updateSize(id, width, height);
+                }, 500);
+            }
+        }
+    });
+
+    function observeMemoCards() {
+        document.querySelectorAll('.memo-card').forEach(card => {
+            resizeObserver.observe(card);
+        });
+    }
+
+    function updateSize(id, width, height) {
+        fetch(`/api/mymemo/update_size/${id}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ width: width, height: height })
+        });
+    }
+
+    function openCreateModal() {
+        document.getElementById('modalTitle').innerText = '새 메모 작성';
+        document.getElementById('editMemoId').value = '';
+        document.getElementById('memoTitle').value = '';
+        document.getElementById('memoContent').value = '';
+        document.getElementById('memoProject').value = '';
+        document.getElementById('memoProduct').value = '';
+        
+        document.getElementById('memoImage').value = '';
+        document.getElementById('memoFile').value = '';
+        document.getElementById('currentImage').style.display = 'none';
+        document.getElementById('currentFile').style.display = 'none';
+        document.getElementById('deleteImageFlag').value = 'false';
+        document.getElementById('deleteFileFlag').value = 'false';
+        
+        document.getElementById('btnDelete').style.display = 'none';
+        document.getElementById('btnPromote').style.display = 'none';
+        
+        document.getElementById('memoModal').style.display = 'flex';
+    }
+
+    function openEditModal(id) {
+        const card = document.getElementById(`memo-${id}`);
+        const contentElement = card.querySelector('.memo-content');
+        const content = contentElement ? contentElement.innerText : '';
+        const title = card.dataset.title || '';
+        const projectId = card.dataset.projectId;
+        const productId = card.dataset.productId;
+        const imageFilename = card.dataset.imageFilename || '';
+        const fileFilename = card.dataset.fileFilename || '';
+
+        document.getElementById('modalTitle').innerText = '메모 수정';
+        document.getElementById('editMemoId').value = id;
+        document.getElementById('memoTitle').value = title;
+        document.getElementById('memoContent').value = content;
+        document.getElementById('memoProject').value = projectId;
+        document.getElementById('memoProduct').value = productId;
+        
+        document.getElementById('memoImage').value = '';
+        document.getElementById('memoFile').value = '';
+        document.getElementById('deleteImageFlag').value = 'false';
+        document.getElementById('deleteFileFlag').value = 'false';
+        
+        if (imageFilename) {
+            document.getElementById('currentImage').style.display = 'block';
+            document.getElementById('imagePreview').src = `/mymemo/uploads/${imageFilename}`;
+        } else {
+            document.getElementById('currentImage').style.display = 'none';
+        }
+        
+        if (fileFilename) {
+            document.getElementById('currentFile').style.display = 'block';
+            document.getElementById('fileLink').href = `/mymemo/uploads/${fileFilename}`;
+            document.getElementById('fileName').innerText = fileFilename;
+        } else {
+            document.getElementById('currentFile').style.display = 'none';
+        }
+
+        document.getElementById('btnDelete').style.display = 'inline-block';
+        document.getElementById('btnPromote').style.display = 'inline-block';
+
+        document.getElementById('memoModal').style.display = 'flex';
+    }
+
+    function deleteImage() {
+        document.getElementById('deleteImageFlag').value = 'true';
+        document.getElementById('currentImage').style.display = 'none';
+    }
+
+    function deleteFile() {
+        document.getElementById('deleteFileFlag').value = 'true';
+        document.getElementById('currentFile').style.display = 'none';
+    }
+
+    function closeModal() {
+        document.getElementById('memoModal').style.display = 'none';
+    }
+
+    function loadTitleList() {
+        fetch('/api/mymemo/titles')
+            .then(res => res.json())
+            .then(titles => {
+                const list = document.getElementById('titleList');
+                if (titles.length === 0) {
+                    list.innerHTML = '<li style="padding:8px; color:#999; font-size:0.85rem;">조사 주제 없음</li>';
+                } else {
+                    list.innerHTML = titles.map(t => 
+                        `<li class="folder-item" onclick="filterByTitle('${t.title.replace(/'/g, "\\'")}')">
+                            📋 ${t.title} (${t.count})
+                        </li>`
+                    ).join('');
+                }
+                
+                const datalist = document.getElementById('titleSuggestions');
+                datalist.innerHTML = titles.map(t => 
+                    `<option value="${t.title}">`
+                ).join('');
+            })
+            .catch(err => console.error('Error loading titles:', err));
+    }
+
+    function filterByTitle(title) {
+        document.querySelectorAll('.memo-card').forEach(card => {
+            const cardTitle = card.dataset.title || '';
+            card.style.display = cardTitle === title ? 'flex' : 'none';
+        });
+        
+        document.querySelectorAll('#titleList .folder-item').forEach(item => {
+            item.classList.remove('active');
+            if (item.textContent.includes(title)) {
+                item.classList.add('active');
+            }
+        });
+    }
+
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('memo-select')) {
+            updateSelectionUI();
+        }
+    });
+
+    function updateSelectionUI() {
+        const selected = document.querySelectorAll('.memo-select:checked');
+        const actionBar = document.getElementById('actionBar');
+        const count = document.getElementById('selectedCount');
+        
+        if (selected.length > 0) {
+            actionBar.style.display = 'flex';
+            count.textContent = `${selected.length}개 선택됨`;
+        } else {
+            actionBar.style.display = 'none';
+        }
+    }
+
+    function clearSelection() {
+        document.querySelectorAll('.memo-select:checked').forEach(cb => {
+            cb.checked = false;
+        });
+        updateSelectionUI();
+    }
+
+    function mergeToNote() {
+        const selected = Array.from(document.querySelectorAll('.memo-select:checked'))
+                              .map(cb => cb.dataset.memoId);
+        
+        if (selected.length === 0) {
+            alert('선택된 메모가 없습니다.');
+            return;
+        }
+        
+        if (!confirm(`선택한 ${selected.length}개 항목을 Note로 통합하시겠습니까?`)) return;
+        
+        fetch('/api/mymemo/merge_to_note', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ mymemo_ids: selected })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert('Note가 생성되었습니다!');
+                window.open(`/pdata/note/edit/${data.note_id}`, '_blank');
+                location.reload();
+            } else {
+                alert('Note 생성 실패: ' + data.message);
+            }
+        })
+        .catch(err => {
+            console.error('Error merging to note:', err);
+            alert('Note 생성 중 오류가 발생했습니다.');
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        loadTitleList();
+        restoreFolderStates();
+        observeMemoCards();
+    });
+
+    window.onclick = function(event) {
+        const modal = document.getElementById('memoModal');
+        if (event.target == modal) {
+            closeModal();
+        }
+    }
+</script>
+{% endblock %}

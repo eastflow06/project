@@ -1,0 +1,423 @@
+{% extends "base.html" %}
+{% block title %}전체 Task 목록{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h3 class="mb-3">전체 Task 목록</h3>
+
+    {% if error_message %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <strong>오류!</strong> {{ error_message }}
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+    {% endif %}
+
+    <div class="btn-group mb-4" role="group" aria-label="Task Status Filter">
+        <a href="{{ url_for('all_tasks', status='todo') }}"
+            class="btn {% if status_filter == 'todo' %}btn-primary active-filter{% else %}btn-outline-secondary{% endif %}">
+            📋 미완료
+        </a>
+        <a href="{{ url_for('all_tasks', status='done') }}"
+            class="btn {% if status_filter == 'done' %}btn-success active-filter{% else %}btn-outline-secondary{% endif %}">
+            ✅ 완료
+        </a>
+        <a href="{{ url_for('all_tasks', status='all') }}"
+            class="btn {% if status_filter == 'all' %}btn-info active-filter{% else %}btn-outline-secondary{% endif %}">
+            📊 전체
+        </a>
+    </div>
+
+    {% if tasks %}
+    <div class="mb-3">
+        <span class="badge badge-secondary">총 {{ tasks|length }}개의 Task</span>
+    </div>
+    {% endif %}
+
+    <div class="table-responsive">
+        <table class="table table-hover table-sm">
+            <thead class="thead-dark">
+                <tr>
+                    <th scope="col" class="col-title" style="width: 25%;">Task명</th>
+                    <th scope="col" class="col-status" style="width: 5%;">상태</th>
+
+                    <th scope="col" class="col-created sortable" style="width: 7%; cursor: pointer;"
+                        onclick="sortTable(2)">
+                        생성일 <span class="sort-arrow">↕</span>
+                    </th>
+
+                    <th scope="col" class="col-due sortable" style="width: 7%; cursor: pointer;" onclick="sortTable(3)">
+                        마감일 <span class="sort-arrow">↕</span>
+                    </th>
+
+                    <th scope="col" class="col-finished sortable" style="width: 7%; cursor: pointer;"
+                        onclick="sortTable(4)">
+                        종료일 <span class="sort-arrow">↕</span>
+                    </th>
+
+                    <th scope="col" class="col-project sortable" style="width: 15%; cursor: pointer;"
+                        onclick="sortTable(5)">
+                        연관 프로젝트 <span class="sort-arrow">↕</span>
+                    </th>
+
+                    <th scope="col" class="col-comment" style="width: 25%;">Comment</th>
+
+                    <th scope="col" class="col-action" style="width: 4%;">수정</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if tasks %}
+                {% for task in tasks %}
+                {% set row_class = '' %}
+
+                {% if task.is_overdue %}
+                {% set row_class = 'table-danger' %}
+                {% elif task.status == 'Done' %}
+                {% set row_class = 'table-success' %}
+                {% endif %}
+
+                <tr class="{{ row_class }}">
+                    <td class="col-title">
+                        <a href="{{ url_for('view_task', task_id=task.id) }}" class="text-dark font-weight-bold">
+                            {{ task.title or 'Untitled Task' }}
+                        </a>
+                        {% if task.is_overdue %}
+                        <img src="{{ url_for('static', filename='icons/overdue.png') }}" alt="overdue"
+                            class="overdue-icon">
+                        {% endif %}
+                    </td>
+                    <td class="text-center col-status">
+                        {% if task.status == 'Done' %}
+                        <span class="badge badge-success">✓</span>
+                        {% else %}
+                        <span class="badge badge-warning">⏳</span>
+                        {% endif %}
+                    </td>
+
+                    <td class="date-cell col-created">
+                        {% if task.start_date %}
+                        {{ task.start_date }}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+
+                    <td class="date-cell col-due">
+                        {% if task.due_date %}
+                        {{ task.due_date }}
+                        {% if task.is_overdue %}
+                        <span class="text-danger">⚠️</span>
+                        {% endif %}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+
+                    <td class="date-cell col-finished">
+                        {% if task.finished_date %}
+                        {{ task.finished_date }}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+
+                    <td class="col-project">
+                        {% if task.project_id %}
+                        <a href="{{ task.project_url }}" class="text-secondary">
+                            {{ task.project_title }}
+                        </a>
+                        {% else %}
+                        <span class="text-muted small">없음</span>
+                        {% endif %}
+                    </td>
+
+                    <td class="col-comment">
+                        {% if task.comment %}
+                        <div class="comment-cell" title="{{ task.comment }}">
+                            {{ task.comment }}
+                        </div>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+
+                    <td class="text-center col-action">
+                        <a href="{{ url_for('edit_task', task_id=task.id) }}" class="btn btn-sm btn-outline-info"
+                            title="수정">
+                            <img src="{{ url_for('static', filename='icons/edit.png') }}" alt="수정" class="edit-icon">
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        <p class="mb-0">📭 표시할 Task가 없습니다.</p>
+                        <small>(필터: <strong>{{ status_filter }}</strong>)</small>
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if not tasks and not error_message %}
+    <div class="alert alert-info text-center mt-4" role="alert">
+        <h5 class="alert-heading">📭 Task가 없습니다</h5>
+        <p class="mb-0">
+            {% if status_filter == 'todo' %}
+            미완료 Task가 없습니다. 모든 Task가 완료되었습니다! 🎉
+            {% elif status_filter == 'done' %}
+            완료된 Task가 없습니다.
+            {% else %}
+            등록된 Task가 없습니다. 새로운 Task를 생성해보세요.
+            {% endif %}
+        </p>
+    </div>
+    {% endif %}
+
+    <div class="mt-4 mb-5">
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">
+            ← 메인으로 돌아가기
+        </a>
+    </div>
+</div>
+
+<style>
+    /* ... 기존 스타일 유지 ... */
+    .active-filter {
+        font-weight: bold !important;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2) !important;
+        transform: translateY(-2px);
+    }
+
+    .btn-primary.active-filter {
+        background-color: #b3d9ff !important;
+        border-color: #007bff !important;
+        color: #004085 !important;
+    }
+
+    .btn-success.active-filter {
+        background-color: #b3e6b3 !important;
+        border-color: #28a745 !important;
+        color: #155724 !important;
+    }
+
+    .btn-info.active-filter {
+        background-color: #b3e5ec !important;
+        border-color: #17a2b8 !important;
+        color: #0c5460 !important;
+    }
+
+    .btn-outline-secondary:hover {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    .date-cell {
+        white-space: nowrap;
+        font-size: 0.9rem;
+        padding: 0.5rem 0.3rem !important;
+    }
+
+    .overdue-icon {
+        width: 40px;
+        height: auto;
+        margin-left: 2px;
+        vertical-align: middle;
+    }
+
+    .edit-icon {
+        width: 18px;
+        height: auto;
+        vertical-align: middle;
+    }
+
+    a {
+        text-decoration: none !important;
+    }
+
+    .sortable {
+        user-select: none;
+    }
+
+    .sortable:hover {
+        background-color: #495057 !important;
+    }
+
+    .sort-arrow {
+        font-size: 0.8rem;
+        margin-left: 3px;
+        opacity: 0.6;
+    }
+
+    .comment-cell {
+        max-width: 350px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        cursor: help;
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: rgba(0, 123, 255, 0.1);
+        transition: background-color 0.2s ease;
+    }
+
+    .table-danger {
+        background-color: rgba(255, 0, 0, 0.1) !important;
+    }
+
+    .table-success {
+        background-color: rgba(40, 167, 69, 0.1) !important;
+    }
+
+    .table-sm td,
+    .table-sm th {
+        padding: 0.4rem;
+        font-size: 0.95rem;
+    }
+
+    /* === 모바일 반응형 스타일 (수정됨) === */
+    @media (max-width: 768px) {
+
+        /* 기본 테이블 폰트 축소 */
+        .table {
+            font-size: 0.8rem;
+        }
+
+        /* 1. 생성일, Comment, 프로젝트 숨기기 */
+        .col-created,
+        .col-comment,
+        .col-project {
+            display: none;
+        }
+
+        /* 2. 행 높이 50px 고정 */
+        .table tbody tr {
+            height: 50px !important;
+        }
+
+        /* 3. 셀 수직 중앙 정렬 및 높이 강제 */
+        .table tbody td {
+            height: 50px !important;
+            vertical-align: middle !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+        }
+
+        /* 4. 남은 컬럼들의 너비 및 스타일 재조정 */
+
+        /* Task명 */
+        .col-title {
+            width: auto !important;
+            max-width: 120px;
+            white-space: nowrap;
+            /* 높이 50px 유지를 위해 줄바꿈 방지 */
+            overflow: hidden;
+            /* 넘치는 텍스트 숨김 */
+            text-overflow: ellipsis;
+            /* 말줄임표 처리 */
+        }
+
+        /* 상태 아이콘 */
+        .col-status {
+            width: 10% !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+
+        /* 날짜 셀 (마감일, 종료일) */
+        .col-due,
+        .col-finished {
+            width: 18% !important;
+            font-size: 0.75rem;
+        }
+
+        /* 수정 버튼 */
+        .col-action {
+            width: 10% !important;
+            text-align: right;
+        }
+
+        .btn-sm {
+            padding: 0.1rem 0.3rem;
+            font-size: 0.7rem;
+        }
+
+        .overdue-icon {
+            width: 30px;
+        }
+    }
+</style>
+
+<script>
+    let sortDirection = {};
+
+    function sortTable(columnIndex) {
+        const table = document.querySelector('.table');
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+
+        const dataRows = rows.filter(row => !row.querySelector('td[colspan]'));
+
+        if (dataRows.length === 0) return;
+
+        if (!sortDirection[columnIndex]) {
+            sortDirection[columnIndex] = 'asc';
+        } else {
+            sortDirection[columnIndex] = sortDirection[columnIndex] === 'asc' ? 'desc' : 'asc';
+        }
+
+        const direction = sortDirection[columnIndex];
+
+        dataRows.sort((a, b) => {
+            const aCell = a.cells[columnIndex];
+            const bCell = b.cells[columnIndex];
+
+            if (!aCell || !bCell) return 0;
+
+            let aValue = aCell.textContent.trim();
+            let bValue = bCell.textContent.trim();
+
+            const aLink = aCell.querySelector('a');
+            const bLink = bCell.querySelector('a');
+            if (aLink) aValue = aLink.textContent.trim();
+            if (bLink) bValue = bLink.textContent.trim();
+
+            if (aValue === '-' || aValue === '프로젝트 없음' || aValue === '없음') return 1;
+            if (bValue === '-' || bValue === '프로젝트 없음' || bValue === '없음') return -1;
+
+            // 날짜 컬럼 인덱스 (생성일:2, 마감일:3, 종료일:4)
+            if (columnIndex >= 2 && columnIndex <= 4) {
+                const aDate = new Date(aValue);
+                const bDate = new Date(bValue);
+                return direction === 'asc' ? aDate - bDate : bDate - aDate;
+            }
+
+            if (direction === 'asc') {
+                return aValue.localeCompare(bValue, 'ko');
+            } else {
+                return bValue.localeCompare(aValue, 'ko');
+            }
+        });
+
+        dataRows.forEach(row => tbody.appendChild(row));
+        updateSortArrows(columnIndex, direction);
+    }
+
+    function updateSortArrows(activeColumn, direction) {
+        const arrows = document.querySelectorAll('.sort-arrow');
+        arrows.forEach((arrow, index) => {
+            if (index + 2 === activeColumn) {
+                arrow.textContent = direction === 'asc' ? '↑' : '↓';
+                arrow.style.opacity = '1';
+            } else {
+                arrow.textContent = '↕';
+                arrow.style.opacity = '0.6';
+            }
+        });
+    }
+</script>
+{% endblock %}

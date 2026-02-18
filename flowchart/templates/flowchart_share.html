@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ flowchart['title'] }} - 플로우차트</title>
+    <script src="https://unpkg.com/cytoscape@3.21.1/dist/cytoscape.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f0;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px 20px;
+            color: #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid #ddd;
+        }
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            background: #DAE8FC;
+            color: #333;
+            border: 1px solid #6C8EBF;
+        }
+        .btn:hover {
+            background: #6C8EBF;
+            color: white;
+        }
+        #cy {
+            width: 100%;
+            height: 100%;
+            background: #f5f5f0;
+        }
+        .toolbar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px 20px;
+            border-radius: 30px;
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            border: 1px solid #ddd;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .toolbar button {
+            padding: 8px 14px;
+            background: #DAE8FC;
+            color: #333;
+            border: 1px solid #6C8EBF;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        .toolbar button:hover {
+            background: #6C8EBF;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ flowchart['title'] }}</h1>
+        <div class="header-actions">
+            <a href="{{ url_for('flowchart.view', id=flowchart['id']) }}" class="btn">상세 보기</a>
+            <a href="{{ url_for('flowchart.index') }}" class="btn">목록</a>
+        </div>
+    </div>
+
+    <div id="cy"></div>
+
+    <div class="toolbar">
+        <button onclick="fitToView()">맞춤</button>
+        <button onclick="zoomIn()">확대</button>
+        <button onclick="zoomOut()">축소</button>
+        <button onclick="exportImage()">이미지 저장</button>
+    </div>
+
+    <script>
+        const cy = cytoscape({
+            container: document.getElementById('cy'),
+            elements: {{ flowchart['data']|safe }},
+            style: [
+                // 기본 노드 스타일 (투명 배경, 검은 테두리, pill 모양)
+                {
+                    selector: 'node',
+                    style: {
+                        'content': 'data(label)',
+                        'text-valign': 'center',
+                        'text-halign': 'center',
+                        'background-color': '#f5f5f0',
+                        'border-color': '#333333',
+                        'border-width': 1.5,
+                        'width': 120,
+                        'height': 40,
+                        'shape': 'round-rectangle',
+                        'font-size': '14px',
+                        'font-weight': 'normal',
+                        'color': '#333333',
+                        'text-wrap': 'wrap',
+                        'text-max-width': '110px'
+                    }
+                },
+                // Start 노드 (이중 원, 연두색)
+                {
+                    selector: 'node[nodeType="start"]',
+                    style: {
+                        'background-color': '#ACE7AE',
+                        'border-color': '#52CE60',
+                        'border-width': 4,
+                        'border-style': 'double',
+                        'width': 70,
+                        'height': 70,
+                        'shape': 'ellipse'
+                    }
+                },
+                // End 노드 (단일 원, 핑크색)
+                {
+                    selector: 'node[nodeType="end"]',
+                    style: {
+                        'background-color': '#F8CECC',
+                        'border-color': '#B85450',
+                        'border-width': 2,
+                        'width': 60,
+                        'height': 60,
+                        'shape': 'ellipse'
+                    }
+                },
+                // State 노드 (투명 배경, 검은 테두리, pill 모양)
+                {
+                    selector: 'node[nodeType="state"]',
+                    style: {
+                        'background-color': '#f5f5f0',
+                        'border-color': '#333333',
+                        'border-width': 1.5,
+                        'width': 120,
+                        'height': 40,
+                        'shape': 'round-rectangle',
+                        'color': '#333333'
+                    }
+                },
+                // Decision 노드 (다이아몬드, 노란색)
+                {
+                    selector: 'node[nodeType="decision"]',
+                    style: {
+                        'background-color': '#FFF2CC',
+                        'border-color': '#D6B656',
+                        'border-width': 2,
+                        'width': 80,
+                        'height': 80,
+                        'shape': 'diamond'
+                    }
+                },
+                // Text 노드 (텍스트 박스)
+                {
+                    selector: 'node[nodeType="text"]',
+                    style: {
+                        'content': 'data(memo)',
+                        'background-color': 'transparent',
+                        'background-opacity': 0,
+                        'border-width': 0,
+                        'width': 200,
+                        'height': 'label',
+                        'padding': '10px',
+                        'shape': 'rectangle',
+                        'text-wrap': 'wrap',
+                        'text-max-width': '190px',
+                        'font-size': '14px',
+                        'color': '#333333',
+                        'text-halign': 'center',
+                        'text-valign': 'center'
+                    }
+                },
+                // Text 노드 너비 데이터 적용
+                {
+                    selector: 'node[nodeType="text"][boxWidth]',
+                    style: {
+                        'width': 'data(boxWidth)',
+                        'text-max-width': 'data(textMaxWidth)'
+                    }
+                },
+                // Text 노드 배경색 적용
+                {
+                    selector: 'node[nodeType="text"][bgColor]',
+                    style: {
+                        'background-color': 'data(bgColor)',
+                        'background-opacity': 1
+                    }
+                },
+                // Text 노드 테두리 적용
+                {
+                    selector: 'node[nodeType="text"][borderColor]',
+                    style: {
+                        'border-color': 'data(borderColor)',
+                        'border-width': 'data(borderWidth)'
+                    }
+                },
+                // Text 노드 폰트 스타일
+                {
+                    selector: 'node[fontSize]',
+                    style: { 'font-size': 'data(fontSize)' }
+                },
+                {
+                    selector: 'node[fontWeight]',
+                    style: { 'font-weight': 'data(fontWeight)' }
+                },
+                {
+                    selector: 'node[fontStyle]',
+                    style: { 'font-style': 'data(fontStyle)' }
+                },
+                // Text 노드 정렬 (박스 내부 정렬)
+                {
+                    selector: 'node[nodeType="text"][textAlign]',
+                    style: { 'text-justification': 'data(textAlign)' }
+                },
+                // 기존 데이터 호환용 스타일
+                {
+                    selector: 'node[bgColor]',
+                    style: { 'background-color': 'data(bgColor)', 'color': '#333333' }
+                },
+                {
+                    selector: 'node[borderColor]',
+                    style: { 'border-color': 'data(borderColor)' }
+                },
+                {
+                    selector: 'node[borderWidth]',
+                    style: { 'border-width': 'data(borderWidth)' }
+                },
+                {
+                    selector: 'node[textColor]',
+                    style: { 'color': 'data(textColor)' }
+                },
+                {
+                    selector: 'node[shape]',
+                    style: { 'shape': 'data(shape)' }
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'width': 1.5,
+                        'line-color': '#404040',
+                        'target-arrow-color': '#404040',
+                        'target-arrow-shape': 'triangle',
+                        'arrow-scale': 1.2,
+                        'curve-style': 'straight',
+                        'taxi-direction': 'auto',
+                        'taxi-turn': '50%',
+                        'line-style': 'solid',
+                        'label': 'data(label)',
+                        'font-size': '12px',
+                        'color': '#333',
+                        'text-background-color': '#FFF2CC',
+                        'text-background-opacity': 1,
+                        'text-background-padding': '4px',
+                        'text-background-shape': 'roundrectangle',
+                        'text-border-color': '#D6B656',
+                        'text-border-width': 1,
+                        'text-border-opacity': 1
+                    }
+                },
+                {
+                    selector: 'edge[curveStyle]',
+                    style: {
+                        'curve-style': 'data(curveStyle)'
+                    }
+                },
+                {
+                    selector: 'edge[!label], edge[label=""]',
+                    style: {
+                        'text-background-opacity': 0,
+                        'text-border-opacity': 0
+                    }
+                },
+                {
+                    selector: 'edge[lineColor]',
+                    style: {
+                        'line-color': 'data(lineColor)',
+                        'target-arrow-color': 'data(lineColor)'
+                    }
+                },
+                {
+                    selector: 'edge[lineStyle]',
+                    style: { 'line-style': 'data(lineStyle)' }
+                }
+            ],
+            layout: { name: 'preset' },
+            userZoomingEnabled: true,
+            userPanningEnabled: true,
+            boxSelectionEnabled: false,
+            minZoom: 0.3,
+            maxZoom: 3
+        });
+
+        function fitToView() {
+            cy.fit(null, 50);
+        }
+
+        function zoomIn() {
+            cy.zoom(cy.zoom() * 1.2);
+        }
+
+        function zoomOut() {
+            cy.zoom(cy.zoom() / 1.2);
+        }
+
+        function exportImage() {
+            const png = cy.png({
+                output: 'blob',
+                bg: '#f5f5f0',
+                full: true,
+                scale: 2
+            });
+            const url = URL.createObjectURL(png);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '{{ flowchart["title"] }}.png';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Bezier 컨트롤 포인트 적용
+        function applyBezierControlPoints() {
+            cy.edges().forEach(edge => {
+                if (edge.data('curveStyle') === 'unbundled-bezier') {
+                    const cp1 = edge.data('controlPoint1');
+                    const cp2 = edge.data('controlPoint2');
+
+                    if (cp1 && cp2) {
+                        const sourceNode = cy.getElementById(edge.data('source'));
+                        const targetNode = cy.getElementById(edge.data('target'));
+
+                        if (sourceNode.length && targetNode.length) {
+                            const sourcePos = sourceNode.position();
+                            const targetPos = targetNode.position();
+
+                            const dx = targetPos.x - sourcePos.x;
+                            const dy = targetPos.y - sourcePos.y;
+                            const lineLength = Math.sqrt(dx * dx + dy * dy);
+
+                            if (lineLength > 0) {
+                                const perpX = -dy / lineLength;
+                                const perpY = dx / lineLength;
+
+                                const dist1 = (cp1.x - sourcePos.x) * perpX + (cp1.y - sourcePos.y) * perpY;
+                                const dist2 = (cp2.x - sourcePos.x) * perpX + (cp2.y - sourcePos.y) * perpY;
+
+                                const weight1 = ((cp1.x - sourcePos.x) * dx + (cp1.y - sourcePos.y) * dy) / (lineLength * lineLength);
+                                const weight2 = ((cp2.x - sourcePos.x) * dx + (cp2.y - sourcePos.y) * dy) / (lineLength * lineLength);
+
+                                edge.style({
+                                    'curve-style': 'unbundled-bezier',
+                                    'control-point-distances': [dist1, dist2],
+                                    'control-point-weights': [weight1, weight2]
+                                });
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        applyBezierControlPoints();
+
+        // 초기 뷰 설정
+        setTimeout(() => cy.fit(null, 50), 100);
+    </script>
+</body>
+</html>

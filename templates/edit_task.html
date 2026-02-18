@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="task-edit-container">
+    <div class="card">
+        <div class="card-header">
+            <h2>태스크 편집</h2>
+        </div>
+        <div class="card-body">
+            <!-- Main form for updating task -->
+            <form method="POST" action="{{ url_for('update_task', task_id=task.id) }}">
+                <div class="form-group">
+                    <label for="title">제목:</label>
+                    <input type="text" class="form-control" id="title" name="title" value="{{ task.title }}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="status">상태:</label>
+                    <select class="form-control" id="status" name="status" onchange="toggleFinishedDateInput()">
+                        <option value="To Do" {% if task.status == 'To Do' %}selected{% endif %}>할 일</option>
+                        <option value="Done" {% if task.status == 'Done' %}selected{% endif %}>완료</option>
+                    </select>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="start_date">시작일:</label>
+                        <input type="date" class="form-control" id="start_date" name="start_date" 
+                               value="{{ task.start_date.strftime('%Y-%m-%d') if task.start_date else '' }}" required>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="due_date">마감일:</label>
+                        <input type="date" class="form-control" id="due_date" name="due_date" 
+                               value="{{ task.due_date.strftime('%Y-%m-%d') if task.due_date else '' }}">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="finished_date">완료일:</label>
+                    <input type="date" class="form-control" id="finished_date" name="finished_date" 
+                           value="{{ task.finished_date.strftime('%Y-%m-%d') if task.finished_date else '' }}" 
+                           {% if task.status != 'Done' %}disabled{% endif %}>
+                </div>
+                
+                <div class="form-group">
+                    <label for="comment">코멘트:</label>
+                    <textarea class="form-control" id="comment" name="comment" rows="3">{{ task.comment or '' }}</textarea>
+                </div>
+                
+                <!-- Buttons Section -->
+                <div class="button-group">
+                    <button type="submit" class="btn btn-primary">업데이트</button>
+                    <button type="button" class="btn btn-secondary" onclick="hideEditForm()">취소</button>
+                </div>
+            </form>
+
+            <!-- Separate form for delete action -->
+            <form method="POST" action="{{ url_for('delete_task', task_id=task.id) }}" class="delete-form">
+                <input type="hidden" name="_method" value="DELETE">
+                <button type="submit" class="btn btn-danger" onclick="return confirm('이 태스크를 삭제하시겠습니까?')">
+                    삭제
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .task-edit-container {
+        max-width: 900px;
+        margin: 2rem auto;
+        padding: 0 15px;
+    }
+    
+    .card {
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        background-color: #fff;
+        overflow: hidden;
+    }
+    
+    .card-header {
+        background-color: #4a6fdc;
+        color: white;
+        padding: 1.5rem;
+        text-align: center;
+    }
+    
+    .card-header h2 {
+        margin: 0;
+        font-size: 1.75rem;
+    }
+    
+    .card-body {
+        padding: 2rem;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-control {
+        border-radius: 5px;
+        border: 1px solid #ddd;
+        padding: 0.75rem;
+        width: 100%;
+        font-size: 1rem;
+    }
+    
+    label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: #333;
+    }
+    
+    .form-row {
+        display: flex;
+        margin: 0 -10px;
+    }
+    
+    .form-row .form-group {
+        padding: 0 10px;
+        flex: 1;
+    }
+    
+    .button-group {
+        display: flex;
+        justify-content: center;
+        gap: 2rem;
+        margin-top: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .btn {
+        padding: 1rem 2.5rem;
+        border-radius: 5px;
+        font-size: 1rem;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        min-width: 150px;
+        text-align: center; /* Ensures text is horizontally centered */
+        display: flex;     /* Using flexbox for better alignment */
+        justify-content: center; /* Horizontal centering */
+        align-items: center;     /* Vertical centering */
+    }
+    
+    .btn-primary {
+        background-color: #4a6fdc;
+        color: white;
+        border: none;
+    }
+    
+    .btn-primary:hover {
+        background-color: #3a5dbe;
+    }
+    
+    .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+        border: none;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #5a6268;
+    }
+    
+    .btn-danger {
+        background-color: #dc3545;
+        color: white;
+        border: none;
+    }
+    
+    .btn-danger:hover {
+        background-color: #c82333;
+    }
+    
+    .delete-form {
+        text-align: center;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #eee;
+    }
+    
+    textarea {
+        resize: vertical;
+        min-height: 80px;
+    }
+</style>
+
+<script>
+    // Set default start date to today if not already set
+    if (!document.getElementById('start_date').value) {
+        document.getElementById('start_date').valueAsDate = new Date();
+    }
+    
+    function toggleFinishedDateInput() {
+        var status = document.getElementById('status').value;
+        var finishedDateInput = document.getElementById('finished_date');
+        if (status === 'Done') {
+            finishedDateInput.disabled = false;
+            if (!finishedDateInput.value) {
+                finishedDateInput.valueAsDate = new Date(); // Set to today if empty
+            }
+        } else {
+            finishedDateInput.disabled = true;
+            finishedDateInput.value = ''; // Clear the input if not 'Done'
+        }
+    }
+
+    function hideEditForm() {
+        window.history.back();
+    }
+
+    // Initialize on load
+    document.addEventListener('DOMContentLoaded', function() {
+        toggleFinishedDateInput();
+    });
+</script>
+{% endblock %}

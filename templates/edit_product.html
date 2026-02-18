@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}
+제품 수정 - {{ product.name }}
+{% endblock %}
+
+{% block content %}
+<div class="modern-container" style="max-width: 800px;">
+
+    <style>
+        /* 숨김 처리 - 체크박스만 숨김 */
+        .toggle-checkbox {
+            display: none !important;
+        }
+
+        /* 라벨 스타일 (버튼처럼 보이게) - 명시적 색상 사용 */
+        .toggle-btn {
+            display: inline-block !important;
+            padding: 8px 16px;
+            border: 2px solid #4a5568;
+            border-radius: 20px;
+            background-color: #2d3748;
+            color: #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+            user-select: none;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        /* 마우스 오버 시 */
+        .toggle-btn:hover {
+            background-color: #4a5568;
+            border-color: #5a67d8;
+        }
+
+        /* 체크되었을 때 스타일 */
+        .toggle-checkbox:checked+.toggle-btn {
+            background-color: #5a67d8 !important;
+            color: white !important;
+            border-color: #5a67d8 !important;
+            font-weight: bold;
+        }
+    </style>
+
+    <div class="header-section">
+        <h1 class="title">Edit Product</h1>
+        <p style="color: var(--secondary-text); margin-top: 5px;">제품 정보를 수정합니다.</p>
+    </div>
+
+    <form method="post" class="form-card">
+
+        <div class="form-group">
+            <label for="name" class="form-label">Name</label>
+            <input type="text" id="name" name="name" value="{{ product.name }}" required class="form-input"
+                placeholder="제품 이름을 입력하세요">
+        </div>
+
+        <div class="form-group">
+            <label for="description" class="form-label">Description</label>
+            <textarea id="description" name="description" rows="5" class="form-textarea"
+                style="min-height: 150px; resize: vertical;"
+                placeholder="제품에 대한 상세 설명을 입력하세요">{{ product.description }}</textarea>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Category</label>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; padding: 5px 0;">
+                {% for cat in allowed_categories %}
+                <div>
+                    <input type="checkbox" id="cat_{{ loop.index }}" name="category" value="{{ cat }}"
+                        class="toggle-checkbox" {% if product.category and cat in product.category %}checked{% endif %}>
+                    <label for="cat_{{ loop.index }}" class="toggle-btn">{{ cat }}</label>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">API</label>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; padding: 5px 0;">
+                {% for api in allowed_apis %}
+                <div>
+                    <input type="checkbox" id="api_{{ loop.index }}" name="api" value="{{ api }}"
+                        class="toggle-checkbox" {% if product.api and api in product.api %}checked{% endif %}>
+                    <label for="api_{{ loop.index }}" class="toggle-btn">{{ api }}</label>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="btn-group-right">
+            <a href="{{ url_for('product_detail', product_id=product.id) }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-save">Update</button>
+        </div>
+
+    </form>
+</div>
+{% endblock %}

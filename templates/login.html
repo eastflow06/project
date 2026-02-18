@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - RedApril</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;600&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --term-bg: #161b22;
+            --text-color: #c9d1d9;
+            --accent-color: #58a6ff;
+            --green-color: #3fb950;
+            --red-color: #ff7b72;
+            --yellow-color: #d29922;
+            --font-stack: 'Fira Code', monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('{{ bg_url }}');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: var(--text-color);
+            font-family: var(--font-stack);
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .terminal-container {
+            width: 600px;
+            max-width: 90%;
+            background-color: var(--term-bg);
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid #30363d;
+            animation: fadeIn 0.8s ease-out;
+            display: flex;
+            flex-direction: column;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .terminal-header {
+            background-color: #0d1117;
+            padding: 12px 16px;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            align-items: center;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .dot.red { background-color: var(--red-color); }
+        .dot.yellow { background-color: var(--yellow-color); }
+        .dot.green { background-color: var(--green-color); }
+
+        .title {
+            margin-left: 12px;
+            font-size: 0.85rem;
+            color: #8b949e;
+        }
+
+        .terminal-body {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .prompt {
+            color: var(--green-color);
+            margin-right: 8px;
+            user-select: none;
+        }
+
+        .intro {
+            margin-bottom: 20px;
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+
+        .output {
+            color: var(--yellow-color);
+            display: block;
+            margin-top: 8px;
+            margin-left: 20px;
+            font-style: italic;
+        }
+
+        .output.error {
+            color: var(--red-color);
+            font-style: normal;
+        }
+
+        .login-action {
+            margin-top: 24px;
+            border-top: 1px dashed #30363d;
+            padding-top: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .google-btn {
+            background-color: white;
+            color: #5f6368;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: auto;
+            min-width: 200px;
+            font-family: 'Roboto', sans-serif;
+            transition: background-color 0.2s, transform 0.1s;
+            text-decoration: none;
+        }
+
+        .google-btn:hover {
+            background-color: #f8f9fa;
+            border-color: #d2e3fc;
+            transform: scale(1.02);
+        }
+
+        .google-icon {
+            width: 18px;
+            height: 18px;
+            margin-right: 12px;
+        }
+
+        .cursor-line {
+            margin-top: 24px;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 18px;
+            background-color: var(--text-color);
+            margin-left: 8px;
+            animation: blink 1s step-end infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+
+        .term-input {
+            background: transparent;
+            border: none;
+            color: var(--text-color);
+            font-family: var(--font-stack);
+            font-size: 1rem;
+            outline: none;
+            width: 100%;
+            margin-left: 8px;
+            caret-color: var(--green-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="terminal-container">
+        <div class="terminal-header">
+            <span class="dot red"></span>
+            <span class="dot yellow"></span>
+            <span class="dot green"></span>
+            <span class="title">{{ terminal_user }}@redapril:~</span>
+        </div>
+        <div class="terminal-body">
+            <div class="intro"><span class="prompt">$</span> ./init_session.sh</div>
+            <div>
+                <span class="prompt">$</span> check_access_level<br>
+                <span class="output error">> ERROR: Authentication required.</span>
+                <span class="output">> Please identify yourself.</span>
+            </div>
+            <div class="login-action">
+                <a href="{{ url_for('auth.login') }}" class="google-btn">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" class="google-icon">
+                    <span>Sign in with Google</span>
+                </a>
+            </div>
+            <div class="cursor-line">
+                <form action="{{ url_for('password_login') }}" method="post" class="input-wrapper">
+                    <span class="prompt">$</span>
+                    <input type="password" name="password" class="term-input" placeholder="" autocomplete="off" autofocus>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

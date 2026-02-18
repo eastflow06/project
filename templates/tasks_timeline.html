@@ -1,0 +1,1368 @@
+{% extends "base.html" %}
+{% block title %}Task 타임라인{% endblock %}
+
+{% block content %}
+<div class="timeline-container">
+    <div class="timeline-header">
+        <h2>📊 Task 타임라인</h2>
+        <div class="header-actions">
+            <button onclick="scrollToToday()" class="btn btn-outline" title="오늘 날짜로 이동">📅 Today</button>
+            <div class="view-toggle-group">
+                <a href="{{ url_for('tasks_timeline', view='week') }}"
+                    class="btn-toggle {% if view_type == 'week' %}active{% endif %}" style="text-decoration: none;">
+                    📅 Week
+                </a>
+                <a href="{{ url_for('tasks_timeline', view='month') }}"
+                    class="btn-toggle {% if view_type == 'month' %}active{% endif %}" style="text-decoration: none;">
+                    📅 Month
+                </a>
+            </div>
+            <a href="{{ url_for('all_tasks') }}" class="btn btn-outline">목록 보기</a>
+            <a href="{{ url_for('index') }}" class="btn btn-outline">메인으로</a>
+        </div>
+    </div>
+
+    {% if error_message %}
+    <div class="alert alert-error">
+        {{ error_message }}
+    </div>
+    {% endif %}
+
+    {% if status_groups or tasks_without_project %}
+    <div class="timeline-wrapper">
+        <!-- 좌측: Task 목록 (이전과 동일) -->
+        <div class="task-sidebar">
+            <div class="sidebar-header">
+                <div class="header-cell">Tasks</div>
+                <div class="header-cell">Days Left</div>
+                <div class="header-cell">Duration</div>
+            </div>
+
+            <div class="sidebar-content" id="sidebarContent">
+                {% for group in status_groups %}
+                <div class="status-group">
+                    <div class="status-header" style="border-left: 4px solid {{ group.color }};">
+                        <span class="status-icon">{{ group.icon }}</span>
+                        <span class="status-title">{{ group.status }}</span>
+                        <span class="status-count">{{ group.tasks|length }}</span>
+                    </div>
+
+                    {% for task in group.tasks %}
+                    <div class="task-row" data-task-id="{{ task.id }}">
+                        <div class="task-info">
+                            <div class="task-content">
+                                <span class="task-title" onclick="scrollToTask({{ task.id }})" style="cursor: pointer;">
+                                    {{ task.title }}
+                                </span>
+                                <span class="task-project-name">{{ task.project_title }}</span>
+                            </div>
+                            <a href="{{ url_for('view_task', task_id=task.id) }}" class="task-detail-link"
+                                title="상세 보기">🔗</a>
+                        </div>
+                        <div class="task-progress">
+                            {% if task.status == 'Done' %}
+                            <span class="badge badge-success">Done</span>
+                            {% elif task.due_date %}
+                            {% set days_left = (task.due_date - today).days %}
+                            {% if days_left < 0 %} <span class="badge badge-danger">D+{{ days_left|abs }}</span>
+                                {% elif days_left == 0 %}
+                                <span class="badge badge-warning">D-Day</span>
+                                {% else %}
+                                <span class="badge badge-info">D-{{ days_left }}</span>
+                                {% endif %}
+                                {% else %}
+                                <span class="badge">-</span>
+                                {% endif %}
+                        </div>
+                        <div class="task-duration">
+                            {% if task.start_date and task.due_date %}
+                            {{ (task.due_date - task.start_date).days }} days
+                            {% else %}
+                            -
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+
+                {% if tasks_without_project %}
+                <div class="status-group">
+                    <div class="status-header" style="border-left: 4px solid #999;">
+                        <span class="status-icon">📌</span>
+                        <span class="status-title">프로젝트 없음</span>
+                        <span class="status-count">{{ tasks_without_project|length }}</span>
+                    </div>
+
+                    {% for task in tasks_without_project %}
+                    <div class="task-row" data-task-id="{{ task.id }}">
+                        <div class="task-info">
+                            <div class="task-content">
+                                <span class="task-title" onclick="scrollToTask({{ task.id }})" style="cursor: pointer;">
+                                    {{ task.title }}
+                                </span>
+                            </div>
+                            <a href="{{ url_for('view_task', task_id=task.id) }}" class="task-detail-link"
+                                title="상세 보기">🔗</a>
+                        </div>
+                        <div class="task-progress">
+                            {% if task.status == 'Done' %}
+                            <span class="badge badge-success">100%</span>
+                            {% else %}
+                            <span class="badge badge-warning">0%</span>
+                            {% endif %}
+                        </div>
+                        <div class="task-duration">
+                            {% if task.start_date and task.due_date %}
+                            {{ (task.due_date - task.start_date).days }} days
+                            {% else %}
+                            -
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 우측: 타임라인 그리드 -->
+        <div class="timeline-grid-container">
+            <div class="timeline-grid-wrapper" id="timelineGridWrapper">
+                <div class="timeline-headers">
+                    {% if view_type == 'week' %}
+                    <!-- Week 뷰 헤더 -->
+                    <div class="date-header">
+                        {% set month_week_count = {} %}
+                        {% for header in date_headers %}
+                        {% set month_key = header.year ~ '-' ~ header.month %}
+                        {% if month_key not in month_week_count %}
+                        {% set _ = month_week_count.update({month_key: 0}) %}
+                        {% endif %}
+                        {% set _ = month_week_count.update({month_key: month_week_count[month_key] + 1}) %}
+                        {% endfor %}
+
+                        {% set displayed_months = [] %}
+                        {% for header in date_headers %}
+                        {% set month_key = header.year ~ '-' ~ header.month %}
+                        {% if month_key not in displayed_months %}
+                        {% set _ = displayed_months.append(month_key) %}
+                        <div class="month-label" style="grid-column: span {{ month_week_count[month_key] }};">
+                            {{ header.week_start.strftime('%Y년 %m월') }}
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+
+                    <div class="week-header">
+                        {% for header in date_headers %}
+                        <div class="week-cell {% if header.is_current_week %}current-week{% endif %}">
+                            <div class="week-label">W{{ header.week_number }}</div>
+                            <div class="week-range">{{ header.display_label }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <!-- Month 뷰 헤더 -->
+                    <div class="month-only-header">
+                        {% for header in month_headers %}
+                        <div class="month-cell {% if header.is_current_month %}current-month{% endif %}"
+                            data-year="{{ header.year }}" data-month="{{ header.month }}"
+                            data-month-start="{{ header.month_start }}" data-month-end="{{ header.month_end }}">
+                            <div class="month-year">{{ header.year }}년</div>
+                            <div class="month-name">{{ header.month }}월</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- 간트 영역 -->
+                <div class="timeline-grid {% if view_type == 'month' %}month-view{% endif %}">
+                    <div class="gantt-area">
+                        {% for group in status_groups %}
+                        <div class="gantt-row gantt-header-row">
+                            {% if view_type == 'week' %}
+                            {% for header in date_headers %}
+                            <div class="gantt-cell"></div>
+                            {% endfor %}
+                            {% else %}
+                            {% for header in month_headers %}
+                            <div class="gantt-cell-month"></div>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+
+                        {% for task in group.tasks %}
+                        <div class="gantt-row" data-task-id="{{ task.id }}" data-task-start="{{ task.start_date }}"
+                            data-task-end="{{ task.due_date }}" data-task-title="{{ task.title }}"
+                            data-task-color="{{ task.project_color }}">
+                            {% if view_type == 'week' %}
+                            {% for header in date_headers %}
+                            <div class="gantt-cell {% if header.is_current_week %}current-week-cell{% endif %}"></div>
+                            {% endfor %}
+
+                            {% if task.start_date and task.due_date %}
+                            {% set total_days_diff = (task.start_date - week_start).days %}
+                            {% set duration_days = (task.due_date - task.start_date).days + 1 %}
+                            {% if duration_days < 1 %}{% set duration_days=1 %}{% endif %}
+                            
+                            {% if total_days_diff >= 0 and total_days_diff < (total_weeks * 7) %}
+                                {% set left_px = total_days_diff * (120 / 7) %}
+                                {% set width_px = duration_days * (120 / 7) %}
+                                <div class="gantt-bar" id="gantt-bar-{{ task.id }}"
+                                    style="left: {{ left_px }}px; width: {{ width_px }}px; background: linear-gradient(135deg, {{ task.project_color }}dd, {{ task.project_color }}88);"
+                                    title="{{ task.title }} ({{ task.start_date }} ~ {{ task.due_date }})">
+                                    <span class="gantt-bar-text">{{ task.title }}</span>
+                                </div>
+                            {% endif %}
+                            {% elif task.start_date %}
+                            {% set total_days_diff = (task.start_date - week_start).days %}
+                            {% if total_days_diff >= 0 and total_days_diff < (total_weeks * 7) %}
+                                {% set left_px = total_days_diff * (120 / 7) %}
+                                <div class="gantt-bar gantt-bar-no-end" id="gantt-bar-{{ task.id }}"
+                                    style="left: {{ left_px }}px; width: 60px; background: linear-gradient(135deg, {{ task.project_color }}dd, {{ task.project_color }}88);"
+                                    title="{{ task.title }} (시작: {{ task.start_date }})">
+                                    <span class="gantt-bar-text">{{ task.title }}</span>
+                                </div>
+                            {% endif %}
+                            {% endif %}
+                            {% else %}
+                    {# Month 뷰 - 간트 셀만 렌더링, 바는 JavaScript로 생성 #}
+                    {% for header in month_headers %}
+                    <div class="gantt-cell-month {% if header.is_current_month %}current-month-cell{% endif %}"></div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% endfor %}
+
+                {% if tasks_without_project %}
+                <div class="gantt-row gantt-header-row">
+                    {% if view_type == 'week' %}
+                    {% for header in date_headers %}
+                    <div class="gantt-cell"></div>
+                    {% endfor %}
+                    {% else %}
+                    {% for header in month_headers %}
+                    <div class="gantt-cell-month"></div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+
+                {% for task in tasks_without_project %}
+                <div class="gantt-row" data-task-id="{{ task.id }}" data-task-start="{{ task.start_date }}"
+                    data-task-end="{{ task.due_date }}" data-task-title="{{ task.title }}" data-task-color="#999">
+                    {% if view_type == 'week' %}
+                    {% for header in date_headers %}
+                    <div class="gantt-cell {% if header.is_current_week %}current-week-cell{% endif %}"></div>
+                    {% endfor %}
+
+                    {% if task.start_date and task.due_date %}
+                    {% set total_days_diff = (task.start_date - week_start).days %}
+                    {% set duration_days = (task.due_date - task.start_date).days + 1 %}
+                    {% if duration_days < 1 %}{% set duration_days=1 %}{% endif %}
+                    
+                    {% if total_days_diff >= 0 and total_days_diff < (total_weeks * 7) %}
+                        {% set left_px = total_days_diff * (120 / 7) %}
+                        {% set width_px = duration_days * (120 / 7) %}
+                        <div class="gantt-bar" id="gantt-bar-{{ task.id }}"
+                            style="left: {{ left_px }}px; width: {{ width_px }}px; background: linear-gradient(135deg, #999dd, #99988);"
+                            title="{{ task.title }} ({{ task.start_date }} ~ {{ task.due_date }})">
+                            <span class="gantt-bar-text">{{ task.title }}</span>
+                        </div>
+                    {% endif %}
+                    {% elif task.start_date %}
+                    {% set total_days_diff = (task.start_date - week_start).days %}
+                    {% if total_days_diff >= 0 and total_days_diff < (total_weeks * 7) %}
+                        {% set left_px = total_days_diff * (120 / 7) %}
+                        <div class="gantt-bar gantt-bar-no-end" id="gantt-bar-{{ task.id }}"
+                            style="left: {{ left_px }}px; width: 60px; background: linear-gradient(135deg, #999dd, #99988);"
+                            title="{{ task.title }} (시작: {{ task.start_date }})">
+                            <span class="gantt-bar-text">{{ task.title }}</span>
+                        </div>
+                    {% endif %}
+                    {% endif %}
+                    {% else %}
+            {# Month 뷰 - JavaScript로 처리 #}
+            {% for header in month_headers %}
+            <div class="gantt-cell-month {% if header.is_current_month %}current-month-cell{% endif %}"></div>
+            {% endfor %}
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% endif %}
+    </div>
+</div>
+</div>
+</div>
+</div>
+{% else %}
+<div class="alert alert-info">
+    📭 표시할 Task가 없습니다.
+</div>
+{% endif %}
+</div>
+
+<!-- CSS는 이전과 동일하므로 생략 -->
+<style>
+    :root {
+        --sidebar-width: 450px;
+        --row-height: 40px;
+        --month-header-height: 30px;
+        --week-header-height: 60px;
+        --total-header-height: 90px;
+        --sidebar-header-height: 90px;
+    }
+
+    .timeline-container {
+        padding: 20px;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    .timeline-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #e0e0e0;
+    }
+
+    .timeline-header h2 {
+        margin: 0;
+        font-size: 1.8rem;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .view-toggle-group {
+        display: flex;
+        gap: 0;
+        border: 1px solid #007bff;
+        border-radius: 5px;
+        overflow: hidden;
+    }
+
+    .btn-toggle {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 0;
+        background: white;
+        color: #007bff;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s;
+        border-right: 1px solid #007bff;
+        display: inline-block;
+    }
+
+    .btn-toggle:last-child {
+        border-right: none;
+    }
+
+    .btn-toggle:hover {
+        background: #e7f3ff;
+    }
+
+    .btn-toggle.active {
+        background: #007bff;
+        color: white;
+    }
+
+    body.dark-mode .view-toggle-group {
+        border-color: #4a9eff;
+    }
+
+    body.dark-mode .btn-toggle {
+        background: #2a2a2a;
+        color: #4a9eff;
+        border-right-color: #4a9eff;
+    }
+
+    body.dark-mode .btn-toggle:hover {
+        background: #333;
+    }
+
+    body.dark-mode .btn-toggle.active {
+        background: #4a9eff;
+        color: #1a1a1a;
+    }
+
+    .btn {
+        padding: 8px 16px;
+        border-radius: 5px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.3s;
+    }
+
+    .btn-outline {
+        border: 1px solid #007bff;
+        color: #007bff;
+        background: white;
+    }
+
+    .btn-outline:hover {
+        background: #007bff;
+        color: white;
+    }
+
+    body.dark-mode .btn-outline {
+        border: 1px solid #4a9eff;
+        color: #4a9eff;
+        background: #2a2a2a;
+    }
+
+    body.dark-mode .btn-outline:hover {
+        background: #4a9eff;
+        color: #1a1a1a;
+    }
+
+    .alert {
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+
+    .alert-error {
+        background: #fee;
+        color: #c00;
+        border: 1px solid #fcc;
+    }
+
+    .alert-info {
+        background: #e7f3ff;
+        color: #004085;
+        border: 1px solid #b8daff;
+        text-align: center;
+        font-size: 1.1rem;
+    }
+
+    .timeline-wrapper {
+        display: flex;
+        gap: 0;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        height: calc(100vh - 180px);
+    }
+
+    .task-sidebar {
+        width: var(--sidebar-width);
+        flex-shrink: 0;
+        border-right: 2px solid #ddd;
+        background: #fafafa;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .sidebar-header {
+        position: sticky;
+        top: 0;
+        display: grid;
+        grid-template-columns: 3fr 1fr 1fr;
+        background: #2c3e50;
+        color: white;
+        font-weight: bold;
+        height: var(--sidebar-header-height);
+        flex-shrink: 0;
+        z-index: 14;
+    }
+
+    .header-cell {
+        padding: 15px 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-right: 1px solid #34495e;
+    }
+
+    .header-cell:last-child {
+        border-right: none;
+    }
+
+    .sidebar-content {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        scrollbar-width: thin;
+    }
+
+    .sidebar-content::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .sidebar-content::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    .sidebar-content::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+
+    .sidebar-content::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+
+    .status-group {
+        margin-bottom: 0;
+    }
+
+    .status-header {
+        background: #ecf0f1;
+        height: var(--row-height);
+        padding: 0 15px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        box-sizing: border-box;
+    }
+
+    .status-icon {
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+
+    .status-title {
+        font-size: 1rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+    }
+
+    .status-count {
+        font-size: 0.85rem;
+        color: #666;
+        background: white;
+        padding: 2px 8px;
+        border-radius: 12px;
+        min-width: 24px;
+        text-align: center;
+        flex-shrink: 0;
+    }
+
+    .task-row {
+        display: grid;
+        grid-template-columns: 3fr 1fr 1fr;
+        height: var(--row-height);
+        min-height: var(--row-height);
+        max-height: var(--row-height);
+        border-bottom: 1px solid #e0e0e0;
+        background: white;
+        transition: background 0.2s;
+        box-sizing: border-box;
+    }
+
+    .task-row:hover {
+        background: #f0f8ff;
+    }
+
+    .task-info,
+    .task-progress,
+    .task-duration {
+        padding: 10px;
+        display: flex;
+        align-items: center;
+        overflow: hidden;
+    }
+
+    .task-info {
+        border-right: 1px solid #e0e0e0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .task-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        overflow: hidden;
+        min-width: 0;
+    }
+
+    .task-progress {
+        justify-content: center;
+        border-right: 1px solid #e0e0e0;
+    }
+
+    .task-duration {
+        justify-content: center;
+        font-size: 0.9rem;
+        color: #666;
+    }
+
+    .task-title {
+        text-decoration: none;
+        color: #333;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 0.95rem;
+        font-weight: 500;
+    }
+
+    .task-title:hover {
+        color: #007bff;
+        text-decoration: underline;
+    }
+
+    .task-project-name {
+        font-size: 0.75rem;
+        color: #888;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .badge {
+        padding: 3px 8px;
+        border-radius: 3px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .badge-success {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .badge-warning {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .badge-danger {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .badge-info {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+
+    .timeline-grid-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .timeline-grid-wrapper {
+        flex: 1;
+        overflow-x: auto;
+        overflow-y: auto;
+        position: relative;
+        max-height: 100%;
+    }
+
+    .timeline-headers {
+        position: sticky;
+        top: 0;
+        z-index: 13;
+        background: #2c3e50;
+    }
+
+    .date-header {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: 120px;
+        background: #2c3e50;
+        color: white;
+        height: var(--month-header-height);
+        border-bottom: 1px solid #34495e;
+    }
+
+    .month-label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 0.9rem;
+        border-right: 1px solid #34495e;
+        background: #2c3e50;
+        color: white;
+    }
+
+    .week-header {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: 120px;
+        background: #2c3e50;
+        color: white;
+        height: var(--week-header-height);
+        border-bottom: 2px solid #ddd;
+    }
+
+    .week-cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border-right: 1px solid #34495e;
+        padding: 8px 5px;
+        background: #2c3e50;
+        color: white;
+    }
+
+    .week-cell.current-week {
+        background: #e74c3c;
+        font-weight: bold;
+    }
+
+    .week-label {
+        font-size: 1rem;
+        font-weight: bold;
+        margin-bottom: 4px;
+    }
+
+    .week-range {
+        font-size: 0.75rem;
+        opacity: 0.9;
+    }
+
+    .month-only-header {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: 120px;
+        background: #2c3e50;
+        color: white;
+        height: 90px;
+    }
+
+    .month-cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border-right: 1px solid #34495e;
+        padding: 15px 10px;
+        background: #2c3e50;
+        color: white;
+    }
+
+    .month-cell.current-month {
+        background: #e74c3c;
+        font-weight: bold;
+    }
+
+    .month-year {
+        font-size: 0.9rem;
+        opacity: 0.8;
+        margin-bottom: 5px;
+    }
+
+    .month-name {
+        font-size: 1.3rem;
+        font-weight: bold;
+    }
+
+    .timeline-grid {
+        min-width: max-content;
+        position: relative;
+    }
+
+    .gantt-area {
+        position: relative;
+    }
+
+    .gantt-row {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: 120px;
+        height: var(--row-height);
+        min-height: var(--row-height);
+        max-height: var(--row-height);
+        position: relative;
+        border-bottom: 1px solid #e0e0e0;
+        z-index: 1;
+        box-sizing: border-box;
+    }
+
+    .timeline-grid.month-view .gantt-row {
+        grid-auto-columns: 120px;
+    }
+
+    .gantt-cell {
+        border-right: 1px solid #e8e8e8;
+        position: relative;
+        width: 120px;
+        height: 100%;
+        pointer-events: none;
+    }
+
+    .gantt-cell.current-week-cell {
+        border-right: 2px solid #e74c3c;
+    }
+
+    .gantt-cell-month {
+        border-right: 1px solid #e8e8e8;
+        width: 120px;
+        height: 100%;
+        pointer-events: none;
+    }
+
+    .gantt-cell-month.current-month-cell {
+        border-right: 2px solid #e74c3c;
+    }
+
+    .gantt-header-row {
+        background: transparent;
+        border-bottom: 1px solid #ddd;
+        height: var(--row-height);
+        min-height: var(--row-height);
+        max-height: var(--row-height);
+    }
+
+    .current-week-marker,
+    .current-month-marker {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e74c3c;
+        z-index: 15;
+        pointer-events: none;
+    }
+
+    .gantt-bar {
+        position: absolute;
+        top: 5px;
+        height: 30px;
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        padding: 0 10px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        z-index: 10;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+
+    .gantt-bar:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        z-index: 20;
+    }
+
+    .gantt-bar-no-end {
+        border-right: 3px dashed rgba(0, 0, 0, 0.3);
+    }
+
+    .gantt-bar-text {
+        color: #1a1a1a;
+        font-weight: 600;
+        font-size: 0.85rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-shadow: 0 1px 1px rgba(255, 255, 255, 0.5);
+    }
+
+    body.dark-mode .gantt-bar-text {
+        color: white;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    }
+
+    body.dark-mode .timeline-container {
+        background: #1a1a1a;
+        color: #e0e0e0;
+    }
+
+    body.dark-mode .timeline-wrapper {
+        background: #2a2a2a;
+        border-color: #444;
+    }
+
+    body.dark-mode .task-sidebar {
+        background: #2a2a2a;
+        border-right-color: #444;
+    }
+
+    body.dark-mode .task-row {
+        background: #2a2a2a;
+        border-bottom-color: #444;
+    }
+
+    body.dark-mode .task-row:hover {
+        background: #333;
+    }
+
+    body.dark-mode .task-title {
+        color: #e0e0e0;
+    }
+
+    body.dark-mode .task-project-name {
+        color: #999;
+    }
+
+    body.dark-mode .status-header {
+        background: #333;
+    }
+
+    body.dark-mode .status-count {
+        background: #444;
+        color: #ccc;
+    }
+
+    body.dark-mode .gantt-cell,
+    body.dark-mode .gantt-cell-month {
+        border-right-color: #444;
+    }
+
+    body.dark-mode .gantt-row {
+        border-bottom-color: #444;
+    }
+
+    body.dark-mode .sidebar-content::-webkit-scrollbar-track {
+        background: #2a2a2a;
+    }
+
+    body.dark-mode .sidebar-content::-webkit-scrollbar-thumb {
+        background: #555;
+    }
+
+    body.dark-mode .sidebar-content::-webkit-scrollbar-thumb:hover {
+        background: #777;
+    }
+
+    @keyframes pulse-highlight {
+        0% {
+            box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7);
+            transform: scale(1);
+        }
+
+        50% {
+            box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
+            transform: scale(1.05);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
+            transform: scale(1);
+        }
+    }
+
+    .highlight-bar {
+        animation: pulse-highlight 1.5s ease-in-out;
+        z-index: 100 !important;
+        border: 2px solid #fff;
+        outline: 2px solid #ff4757;
+    }
+
+    .task-detail-link {
+        font-size: 0.8em;
+        text-decoration: none;
+        opacity: 0.5;
+        transition: opacity 0.2s;
+        flex-shrink: 0;
+    }
+
+    .task-detail-link:hover {
+        opacity: 1;
+    }
+
+    @media (max-width: 768px) {
+        :root {
+            --sidebar-width: 280px;
+            --row-height: 50px;
+        }
+
+        .timeline-header {
+            flex-direction: column;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .header-actions {
+            flex-wrap: wrap;
+            width: 100%;
+        }
+
+        .view-toggle-group {
+            order: -1;
+            width: 100%;
+        }
+
+        .btn-toggle {
+            flex: 1;
+            text-align: center;
+        }
+
+        .sidebar-header {
+            grid-template-columns: 3fr 1fr;
+        }
+
+        .task-row {
+            grid-template-columns: 3fr 1fr;
+        }
+
+        .task-duration {
+            display: none;
+        }
+
+        .header-cell:last-child {
+            display: none;
+        }
+
+        .week-header,
+        .date-header {
+            grid-auto-columns: 80px;
+        }
+
+        .gantt-row {
+            grid-auto-columns: 80px;
+        }
+
+        .timeline-grid.month-view .gantt-row {
+            grid-auto-columns: 120px;
+        }
+
+        .gantt-cell {
+            width: 80px;
+        }
+
+        .month-only-header {
+            grid-auto-columns: 120px;
+        }
+
+        .gantt-cell-month {
+            width: 120px;
+        }
+
+        .gantt-bar-text {
+            font-size: 0.7rem;
+        }
+    }
+</style>
+
+<script>
+    const MONTH_CELL_WIDTH = 120;
+    const WEEK_CELL_WIDTH = 120;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const viewType = '{{ view_type }}';
+
+        if (viewType === 'month') {
+            // Month 뷰에서 간트 바 생성
+            generateMonthGanttBars();
+            highlightCurrentMonth();
+        } else {
+            highlightCurrentWeek();
+        }
+
+        syncScrollHeights();
+
+        // 스크롤 동기화
+        const sidebarContent = document.getElementById('sidebarContent');
+        const timelineGridWrapper = document.getElementById('timelineGridWrapper');
+        let isSyncing = false;
+
+        sidebarContent.addEventListener('scroll', function () {
+            if (!isSyncing) {
+                isSyncing = true;
+                timelineGridWrapper.scrollTop = this.scrollTop;
+                requestAnimationFrame(() => {
+                    isSyncing = false;
+                });
+            }
+        });
+
+        timelineGridWrapper.addEventListener('scroll', function () {
+            if (!isSyncing) {
+                isSyncing = true;
+                sidebarContent.scrollTop = this.scrollTop;
+                requestAnimationFrame(() => {
+                    isSyncing = false;
+                });
+            }
+        });
+
+        // 핀치 줌
+        timelineGridWrapper.addEventListener('wheel', function (e) {
+            if (e.ctrlKey) {
+                e.preventDefault();
+
+                if (e.deltaY < -5 && viewType === 'week') {
+                    window.location.href = '{{ url_for("tasks_timeline", view="month") }}';
+                } else if (e.deltaY > 5 && viewType === 'month') {
+                    window.location.href = '{{ url_for("tasks_timeline", view="week") }}';
+                }
+            }
+        }, { passive: false });
+    });
+
+    function generateMonthGanttBars() {
+        // 월 헤더 정보 수집
+        const monthCells = document.querySelectorAll('.month-cell');
+        const months = [];
+
+        monthCells.forEach((cell, index) => {
+            const year = parseInt(cell.getAttribute('data-year'));
+            const month = parseInt(cell.getAttribute('data-month'));
+            const monthStart = new Date(cell.getAttribute('data-month-start'));
+            const monthEnd = new Date(cell.getAttribute('data-month-end'));
+            
+            // 해당 월의 총 일수 계산
+            const daysInMonth = new Date(year, month, 0).getDate();
+
+            months.push({
+                index,
+                year,
+                month,
+                monthStart,
+                monthEnd,
+                daysInMonth
+            });
+        });
+
+        // 각 task row에 대해 간트 바 생성
+        const taskRows = document.querySelectorAll('.gantt-row[data-task-start]');
+
+        taskRows.forEach(row => {
+            const taskStart = row.getAttribute('data-task-start');
+            const taskEnd = row.getAttribute('data-task-end');
+            const taskTitle = row.getAttribute('data-task-title');
+            const taskColor = row.getAttribute('data-task-color');
+            const taskId = row.getAttribute('data-task-id');
+
+            if (!taskStart || taskStart === 'None') return;
+
+            const startDate = new Date(taskStart);
+            const endDate = taskEnd && taskEnd !== 'None' ? new Date(taskEnd) : null;
+
+            // 시작 월과 종료 월 찾기
+            let startMonthObj = null;
+            let endMonthObj = null;
+
+            months.forEach(m => {
+                // Check if date is within this month range (ignoring time)
+                // Using simple Year/Month comparison is safer than date range if aligned
+                if (startDate.getFullYear() === m.year && (startDate.getMonth() + 1) === m.month) {
+                    startMonthObj = m;
+                }
+                if (endDate && endDate.getFullYear() === m.year && (endDate.getMonth() + 1) === m.month) {
+                    endMonthObj = m;
+                }
+            });
+
+            // If start date is not in visible range, check if it's before the first visible month
+            // but ends within or after visible range.
+            // Simplified: if exact start not found, we might need to handle "starts before view" logic
+            // But current logic only looks for exact start month match. 
+            // Let's improve to find "Start Index" logic similar to Week view if needed,
+            // but for now, let's stick to the previous "Find Index" logic but refined for partial widths.
+            
+            // Re-using index finding logic with date comparison
+            let startMonthIndex = -1;
+            let endMonthIndex = -1;
+            
+             months.forEach(m => {
+                if (startDate >= m.monthStart && startDate <= m.monthEnd) {
+                    startMonthIndex = m.index;
+                    startMonthObj = m;
+                }
+                if (endDate && endDate >= m.monthStart && endDate <= m.monthEnd) {
+                    endMonthIndex = m.index;
+                    endMonthObj = m;
+                }
+            });
+
+            if (startMonthIndex === -1 && (!endDate || endMonthIndex === -1)) {
+                // Check if spanning across entire view?
+                // For simplicity, skip if start not visible, UNLESS user wants spanning tasks.
+                // Previous logic skipped if startMonthIndex == -1. Maintaining that for now.
+                return;
+            }
+
+            // Calculate precise offsets
+            // Pixel per day in this month = MONTH_CELL_WIDTH / daysInMonth
+            
+            let left = 0;
+            let width = 0;
+
+            if (startMonthObj) {
+                const dayOfStart = startDate.getDate(); // 1-31
+                const ratioStart = (dayOfStart - 1) / startMonthObj.daysInMonth;
+                left = (startMonthObj.index * MONTH_CELL_WIDTH) + (ratioStart * MONTH_CELL_WIDTH);
+            } else {
+                // Starts before view
+                // Find first visible month? 
+                // Currently returning if startMonthIndex == -1, so this block effectively handles only visible starts.
+                return; 
+            }
+
+            if (endDate) {
+                // Calculate end position
+                // If ends in visible range
+                 if (endMonthObj) {
+                    const dayOfEnd = endDate.getDate();
+                    const ratioEnd = dayOfEnd / endMonthObj.daysInMonth; // End of the day
+                    const endLeft = (endMonthObj.index * MONTH_CELL_WIDTH) + (ratioEnd * MONTH_CELL_WIDTH);
+                    width = endLeft - left;
+                } else {
+                    // Ends after view
+                    // Just extend to end of grid? 
+                    // Let's limit to total width or something reasonable
+                    const totalWidth = months.length * MONTH_CELL_WIDTH;
+                    width = totalWidth - left; 
+                }
+            } else {
+                // No end date - default width (e.g. 5 days or similar?)
+                // Previous code: width = 2 * MONTH_CELL_WIDTH (2 months)
+                // Let's make it more modest for "precise" view? Say 1/4 month.
+                width = MONTH_CELL_WIDTH / 4; 
+            }
+            
+            // Create Bar
+            const ganttBar = document.createElement('div');
+            ganttBar.className = endDate ? 'gantt-bar' : 'gantt-bar gantt-bar-no-end';
+            ganttBar.id = `gantt-bar-${taskId}`;
+            
+            ganttBar.style.left = left + 'px';
+            ganttBar.style.width = Math.max(width, 5) + 'px'; // Min width 5px
+            ganttBar.title = endDate ? `${taskTitle} (${taskStart} ~ ${taskEnd})` : `${taskTitle} (시작: ${taskStart})`;
+
+            ganttBar.style.background = `linear-gradient(135deg, ${taskColor}dd, ${taskColor}88)`;
+
+            const textSpan = document.createElement('span');
+            textSpan.className = 'gantt-bar-text';
+            textSpan.textContent = taskTitle;
+            ganttBar.appendChild(textSpan);
+
+            row.appendChild(ganttBar);
+        });
+    }
+
+    function syncScrollHeights() {
+        const sidebarContent = document.getElementById('sidebarContent');
+        const timelineGrid = document.querySelector('.timeline-grid');
+
+        if (sidebarContent && timelineGrid) {
+            setTimeout(() => {
+                const sidebarHeight = sidebarContent.scrollHeight;
+                timelineGrid.style.height = sidebarHeight + 'px';
+            }, 100);
+        }
+    }
+
+    function highlightCurrentWeek() {
+        const currentWeekCell = document.querySelector('.week-cell.current-week');
+        if (!currentWeekCell) return;
+
+        const weekCells = document.querySelectorAll('.week-cell');
+        let currentWeekIndex = -1;
+        weekCells.forEach((cell, index) => {
+            if (cell.classList.contains('current-week')) {
+                currentWeekIndex = index;
+            }
+        });
+
+        if (currentWeekIndex === -1) return;
+
+        const ganttRows = document.querySelectorAll('.gantt-row');
+        ganttRows.forEach(row => {
+            const marker = document.createElement('div');
+            marker.className = 'current-week-marker';
+            marker.style.left = (currentWeekIndex * WEEK_CELL_WIDTH + WEEK_CELL_WIDTH) + 'px';
+            row.appendChild(marker);
+        });
+    }
+
+    function highlightCurrentMonth() {
+        const currentMonthCell = document.querySelector('.month-cell.current-month');
+        if (!currentMonthCell) return;
+
+        const monthCells = document.querySelectorAll('.month-cell');
+        let currentMonthIndex = -1;
+        monthCells.forEach((cell, index) => {
+            if (cell.classList.contains('current-month')) {
+                currentMonthIndex = index;
+            }
+        });
+
+        if (currentMonthIndex === -1) return;
+
+        const ganttRows = document.querySelectorAll('.gantt-row');
+        ganttRows.forEach(row => {
+            const marker = document.createElement('div');
+            marker.className = 'current-month-marker';
+            marker.style.left = (currentMonthIndex * MONTH_CELL_WIDTH + MONTH_CELL_WIDTH) + 'px';
+            row.appendChild(marker);
+        });
+    }
+
+    function scrollToTask(taskId) {
+        const ganttBar = document.getElementById('gantt-bar-' + taskId);
+        const timelineGridWrapper = document.getElementById('timelineGridWrapper');
+
+        if (ganttBar && timelineGridWrapper) {
+            const scrollLeft = ganttBar.offsetLeft - (timelineGridWrapper.clientWidth / 2) + (ganttBar.clientWidth / 2);
+
+            timelineGridWrapper.scrollTo({
+                left: scrollLeft,
+                behavior: 'smooth'
+            });
+
+            ganttBar.classList.add('highlight-bar');
+            setTimeout(() => {
+                ganttBar.classList.remove('highlight-bar');
+            }, 2000);
+        } else {
+            alert('이 Task는 타임라인에 표시되지 않았습니다 (기한 정보 없음)');
+        }
+    }
+
+    function scrollToToday() {
+        const viewType = '{{ view_type }}';
+        const timelineGridWrapper = document.getElementById('timelineGridWrapper');
+
+        if (viewType === 'week') {
+            const currentWeekCell = document.querySelector('.week-cell.current-week');
+            if (currentWeekCell && timelineGridWrapper) {
+                const headerOffset = currentWeekCell.offsetLeft;
+                const scrollLeft = headerOffset - (timelineGridWrapper.clientWidth / 2) + (currentWeekCell.clientWidth / 2);
+
+                timelineGridWrapper.scrollTo({
+                    left: scrollLeft,
+                    behavior: 'smooth'
+                });
+            } else {
+                alert('현재 주가 타임라인 범위 내에 없습니다.');
+            }
+        } else {
+            const currentMonthCell = document.querySelector('.month-cell.current-month');
+            if (currentMonthCell && timelineGridWrapper) {
+                const headerOffset = currentMonthCell.offsetLeft;
+                const scrollLeft = headerOffset - (timelineGridWrapper.clientWidth / 2) + (currentMonthCell.clientWidth / 2);
+
+                timelineGridWrapper.scrollTo({
+                    left: scrollLeft,
+                    behavior: 'smooth'
+                });
+            } else {
+                alert('현재 월이 타임라인 범위 내에 없습니다.');
+            }
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,442 @@
+{% extends "base.html" %}
+
+{% block title %}이미지 갤러리{% endblock %}
+
+{% block content %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+    /* modern-container 상단 여백 제거 */
+    .modern-container {
+        padding-top: 10px !important;
+        width: 90%;
+        margin: 0 auto;
+    }
+
+    /* Bootstrap navbar 오버라이드 방지 */
+    nav.navbar {
+        height: 43px !important;
+        padding: 0 15px !important;
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 1000 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        background-color: var(--nav-bg) !important;
+        border-bottom: 1px solid var(--nav-border) !important;
+        color: var(--nav-text) !important;
+        white-space: nowrap !important;
+        flex-wrap: nowrap !important;
+    }
+
+    /* 드롭다운 메뉴 Bootstrap 오버라이드 */
+    .navbar .dropdown-menu {
+        background-color: var(--dropdown-bg) !important;
+        border: 1px solid var(--border-color) !important;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3) !important;
+    }
+    .navbar .dropdown-menu a {
+        color: var(--dropdown-text) !important;
+        padding: 10px 15px !important;
+    }
+    .navbar .dropdown-menu a:hover {
+        background-color: var(--dropdown-hover-bg) !important;
+        color: var(--nav-hover) !important;
+    }
+
+    /* 헤더 섹션 */
+    .gallery-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding: 15px 20px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .gallery-header h2 {
+        margin: 0;
+        color: #2c3e50;
+    }
+    .gallery-header .btn-group {
+        display: flex;
+        gap: 10px;
+    }
+
+    /* 업로드 영역 */
+    .upload-zone {
+        border: 2px dashed var(--border-color);
+        border-radius: 12px;
+        padding: 40px;
+        text-align: center;
+        margin-bottom: 20px;
+        background: var(--input-bg);
+        transition: all 0.3s;
+        cursor: pointer;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+        border-color: #4a90e2;
+        background: rgba(74, 144, 226, 0.05);
+    }
+    .upload-zone i {
+        font-size: 48px;
+        color: var(--border-color);
+        margin-bottom: 15px;
+    }
+    .upload-zone p {
+        color: var(--secondary-text);
+        margin: 0;
+    }
+
+    /* 이미지 그리드 */
+    .image-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 20px;
+    }
+
+    /* 이미지 카드 */
+    .image-card {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        transition: transform 0.2s, box-shadow 0.2s;
+        position: relative;
+    }
+    .image-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+    }
+    .image-card .image-preview {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        cursor: pointer;
+    }
+    .image-card .image-info {
+        padding: 12px;
+    }
+    .image-card .image-name {
+        font-size: 0.85rem;
+        color: var(--text-color);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-bottom: 5px;
+    }
+    .image-card .image-meta {
+        font-size: 0.75rem;
+        color: var(--secondary-text);
+    }
+    .image-card .image-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+    }
+    .image-card .image-actions button {
+        flex: 1;
+        padding: 6px;
+        font-size: 0.8rem;
+        border-radius: 6px;
+    }
+
+    /* 모달 */
+    .image-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.9);
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+    }
+    .image-modal.show {
+        display: flex;
+    }
+    .image-modal img {
+        max-width: 90%;
+        max-height: 90%;
+        border-radius: 8px;
+    }
+    .image-modal .close-btn {
+        position: absolute;
+        top: 20px;
+        right: 30px;
+        color: white;
+        font-size: 40px;
+        cursor: pointer;
+    }
+    .image-modal .modal-info {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: white;
+        background: rgba(0,0,0,0.7);
+        padding: 10px 20px;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    /* 빈 상태 */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: var(--input-bg);
+        border-radius: 12px;
+        border: 2px dashed var(--border-color);
+        color: var(--secondary-text);
+    }
+    .empty-state i {
+        font-size: 64px;
+        color: var(--border-color);
+        margin-bottom: 20px;
+    }
+
+    /* 다크모드 */
+    .dark-mode .gallery-header {
+        background: #374151;
+    }
+    .dark-mode .gallery-header h2 {
+        color: #e2e8f0;
+    }
+    .dark-mode .image-card {
+        background: #374151;
+    }
+    .dark-mode .image-card .image-name {
+        color: #e2e8f0;
+    }
+    .dark-mode .upload-zone:hover,
+    .dark-mode .upload-zone.drag-over {
+        border-color: #60a5fa;
+        background: rgba(96, 165, 250, 0.1);
+    }
+
+    /* 프로그레스 바 */
+    .upload-progress {
+        display: none;
+        margin-top: 15px;
+    }
+    .upload-progress.show {
+        display: block;
+    }
+</style>
+
+<div class="modern-container">
+    <!-- 헤더 -->
+    <div class="gallery-header">
+        <h2><i class="fas fa-images"></i> 이미지 갤러리</h2>
+        <div class="btn-group">
+            <a href="{{ url_for('note.list_notes') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> 노트 목록
+            </a>
+            <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('fileInput').click();">
+                <i class="fas fa-upload"></i> 이미지 업로드
+            </button>
+        </div>
+    </div>
+
+    <!-- 업로드 영역 -->
+    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click();">
+        <i class="fas fa-cloud-upload-alt"></i>
+        <p>클릭하거나 이미지를 여기에 드래그하세요</p>
+        <p class="small text-muted mt-2">PNG, JPG, GIF, WebP (다중 선택 가능)</p>
+        <input type="file" id="fileInput" accept="image/*" multiple style="display: none;">
+        <div class="upload-progress" id="uploadProgress">
+            <div class="progress" style="height: 8px;">
+                <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+            </div>
+            <p class="small mt-2" id="uploadStatus">업로드 중...</p>
+        </div>
+    </div>
+
+    <!-- 이미지 그리드 -->
+    {% if images %}
+    <div class="image-grid" id="imageGrid">
+        {% for image in images %}
+        <div class="image-card" data-filename="{{ image.filename }}">
+            <img src="{{ image.url }}" alt="{{ image.filename }}" class="image-preview"
+                 onclick="openModal('{{ image.url }}', '{{ image.filename }}')">
+            <div class="image-info">
+                <div class="image-name" title="{{ image.filename }}">{{ image.filename }}</div>
+                <div class="image-meta">
+                    {{ (image.size / 1024)|round(1) }} KB
+                </div>
+                <div class="image-actions">
+                    <button class="btn btn-outline-primary btn-sm" onclick="copyMarkdown('{{ image.url }}')">
+                        <i class="fas fa-copy"></i> 복사
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="deleteImage('{{ image.filename }}')">
+                        <i class="fas fa-trash"></i> 삭제
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-images"></i>
+        <h4>이미지가 없습니다</h4>
+        <p>위의 업로드 영역을 클릭하여 이미지를 추가하세요.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- 이미지 모달 -->
+<div class="image-modal" id="imageModal" onclick="closeModal()">
+    <span class="close-btn">&times;</span>
+    <img src="" id="modalImage" onclick="event.stopPropagation();">
+    <div class="modal-info">
+        <span id="modalFilename"></span>
+        <button class="btn btn-sm btn-light ms-3" onclick="event.stopPropagation(); copyMarkdownFromModal();">
+            <i class="fas fa-copy"></i> 마크다운 복사
+        </button>
+    </div>
+</div>
+
+<script>
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('fileInput');
+    const uploadProgress = document.getElementById('uploadProgress');
+    const uploadStatus = document.getElementById('uploadStatus');
+    const progressBar = uploadProgress.querySelector('.progress-bar');
+    let currentModalUrl = '';
+
+    // 드래그 앤 드롭
+    uploadZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadZone.classList.add('drag-over');
+    });
+
+    uploadZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove('drag-over');
+    });
+
+    uploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove('drag-over');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            uploadFiles(files);
+        }
+    });
+
+    // 파일 선택
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            uploadFiles(e.target.files);
+        }
+    });
+
+    // 파일 업로드
+    async function uploadFiles(files) {
+        const formData = new FormData();
+        for (let file of files) {
+            formData.append('images', file);
+        }
+
+        uploadProgress.classList.add('show');
+        progressBar.style.width = '30%';
+        uploadStatus.textContent = `${files.length}개 파일 업로드 중...`;
+
+        try {
+            const response = await fetch('{{ url_for("note.gallery_upload_image") }}', {
+                method: 'POST',
+                body: formData
+            });
+
+            progressBar.style.width = '100%';
+
+            const data = await response.json();
+            if (data.success) {
+                uploadStatus.textContent = '업로드 완료!';
+                setTimeout(() => {
+                    location.reload();
+                }, 500);
+            } else {
+                uploadStatus.textContent = '업로드 실패: ' + data.error;
+                setTimeout(() => {
+                    uploadProgress.classList.remove('show');
+                }, 2000);
+            }
+        } catch (error) {
+            uploadStatus.textContent = '업로드 오류: ' + error.message;
+            setTimeout(() => {
+                uploadProgress.classList.remove('show');
+            }, 2000);
+        }
+
+        fileInput.value = '';
+    }
+
+    // 마크다운 복사
+    function copyMarkdown(url) {
+        const markdown = `![image](${url})`;
+        navigator.clipboard.writeText(markdown).then(() => {
+            alert('마크다운이 클립보드에 복사되었습니다.\n\n' + markdown);
+        });
+    }
+
+    // 모달에서 마크다운 복사
+    function copyMarkdownFromModal() {
+        copyMarkdown(currentModalUrl);
+    }
+
+    // 이미지 삭제
+    async function deleteImage(filename) {
+        if (!confirm(`"${filename}" 이미지를 삭제하시겠습니까?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/pdata/note/images/delete/${encodeURIComponent(filename)}`, {
+                method: 'POST'
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                const card = document.querySelector(`.image-card[data-filename="${filename}"]`);
+                if (card) {
+                    card.remove();
+                }
+                // 이미지가 모두 삭제되면 빈 상태 표시
+                const grid = document.getElementById('imageGrid');
+                if (grid && grid.children.length === 0) {
+                    location.reload();
+                }
+            } else {
+                alert('삭제 실패: ' + data.error);
+            }
+        } catch (error) {
+            alert('삭제 오류: ' + error.message);
+        }
+    }
+
+    // 모달 열기
+    function openModal(url, filename) {
+        currentModalUrl = url;
+        document.getElementById('modalImage').src = url;
+        document.getElementById('modalFilename').textContent = filename;
+        document.getElementById('imageModal').classList.add('show');
+    }
+
+    // 모달 닫기
+    function closeModal() {
+        document.getElementById('imageModal').classList.remove('show');
+    }
+
+    // ESC 키로 모달 닫기
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeModal();
+        }
+    });
+</script>
+{% endblock %}

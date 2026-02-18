@@ -1,0 +1,898 @@
+{% extends "base.html" %}
+{% block title %}
+메모 내용보기
+{% endblock %}
+{% block head %}
+    <!-- highlight.js 추가 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            document.querySelectorAll('.highlight pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+        });
+    </script>  
+{% endblock %}
+{% block content %}
+<div class="memo-container">
+    <!-- Parent Memo 표시 섹션 (parent_id가 있는 경우에만 표시) -->
+    {% if memo.parent %}
+    <div class="parent-memo-box" style="border-left-color: red;">
+        <p class="parent-memo-content">{{ memo.parent.content[:150] }}... 
+            <a href="{{ url_for('view_memo', memo_id=memo.parent.id) }}" class="parent-memo-link">전체 보기</a></p>
+    </div>
+    <hr>
+    {% endif %}
+    
+    <div class="memo-section">
+        <label for="content" class="memo-label">메모 (
+            {% if memo.project %}
+                <a href="{{ url_for('project', project_id=memo.project_id) }}?view_mode={{ view_mode }}">{{ memo.project.title }}</a>
+            {% else %}
+                <span>No Project</span>
+            {% endif %}
+        )</label>
+    <hr>
+        <div id="content" class="memo-content-box memo-markdown memo-content highlight">
+            {{ memo.content | markdown | auto_link | safe }}
+        </div>
+    </div>
+    <hr>
+   
+    <div class="memo-section" style="display: flex; justify-content: space-between; align-items: center; margin-right: 20px;">
+        <div style="display: flex; align-items: center; flex-wrap: wrap;">
+            {% if memo.tag %}
+                <label for="tag" class="memo-tag" style="margin-right: 3px;">#</label>
+                <p class="memo-tag" style="margin: 0;">{{ memo.tag.name }}</p>
+            {% endif %}
+            
+            <!-- 메모에 직접 연결된 제품 -->
+            {% if memo_product %}
+                <label for="product" class="memo-product" style="margin-right: 3px; margin-left: 10px;">#</label>
+                <p class="memo-product" style="margin: 0;">{{ memo_product.name }}</p>
+            {% endif %}
+            
+            <!-- 프로젝트에 연결된 제품들 -->
+            {% for product in project_products %}
+                <label for="product" class="memo-product" style="margin-right: 3px; margin-left: 10px;">#</label>
+                <p class="memo-product" style="margin: 0;">{{ product.name }}</p>
+            {% endfor %}
+        </div>
+        <div style="text-align: right; margin-left: auto; min-width: 200px;">
+            <label for="created_at">작성:</label> 
+            <span style="margin-left: 5px;">{{ memo.created_at.strftime('%Y-%m-%d') }}</span>
+        </div>
+    </div>
+    
+    <!-- Image Carousel Section -->
+    {% set all_images = [] %}
+    
+    {# 1. Legacy Image #}
+    {% if memo.image_filename %}
+        {% set _ = all_images.append(memo.image_filename) %}
+    {% endif %}
+    
+    {# 2. New Images (Exclude if same as legacy to be safe, though usually distinct) #}
+    {% for img in memo.images %}
+        {% if img.filename != memo.image_filename %}
+            {% set _ = all_images.append(img.filename) %}
+        {% endif %}
+    {% endfor %}
+
+    {% if all_images %}
+    <div class="memo-section">
+        <label class="memo-label">Images ({{ all_images|length }}):</label>
+        
+        <div class="carousel-container">
+            <div class="carousel-wrapper">
+                {% for img_file in all_images %}
+                <div class="carousel-slide {% if loop.first %}active{% endif %}">
+                    <img src="{{ url_for('static', filename='data/' ~ img_file) }}" alt="Memo Image {{ loop.index }}" class="memo-image">
+                    <a href="{{ url_for('static', filename='data/' ~ img_file) }}" download="{{ img_file }}" class="download-link">{{ img_file }}</a>
+                </div>
+                {% endfor %}
+            </div>
+            
+            {% if all_images|length > 1 %}
+            <button class="carousel-btn prev-btn" onclick="moveCarousel(-1)">&#10094;</button>
+            <button class="carousel-btn next-btn" onclick="moveCarousel(1)">&#10095;</button>
+            <div class="carousel-indicators">
+                {% for img_file in all_images %}
+                <span class="dot {% if loop.first %}active{% endif %}" onclick="currentSlide({{ loop.index }})"></span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if memo.pdf_filename %}
+    <div class="memo-section">
+        <label for="pdf" class="memo-label">PDF:</label>
+        <a href="{{ url_for('static', filename='data/' ~ memo.pdf_filename) }}" target="_blank" class="download-link">{{ memo.pdf_filename }}</a>
+        <iframe src="{{ url_for('static', filename='data/' ~ memo.pdf_filename) }}" class="memo-pdf" frameborder="0"></iframe>
+    </div>
+    {% endif %}
+    
+    {% if memo.excel_filename %}
+    <div class="memo-section">
+        <label for="excel" class="memo-label">Excel:</label>
+        <a href="{{ url_for('static', filename='data/' ~ memo.excel_filename) }}" target="_blank" class="download-link">{{ memo.excel_filename }}</a>
+    </div>
+    {% endif %}
+
+    {% if memo.ppt_filename %}
+    <div class="memo-section">
+        <label for="ppt" class="memo-label">PPT:</label>
+        <a href="{{ url_for('static', filename='data/' ~ memo.ppt_filename) }}" target="_blank" class="download-link">{{ memo.ppt_filename }}</a>
+    </div>
+    {% endif %}
+
+    {% if md_content %}
+    <div class="memo-section">
+        <label for="md_file" class="memo-label">Markdown:</label>
+        <div class="memo-content-box memo-markdown memo-content highlight">
+            {{ md_content | markdown | safe }}
+        </div>
+        <a href="{{ url_for('static', filename='data/' ~ memo.md_filename) }}" download="{{ memo.md_filename }}" class="download-link">{{ memo.md_filename }}</a>
+    </div>
+    {% endif %}
+    
+    {% if memo.html_filename %}
+    <div class="memo-section">
+        <label for="html_file" class="memo-label">HTML:</label>
+        
+        <div class="memo-content-box memo-html-link">
+            <a href="{{ url_for('view_html_file', memo_id=memo.id) }}" target="_blank" class="btn btn-sm btn-info me-2">
+                <i class="fas fa-external-link-alt"></i> {{ memo.original_filename or memo.html_filename }} (새 창에서 보기)
+            </a>
+            </div>
+    </div>
+    {% endif %}
+
+    <!-- 답메모들 표시 -->
+    {% if memo.replies %}
+    <hr>
+    <div class="replies-container">
+        {% for reply in memo.replies %}
+        <div class="reply-memo-box" style="border-left-color: blue; margin-left: 20px;">
+            <p class="reply-memo-content"><strong>{{ reply.created_at.strftime('%Y-%m-%d') }}</strong></p>
+            <p class="reply-memo-content">{{ reply.content[:150] }}... <a href="{{ url_for('view_memo', memo_id=reply.id) }}" class="reply-memo-link">전체 보기</a></p>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- 버튼들 표시 -->
+    <div class="memo-actions" style="display: flex; justify-content: center; gap: 10px; margin-top: 20px;">
+        <a href="javascript:void(0);" onclick="window.history.back();" class="btn-back">Back</a>          
+        <a href="{{ url_for('memo_list', project_id=memo.project_id) }}" class="btn-list">Memo List</a>
+        <a href="{{ url_for('edit_memo', memo_id=memo.id) }}" class="btn-edit">Edit</a>
+        <a href="{{ url_for('create_memo', parent_id=memo.id, project_id=memo.project_id) }}" class="btn-reply">Reply</a>
+        <button onclick="printMemo()" class="btn-print">Print</button>
+    </div>
+</div>
+
+<style>
+    .memo-container {
+        width: 75%;
+        margin: 0 auto;
+        text-align: center;
+    }
+    
+    .memo-content-box {
+        margin: 0;
+        line-height: 1.3;
+        text-align: left;
+        word-wrap: break-word;
+        overflow-wrap: anywhere;
+        word-break: break-all;
+        font-size: 1.08em;
+    }
+
+    .memo-content-box p {
+        margin: 10px 0; 
+    }
+    
+    .memo-content-box br {
+        display: block;
+        content: "";
+        margin-top: 10px; 
+    }
+        
+    .memo-content-box img {
+        max-width: 50%;
+        height: auto;
+        display: block;
+        margin: 10px 0;
+        cursor: pointer;
+    }
+    .memo-content-box a {
+        color: #0066cc; 
+        text-decoration: none; 
+        transition: all 0.2s ease; 
+    }
+    
+    .memo-content-box a:hover {
+        text-decoration: underline; 
+        color: #0056b3; 
+    }
+
+    .memo-content-box ul {
+        margin: 1em 0;
+        padding-left: 2em;
+    }
+    .memo-content-box ul ul {
+        margin: 0.5em 0;
+    }
+    .memo-content-box li {
+        margin: 0.5em 0;
+    }
+    
+    /* --- [Markdown Typography] --- */
+    .memo-markdown {
+        background-color: transparent; 
+        padding: 10px;
+        border-radius: 5px;
+    }
+
+    .memo-markdown h1, 
+    .memo-markdown h2, 
+    .memo-markdown h3, 
+    .memo-markdown h4, 
+    .memo-markdown h5, 
+    .memo-markdown h6 {
+        margin-top: 0.8em;
+        margin-bottom: 0.5em;
+        /* [수정됨] 제목 볼드체 제거 (기본 굵기) */
+        font-weight: normal;
+        color: inherit; 
+    }
+
+    .memo-markdown h1 { 
+        font-size: 1.6em; 
+        border-bottom: 1px solid #ddd; 
+        padding-bottom: 0.3em; 
+    }
+
+    .memo-markdown h2 { font-size: 1.4em; }
+    .memo-markdown h3 { font-size: 1.2em; }
+    
+    .memo-markdown p { 
+        margin-bottom: 0.8em; 
+        margin-top: 0; 
+    }
+
+    .memo-markdown ul, 
+    .memo-markdown ol {
+        margin-bottom: 1em;
+        padding-left: 1.5em;
+    }
+    
+    .memo-markdown ul { list-style-type: disc; }
+    .memo-markdown ol { list-style-type: decimal; }
+    
+    /* 레벨별 구분 표시 */
+    .memo-markdown ul ul {
+        list-style-type: circle;  /* 2단계: 빈 원 */
+    }
+
+    .memo-markdown ul ul ul {
+        list-style-type: square;  /* 3단계: 사각형 */
+    }
+    
+    .memo-markdown ul li, 
+    .memo-markdown ol li { 
+        margin-bottom: 0.3em; 
+        line-height: 1.6; 
+    }
+
+    .memo-markdown img {
+        max-width: 50%;
+        height: auto;
+        display: block;
+        margin: 10px 0;
+        cursor: pointer;
+    }
+
+    .auto-link {
+        color: #0066cc;
+        text-decoration: none;
+    }
+    
+    .parent-memo-box {
+        background-color: #f8f8f8;
+        padding: 10px;
+        border-left: 4px solid red;
+        margin-bottom: 15px;
+        text-align: left;
+    }
+    
+    .reply-memo-box {
+        background-color: #f8f8f8;
+        padding: 10px;
+        border-left: 4px solid blue;
+        margin-bottom: 15px;
+        text-align: left;
+    }
+    
+    .parent-memo-content, .reply-memo-content {
+        margin: 0;
+        color: #333;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .parent-memo-link, .reply-memo-link {
+        font-size: 14px;
+        color: #007BFF;
+        text-decoration: underline;
+        cursor: pointer;
+    }
+    
+    .memo-section {
+        margin-bottom: 20px;
+        text-align: left;
+        padding-right: 20px;
+    }
+    
+    .memo-label {
+        font-size: 21px;
+    }
+    .memo-label a {
+        text-decoration: none;
+        color: #007BFF;
+    }
+    
+    .memo-label a:hover {
+        color: #0056b3;  
+    }    
+    
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 1em;
+    }
+    
+    th, td {
+        padding: 5px;
+        text-align: left;
+        vertical-align: middle;
+        white-space: normal;
+        word-wrap: break-word;
+        border: none;
+    }
+    
+    th {
+        background-color: #f0f0f0;
+        border-bottom: 2px solid #ddd;
+    }
+    
+    tr {
+        height: auto; 
+        border-bottom: 1px solid #ddd;
+        cursor: pointer;
+    }
+    
+    tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+    
+    .highlight pre {
+        background-color: #2e3440;
+        color: #d8dee9;
+        border-radius: 6px;
+        padding: 10px;
+        margin: 15px 0;
+        overflow-x: auto;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+    
+    .highlight pre code {
+        background-color: transparent;
+        color: inherit;
+        padding: 0;
+        font-size: inherit;
+    }
+    
+    .memo-date {
+        text-align: right;
+    }
+
+    .memo-tag {
+        font-size: 18px;
+        font-weight: normal;
+        color: #007BFF;
+    }
+
+    .memo-product {
+        font-size: 18px;
+        font-weight: normal;
+        color: #E65100; 
+    }
+
+    .download-link {
+        text-decoration: none;
+        color: #007BFF;
+        display: block;
+        margin-bottom: 10px;
+    }
+
+    .memo-image {
+        max-width: 50%;
+        cursor: pointer;
+    }
+
+    .memo-pdf {
+        width: 100%;
+        height: 500px;
+    }
+    
+    .btn-back, .btn-edit, .btn-list, .btn-reply, .btn-print {
+        padding: 5px 10px;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+    }
+
+    .btn-back { background-color: #007BFF; }
+    .btn-edit { background-color: #28a745; }
+    .btn-list { background-color: #6c757d; }
+    .btn-reply { background-color: #ffc107; }
+    .btn-print { background-color: #6610f2; font-size: 16px; }
+
+    .math-inline, .math-block {
+        font-family: "Times New Roman", serif;
+        font-size: 1em;
+    }
+    .math-block {
+        display: block;
+        margin: 1em 0;
+        padding: 0.5em;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+    }
+    .math-inline { display: inline-block; margin: 0 0.2em; }
+    .math-inline ×, .math-block × { margin: 0 0.2em; }
+    .math-inline ≈, .math-block ≈ { margin: 0 0.2em; }
+        
+    .auto-link:hover { text-decoration: underline; }
+
+    /* --- [Dark Mode Styles] --- */
+    
+    /* 기본 텍스트: 부드러운 회색 (#d1d5db) */
+    body.dark-mode .memo-container {
+        color: #d1d5db;
+    }
+
+    /* Parent/Reply Box */
+    body.dark-mode .parent-memo-box,
+    body.dark-mode .reply-memo-box {
+        background-color: var(--stripe-bg);
+        color: #d1d5db;
+    }
+
+    body.dark-mode .parent-memo-content,
+    body.dark-mode .reply-memo-content {
+        color: #d1d5db;
+    }
+
+    body.dark-mode .parent-memo-link,
+    body.dark-mode .reply-memo-link {
+        color: #4A9EFF !important;
+        text-decoration: underline !important;
+    }
+
+    body.dark-mode .parent-memo-link:hover,
+    body.dark-mode .reply-memo-link:hover {
+        color: #6BB6FF !important;
+    }
+
+    /* 마크다운 타이틀 및 본문 색상 통일 (눈부심 방지) */
+    body.dark-mode .memo-markdown {
+        color: #d1d5db;
+    }
+    
+    body.dark-mode .memo-markdown h1,
+    body.dark-mode .memo-markdown h2,
+    body.dark-mode .memo-markdown h3,
+    body.dark-mode .memo-markdown h4,
+    body.dark-mode .memo-markdown h5,
+    body.dark-mode .memo-markdown h6 {
+        /* 본문과 동일한 부드러운 회색 */
+        color: #d1d5db; 
+    }
+
+    body.dark-mode .memo-markdown h1 {
+        border-bottom-color: var(--border-color);
+    }
+    
+    body.dark-mode .memo-markdown p,
+    body.dark-mode .memo-markdown li {
+        color: #d1d5db;
+    }
+
+    body.dark-mode .memo-markdown strong {
+        color: #d1d5db;
+    }
+
+    /* 메모 라벨 및 링크 */
+    body.dark-mode .memo-label {
+        color: #d1d5db;
+    }
+
+    body.dark-mode .memo-label a {
+        color: var(--link-color) !important;
+    }
+
+    body.dark-mode .memo-label a:hover {
+        color: var(--link-hover) !important;
+    }
+
+    /* 메모 내용 박스 */
+    body.dark-mode .memo-content-box {
+        color: #d1d5db;
+    }
+
+    body.dark-mode .memo-content-box a {
+        color: var(--link-color) !important;
+    }
+
+    body.dark-mode .memo-content-box a:hover {
+        color: var(--link-hover) !important;
+    }
+
+    /* 다운로드 링크 */
+    body.dark-mode .download-link {
+        color: var(--link-color) !important;
+    }
+
+    /* 태그와 제품 */
+    body.dark-mode .memo-tag { color: var(--link-color); }
+    body.dark-mode .memo-product { color: #FF9800; }
+
+    /* 표 스타일 */
+    body.dark-mode table {
+        color: #d1d5db;
+    }
+
+    body.dark-mode th {
+        background-color: var(--stripe-bg);
+        border-bottom-color: var(--border-color);
+        color: #d1d5db; 
+    }
+
+    body.dark-mode tr {
+        border-bottom-color: var(--border-color);
+    }
+
+    body.dark-mode tr:nth-child(even) {
+        background-color: var(--stripe-bg);
+    }
+
+    /* 코드 하이라이트 */
+    body.dark-mode .highlight pre {
+        background-color: #2e3440;
+        color: #d8dee9;
+    }
+
+    /* 수식 배경 */
+    body.dark-mode .math-block {
+        background-color: var(--stripe-bg);
+    }
+
+    /* 버튼들 */
+    body.dark-mode .btn-back { background-color: var(--link-color); }
+    body.dark-mode .btn-edit { background-color: #2ea043; }
+    body.dark-mode .btn-list { background-color: #555; }
+    body.dark-mode .btn-reply { background-color: #d4a300; }
+    body.dark-mode .btn-print { background-color: #7c3aed; }
+
+    /* HR 라인 */
+    body.dark-mode hr {
+        border-color: var(--border-color);
+    }
+    
+    @media screen and (max-width: 768px) {
+       body { font-size: 1.2rem; }
+       .memo-container { width: 100%; padding: 0 10px; }
+       .memo-content-box { font-size: 1.3rem; }
+       .memo-image, .memo-content-box img, .memo-markdown img { max-width: 100%; }
+       .memo-pdf { height: 300px; }
+       .memo-section > div[style*="text-align: right"] { min-width: 150px; }    
+       .memo-metadata, .memo-actions { font-size: 18px; }
+       .btn-print { font-size: 18px; padding: 10px 30px; }
+       .memo-content-box pre {
+           margin: 10px -10px; padding: 16px; width: calc(100% + 20px);
+           -webkit-overflow-scrolling: touch; overflow-x: auto !important;
+       }
+       .memo-content-box pre code.bash,
+       .memo-content-box pre code.language-bash,
+       .memo-content-box pre code.plaintext,
+       .memo-content-box pre code.language-plaintext {
+           font-family: ui-monospace, 'SF Mono', Menlo, Monaco, monospace !important;
+           font-size: 16px !important; line-height: 1.5 !important;
+           -webkit-text-size-adjust: none; white-space: pre !important;
+           word-wrap: normal !important; overflow-x: auto !important;
+       }
+    }
+    
+    @supports (-webkit-touch-callout: none) {
+       .memo-content-box pre code.bash,
+       .memo-content-box pre code.language-bash,
+       .memo-content-box pre code.plaintext,
+       .memo-content-box pre code.language-plaintext {
+           font-family: ui-monospace, 'SF Mono', Menlo, Monaco, monospace !important;
+           -webkit-text-size-adjust: none; white-space: pre !important;
+           word-wrap: normal !important; overflow-x: auto !important;
+       }
+    }
+
+    @media print {
+        body * { visibility: hidden; }
+        .memo-container, .memo-container * { visibility: visible; }
+        .memo-content-box p:has(img) + p { display: none !important; }
+        .memo-content-box p:has(a[href*=".jpeg"]),
+        .memo-content-box p:has(a[href*=".jpg"]),
+        .memo-content-box p:has(a[href*=".png"]),
+        .memo-content-box p:has(text()[contains(., 'Image:')]) { display: none !important; }
+        .memo-container { position: absolute; left: 0; top: 0; width: 100%; padding: 15px 25px 25px 20px; }
+        .memo-actions, .btn-print, iframe, .btn-back, .btn-edit, .btn-list, .btn-reply { display: none !important; }
+        .memo-image, .memo-content-box img, .memo-markdown img { max-width: 100% !important; page-break-inside: avoid; }
+        .memo-section { page-break-inside: avoid; }
+        .parent-memo-box, .reply-memo-box { page-break-inside: avoid; border-left: 2px solid #000 !important; }
+        a[href]:not(.download-link):after { content: " "; }
+        .download-link:after { content: none; }
+        @page { margin: 1.5cm 2cm 2cm 1.5cm; }
+        .memo-section > div[style*="text-align: right"] { min-width: 200px; white-space: nowrap; }
+        .memo-label { font-size: 20px; margin-bottom: 0.5cm; }
+        .memo-date { color: #666; font-size: 14px; }
+        .memo-tag { color: #333 !important; }
+        hr { border: 0.5px solid #ccc; margin: 0.5cm 0; }
+    }
+    /* Carousel Styles */
+    .carousel-container {
+        position: relative;
+        max-width: 100%;
+        margin: auto;
+        overflow: hidden;
+        border-radius: 8px;
+        background-color: var(--stripe-bg); /* Match theme */
+        padding: 10px;
+    }
+
+    .carousel-slide {
+        display: none;
+        text-align: center;
+    }
+
+    .carousel-slide.active {
+        display: block;
+        animation: fade 0.5s;
+    }
+    
+    .carousel-slide img {
+        max-width: 100%;
+        max-height: 500px; /* Limit height */
+        object-fit: contain;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    /* Next & previous buttons */
+    .carousel-btn {
+        cursor: pointer;
+        position: absolute;
+        top: 50%;
+        width: auto;
+        padding: 16px;
+        margin-top: -22px;
+        color: white;
+        font-weight: bold;
+        font-size: 18px;
+        transition: 0.6s ease;
+        border-radius: 0 3px 3px 0;
+        user-select: none;
+        background-color: rgba(0,0,0,0.3);
+        border: none;
+    }
+
+    .next-btn {
+        right: 0;
+        border-radius: 3px 0 0 3px;
+    }
+    
+    .prev-btn {
+        left: 0;
+        border-radius: 0 3px 3px 0;
+    }
+
+    .carousel-btn:hover {
+        background-color: rgba(0,0,0,0.8);
+    }
+
+    /* Indicators */
+    .carousel-indicators {
+        text-align: center;
+        margin-top: 10px;
+    }
+
+    .dot {
+        cursor: pointer;
+        height: 10px;
+        width: 10px;
+        margin: 0 2px;
+        background-color: #bbb;
+        border-radius: 50%;
+        display: inline-block;
+        transition: background-color 0.6s ease;
+    }
+
+    .dot.active, .dot:hover {
+        background-color: #717171;
+    }
+    
+    /* Animation */
+    @keyframes fade {
+        from {opacity: .4} 
+        to {opacity: 1}
+    }
+    
+    /* Dark mode adjustments */
+    body.dark-mode .carousel-container {
+        background-color: #2e3440;
+    }
+    body.dark-mode .dot {
+        background-color: #555;
+    }
+    body.dark-mode .dot.active {
+        background-color: #bbb;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function waitForImages() {
+        return Promise.all(
+            Array.from(document.images)
+                .filter(img => !img.complete)
+                .map(img => new Promise(resolve => {
+                    img.onload = img.onerror = resolve;
+                }))
+        );
+    }
+
+    function printMemo() {
+        waitForImages().then(() => {
+            const scrollPos = window.scrollY;
+            window.print();
+            window.scrollTo(0, scrollPos);
+        });
+    }
+
+    document.querySelectorAll('.memo-image, .memo-content-box img, .memo-markdown img').forEach(img => {
+        img.addEventListener('click', function() {
+            window.open(this.src, '_blank');
+        });
+    });
+
+    if (typeof renderMathInElement !== 'undefined') {
+        renderMathInElement(document.body, {
+            delimiters: [
+                {left: "$$", right: "$$", display: true},
+                {left: "$", right: "$", display: false},
+                {left: "\\[", right: "\\]", display: true},
+                {left: "\\(", right: "\\)", display: false}
+            ],
+            throwOnError: false
+        });
+    }
+
+    function getUrlParameters() {
+        const params = new URLSearchParams(window.location.search);
+        return {
+            project_id: params.get('project_id'),
+            search_query: params.get('search'),
+            tag: params.get('tag')
+        };
+    }
+
+    // 모든 링크에 target="_blank" 속성 추가
+    const links = document.querySelectorAll('.memo-content-box a');
+    
+    links.forEach(function(link) {
+        // target 속성이 없는 경우에만 추가
+        if (!link.hasAttribute('target')) {
+            link.setAttribute('target', '_blank');
+            // 보안 강화를 위한 속성 추가
+            link.setAttribute('rel', 'noopener noreferrer');
+        }
+    });
+    
+    document.addEventListener('keydown', function(e) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            return;
+        }
+        
+        const currentPath = window.location.pathname;
+        const currentMemoId = currentPath.split('/').pop();
+        const projectId = '{{ memo.project_id }}';
+    
+        if (e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+            const direction = e.key === 'ArrowLeft' ? 'prev' : 'next';
+            fetch(`/api/memo/${direction}_all?memo_id=${currentMemoId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.id) {
+                        window.location.href = `/view_memo/${data.id}`;
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            return;
+        }
+    
+        if (!e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+            if (!projectId) return;
+    
+            const direction = e.key === 'ArrowLeft' ? 'prev' : 'next';
+            fetch(`/api/memo/${direction}_in_project?memo_id=${currentMemoId}&project_id=${projectId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.id) {
+                        window.location.href = `/view_memo/${data.id}`;
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+    });
+
+    window.printMemo = printMemo;
+
+    // Carousel Logic
+    let slideIndex = 1;
+    // Initialize if carousel exists
+    if (document.querySelector('.carousel-container')) {
+        showSlides(slideIndex);
+    }
+
+    window.moveCarousel = function(n) {
+        showSlides(slideIndex += n);
+    }
+
+    window.currentSlide = function(n) {
+        showSlides(slideIndex = n);
+    }
+
+    function showSlides(n) {
+        let i;
+        let slides = document.getElementsByClassName("carousel-slide");
+        let dots = document.getElementsByClassName("dot");
+        
+        if (slides.length === 0) return;
+
+        if (n > slides.length) {slideIndex = 1}    
+        if (n < 1) {slideIndex = slides.length}
+        
+        for (i = 0; i < slides.length; i++) {
+            slides[i].style.display = "none";  
+            slides[i].classList.remove("active");
+        }
+        for (i = 0; i < dots.length; i++) {
+            dots[i].className = dots[i].className.replace(" active", "");
+        }
+        
+        slides[slideIndex-1].style.display = "block";  
+        slides[slideIndex-1].classList.add("active");
+        if (dots.length > 0) {
+            dots[slideIndex-1].className += " active";
+        }
+    }
+});
+</script>
+{% endblock %}

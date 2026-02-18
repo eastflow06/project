@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="ko" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>안정성 시험 관리 (Google Sheets 연동)</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+        })();
+    </script>
+
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #212529;
+            --header-bg: #f8f9fa;
+            --border-color: #dee2e6;
+            --card-bg: #ffffff;
+        }
+
+        [data-bs-theme="dark"] {
+            --bg-color: #0d1117;
+            --text-color: #b0b8c1; 
+            --header-bg: #161b22;
+            --border-color: #30363d;
+            --card-bg: #1c2128;
+        }
+
+        html, body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100%;
+        }    
+
+        body { 
+            font-family: 'Noto Sans KR', sans-serif; 
+            padding-bottom: 50px; 
+        }
+
+        body.preload {
+            transition: none !important;
+        }
+        
+        body:not(.preload) {
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .container { max-width: 1200px; margin-top: 30px; }
+        .card { 
+            margin-bottom: 20px; 
+            transition: border-color 0.3s, background-color 0.3s;
+            background-color: var(--card-bg);
+        }
+        
+        .chart-container { position: relative; height: 400px; width: 100%; }
+        
+        .theme-toggle-btn {
+            position: fixed; top: 20px; right: 20px; z-index: 1000;
+            border-radius: 50%; width: 50px; height: 50px; font-size: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        [data-bs-theme="dark"] .table-primary { --bs-table-bg: #2c3034; --bs-table-color: #fff; }
+        
+        thead th[style*="cursor"] { user-select: none; background-color: rgba(13, 110, 253, 0.1); }
+        thead th[style*="cursor"]:hover { background-color: rgba(13, 110, 253, 0.2); }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        
+        .loading-overlay.show {
+            display: flex;
+        }
+    </style>
+</head>
+<body class="preload">
+    <button class="btn btn-outline-primary theme-toggle-btn" id="themeToggle" title="테마 전환">🌓</button>
+    
+    <!-- 로딩 오버레이 -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="text-center">
+            <div class="spinner-border text-light" style="width: 3rem; height: 3rem;" role="status">
+                <span class="visually-hidden">로딩 중...</span>
+            </div>
+            <p class="text-light mt-3">Google Sheets 연동 중...</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="text-center mb-4">
+            <h2>🧪 제형 안정성 시험 관리 시스템 v5.0</h2>
+            <p class="text-muted">Google Sheets 연동 버전</p>
+        </div>
+
+        <ul class="nav nav-tabs mb-4" id="myTab" role="tablist">
+            <li class="nav-item"><button class="nav-link active" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard" type="button">📊 대시보드</button></li>
+            <li class="nav-item"><button class="nav-link" id="input-tab" data-bs-toggle="tab" data-bs-target="#input" type="button">📝 입력/수정</button></li>
+            <li class="nav-item"><button class="nav-link" id="data-tab" data-bs-toggle="tab" data-bs-target="#data" type="button">💾 데이터 관리</button></li>
+        </ul>
+
+        <div class="tab-content">
+            <div class="tab-pane fade show active" id="dashboard">
+                <div class="row">
+                    <div class="col-lg-8">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">📉 과초산 함량 변화 추이</h5>
+                                <div class="chart-container"><canvas id="stabilityChart"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="card h-100">
+                            <div class="card-header bg-primary text-white">📋 현황 요약</div>
+                            <div class="card-body" id="summaryStats">로딩 중...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="input">
+                <div class="card">
+                    <div class="card-header bg-success text-white" id="inputHeader"><strong>✨ 신규 결과 등록</strong></div>
+                    <div class="card-body">
+                        <form id="logForm">
+                            <input type="hidden" id="editId" value="">
+                            <div class="row mb-3">
+                                <div class="col-md-3">
+                                    <label class="form-label">시험 일자</label>
+                                    <input type="date" class="form-control" id="testDate" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">제형 코드</label>
+                                    <select class="form-select" id="formulationCode"></select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">경과일</label>
+                                    <input type="number" class="form-control" id="elapsedDay" required>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">과초산(%)</label>
+                                    <input type="number" step="0.01" class="form-control" id="paaPercent" required>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">과수(%)</label>
+                                    <input type="number" step="0.01" class="form-control" id="h2o2Percent" required>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">비고</label>
+                                <input type="text" class="form-control" id="remarks">
+                            </div>
+                            <div class="d-flex justify-content-end gap-2">
+                                <button type="button" class="btn btn-secondary" id="cancelEditBtn" style="display:none;" onclick="cancelEditMode()">취소</button>
+                                <button type="submit" class="btn btn-success" id="submitBtn">저장</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="data">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>📚 데이터 목록 (최신순 정렬)</span>
+                        <div class="btn-group">
+                            <button class="btn btn-outline-success btn-sm" onclick="initWorksheet()">🔧 워크시트 초기화</button>
+                            <button class="btn btn-outline-primary btn-sm" onclick="loadDataFromSheet()">🔄 새로고침</button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="clearData()">🗑️ 데이터 삭제</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <strong>📌 사용 안내:</strong>
+                            <ul class="mb-0">
+                                <li>처음 사용하시나요? <strong>"🔧 워크시트 초기화"</strong> 버튼을 클릭하여 안정성시험 워크시트를 생성하세요.</li>
+                                <li>Google Sheets의 활성 스프레드시트에 <strong>"안정성시험"</strong> 워크시트가 자동으로 생성됩니다.</li>
+                                <li>샘플 데이터 3건이 자동으로 추가되어 바로 사용할 수 있습니다.</li>
+                            </ul>
+                        </div>
+                        <div class="mb-3 d-flex gap-2 align-items-center">
+                            <label class="form-label mb-0 fw-bold">🔍 제형 필터:</label>
+                            <select class="form-select form-select-sm" id="formulationFilter" style="max-width: 300px;" onchange="renderTable()">
+                                <option value="all">전체 보기</option>
+                            </select>
+                            <span class="badge bg-info" id="filterCount"></span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover table-striped align-middle">
+                                <thead>
+                                    <tr>
+                                        <th style="cursor: pointer;" onclick="toggleSort('date')" title="클릭하여 정렬">
+                                            날짜 <span id="sortIndicator">▼</span>
+                                        </th>
+                                        <th>제형</th>
+                                        <th style="cursor: pointer;" onclick="toggleSort('day')" title="클릭하여 정렬">
+                                            경과일 <span id="sortIndicatorDay"></span>
+                                        </th>
+                                        <th>과초산</th>
+                                        <th>과수</th>
+                                        <th>비고</th>
+                                        <th>관리</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dataTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <hr class="my-5">
+        <div class="card border-info">
+            <div class="card-header bg-info bg-opacity-10 d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#recipeCollapse">
+                <h5 class="mb-0 text-primary">🧪 원약 분량 (Formulation Composition)</h5>
+                <small class="text-muted">▼ 클릭하여 펼치기/접기</small>
+            </div>
+            <div class="collapse show" id="recipeCollapse">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered text-center align-middle mb-0">
+                            <thead class="table-primary">
+                                <tr>
+                                    <th>제형코드</th>
+                                    <th>아세트산 (%)</th>
+                                    <th>과산화수소 (%)</th>
+                                    <th>에티드론산 (%)</th>
+                                    <th>황산 (%)</th>
+                                    <th>정제수</th>
+                                    <th>비고 (변경점)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recipeTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // LIMS API 기본 경로
+        const LIMS_API_BASE = '/lims/api';
+        
+        // 마스터 데이터
+        const masterRecipe = {
+            "LH PAA5XV4S":   { acetic: 25.0, h2o2: 2.0, eti: 0.5, sulf: 1.0, water: "적량", note: "Control (황산 1%)" },
+            "LH PAA5XV4S-1": { acetic: 25.0, h2o2: 2.0, eti: 0.5, sulf: 0.0, water: "적량", note: "황산제거, Et 0.5%" },
+            "LH PAA5XV4S-2": { acetic: 25.0, h2o2: 2.0, eti: 0.1, sulf: 0.0, water: "적량", note: "황산제거, Et 0.1%" },
+            "LH PAA5XV4S-3": { acetic: 25.0, h2o2: 2.0, eti: 0.0, sulf: 0.0, water: "적량", note: "황산제거, Et 0.0%" }
+        };
+
+        let appData = [];
+        let myChart = null;
+        let currentSort = { field: 'date', order: 'desc' };
+
+        // 로딩 표시
+        function showLoading() {
+            document.getElementById('loadingOverlay').classList.add('show');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('show');
+        }
+
+        // 워크시트 초기화
+        async function initWorksheet() {
+            if (!confirm('안정성시험 워크시트를 초기화하시겠습니까?\n\n- 활성 스프레드시트에 "안정성시험" 워크시트가 생성됩니다.\n- 기존 데이터가 있다면 삭제되고 샘플 데이터로 대체됩니다.')) {
+                return;
+            }
+            
+            showLoading();
+            try {
+                const response = await fetch(`${LIMS_API_BASE}/stability/init`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(result.message);
+                    // 데이터 다시 로드
+                    await loadDataFromSheet();
+                } else {
+                    throw new Error(result.error || '초기화 실패');
+                }
+            } catch (error) {
+                console.error('워크시트 초기화 실패:', error);
+                alert('워크시트 초기화 중 오류가 발생했습니다: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Google Sheets에서 데이터 로드
+        async function loadDataFromSheet() {
+            showLoading();
+            try {
+                const response = await fetch(`${LIMS_API_BASE}/stability/data`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    appData = result.data || [];
+                    renderChart();
+                    renderTable();
+                    alert('데이터를 성공적으로 불러왔습니다.');
+                } else {
+                    throw new Error(result.error || '데이터 로드 실패');
+                }
+            } catch (error) {
+                console.error('데이터 로드 실패:', error);
+                alert('데이터 로드 중 오류가 발생했습니다: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Google Sheets에 데이터 저장
+        async function saveDataToSheet(data) {
+            showLoading();
+            try {
+                const response = await fetch(`${LIMS_API_BASE}/stability/save`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ data: data })
+                });
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error || '저장 실패');
+                }
+                
+                return true;
+            } catch (error) {
+                console.error('데이터 저장 실패:', error);
+                alert('데이터 저장 중 오류가 발생했습니다: ' + error.message);
+                return false;
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // 초기화
+        document.addEventListener('DOMContentLoaded', async () => {
+            setTimeout(() => {
+                document.body.classList.remove('preload');
+            }, 100);
+
+            document.getElementById('testDate').valueAsDate = new Date();
+            initFormSelect();
+            renderRecipeTable();
+            
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            setTheme(savedTheme);
+
+            // 초기 데이터 로드
+            await loadDataFromSheet();
+        });
+
+        function initFormulationFilter() {
+            const filterSelect = document.getElementById('formulationFilter');
+            const currentValue = filterSelect.value;
+            filterSelect.innerHTML = '<option value="all">전체 보기</option>';
+            const usedFormulations = [...new Set(appData.map(d => d.code))].sort();
+            usedFormulations.forEach(code => {
+                const option = document.createElement('option');
+                option.value = code;
+                const noteText = masterRecipe[code] ? ` (${masterRecipe[code].note})` : '';
+                option.textContent = code + noteText;
+                filterSelect.appendChild(option);
+            });
+            if (currentValue && (currentValue === 'all' || usedFormulations.includes(currentValue))) {
+                filterSelect.value = currentValue;
+            }
+        }
+        
+        window.toggleSort = function(field) {
+            if (currentSort.field === field) {
+                currentSort.order = currentSort.order === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.field = field;
+                currentSort.order = 'desc';
+            }
+            renderTable();
+        }
+        
+        function updateSortIndicator() {
+            document.getElementById('sortIndicator').textContent = '';
+            document.getElementById('sortIndicatorDay').textContent = '';
+            const indicator = currentSort.order === 'asc' ? '▲' : '▼';
+            if (currentSort.field === 'date') {
+                document.getElementById('sortIndicator').textContent = indicator;
+            } else if (currentSort.field === 'day') {
+                document.getElementById('sortIndicatorDay').textContent = indicator;
+            }
+        }
+
+        function initFormSelect() {
+            const select = document.getElementById('formulationCode');
+            select.innerHTML = '';
+            for (const [code, info] of Object.entries(masterRecipe)) {
+                const option = document.createElement('option');
+                option.value = code;
+                option.textContent = `${code} (${info.note})`;
+                select.appendChild(option);
+            }
+        }
+
+        function renderRecipeTable() {
+            const tbody = document.getElementById('recipeTableBody');
+            tbody.innerHTML = '';
+            for (const [code, data] of Object.entries(masterRecipe)) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${code}</td><td>${data.acetic}</td><td>${data.h2o2}</td><td class="text-danger fw-bold">${data.eti}</td><td class="text-primary fw-bold">${data.sulf}</td><td>${data.water}</td><td class="text-start ps-3 small">${data.note}</td>`;
+                tbody.appendChild(tr);
+            }
+        }
+
+        // 테마 설정
+        const htmlEl = document.documentElement;
+        const themeBtn = document.getElementById('themeToggle');
+        
+        themeBtn.addEventListener('click', () => {
+            const newTheme = htmlEl.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
+            setTheme(newTheme);
+        });
+
+        function setTheme(theme) {
+            htmlEl.setAttribute('data-bs-theme', theme);
+            localStorage.setItem('theme', theme);
+            themeBtn.innerHTML = theme === 'dark' ? '☀️' : '🌓';
+            if(myChart) renderChart();
+        }
+
+        // 차트 렌더링
+        function renderChart() {
+            const ctx = document.getElementById('stabilityChart').getContext('2d');
+            const isDark = htmlEl.getAttribute('data-bs-theme') === 'dark';
+            const textColor = isDark ? '#e0e0e0' : '#666';
+            const gridColor = isDark ? '#444' : '#ddd';
+
+            const groups = {};
+            appData.forEach(d => { if (!groups[d.code]) groups[d.code] = []; groups[d.code].push(d); });
+
+            const datasets = Object.keys(groups).map((code, idx) => {
+                const colors = ['#0d6efd', '#dc3545', '#198754', '#ffc107', '#6f42c1'];
+                return {
+                    label: code,
+                    data: groups[code].sort((a,b)=>a.day-b.day).map(d=>({x:d.day, y:d.paa})),
+                    borderColor: colors[idx % colors.length],
+                    backgroundColor: colors[idx % colors.length],
+                    tension: 0.1
+                };
+            });
+
+            if (myChart) myChart.destroy();
+            Chart.defaults.color = textColor;
+            Chart.defaults.borderColor = gridColor;
+            myChart = new Chart(ctx, {
+                type: 'line', data: { datasets },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        x: { type: 'linear', title: { display: true, text: '경과일 (Day)' } },
+                        y: { title: { display: true, text: '과초산 (%)' }, min: 0 }
+                    }
+                }
+            });
+        }
+
+        // 테이블 렌더링
+        function renderTable() {
+            initFormulationFilter();
+            const tbody = document.getElementById('dataTableBody');
+            tbody.innerHTML = '';
+            
+            const filterValue = document.getElementById('formulationFilter').value;
+            let filteredData = appData;
+            if (filterValue !== 'all') {
+                filteredData = appData.filter(d => d.code === filterValue);
+            }
+            
+            const sortedData = [...filteredData].sort((a, b) => {
+                let compareValue = 0;
+                if (currentSort.field === 'date') {
+                    compareValue = new Date(a.date) - new Date(b.date);
+                } else if (currentSort.field === 'day') {
+                    compareValue = a.day - b.day;
+                }
+                return currentSort.order === 'asc' ? compareValue : -compareValue;
+            });
+
+            sortedData.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.date}</td>
+                    <td><span class="badge bg-secondary">${row.code}</span></td>
+                    <td>${row.day}</td>
+                    <td><strong>${row.paa}</strong></td>
+                    <td>${row.h2o2}</td>
+                    <td class="small text-muted">${row.note || ''}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editData(${row.id})">수정</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteData(${row.id})">삭제</button>
+                    </td>`;
+                tbody.appendChild(tr);
+            });
+            
+            updateSortIndicator();
+            
+            const filterCount = document.getElementById('filterCount');
+            if (filterValue === 'all') {
+                filterCount.textContent = `총 ${appData.length}건`;
+            } else {
+                filterCount.textContent = `${filteredData.length}건 / 전체 ${appData.length}건`;
+            }
+            
+            document.getElementById('summaryStats').innerHTML = `<ul class="list-unstyled"><li>🧪 데이터: ${appData.length}건</li><li>📉 제형: ${[...new Set(appData.map(d=>d.code))].length}종</li></ul>`;
+        }
+
+        // 폼 제출
+        document.getElementById('logForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const editId = document.getElementById('editId').value;
+            const newData = {
+                id: editId ? Number(editId) : Date.now(),
+                date: document.getElementById('testDate').value,
+                code: document.getElementById('formulationCode').value,
+                day: Number(document.getElementById('elapsedDay').value),
+                paa: Number(document.getElementById('paaPercent').value),
+                h2o2: Number(document.getElementById('h2o2Percent').value),
+                note: document.getElementById('remarks').value
+            };
+
+            if (!editId) {
+                appData.push(newData);
+            } else {
+                const targetIdx = appData.findIndex(d => d.id === Number(editId));
+                if(targetIdx > -1) appData[targetIdx] = newData;
+                cancelEditMode();
+            }
+            
+            // Google Sheets에 저장
+            const saved = await saveDataToSheet(appData);
+            if (saved) {
+                renderChart();
+                renderTable();
+                new bootstrap.Tab(document.querySelector('#dashboard-tab')).show();
+            }
+        });
+
+        window.editData = function(id) {
+            const d = appData.find(item => item.id === id);
+            if(!d) return;
+            document.getElementById('testDate').value = d.date;
+            document.getElementById('formulationCode').value = d.code;
+            document.getElementById('elapsedDay').value = d.day;
+            document.getElementById('paaPercent').value = d.paa;
+            document.getElementById('h2o2Percent').value = d.h2o2;
+            document.getElementById('remarks').value = d.note || '';
+            document.getElementById('editId').value = d.id;
+            
+            document.getElementById('inputHeader').className = 'card-header bg-warning text-dark';
+            document.getElementById('inputHeader').innerHTML = '<strong>✏️ 데이터 수정</strong>';
+            document.getElementById('submitBtn').className = 'btn btn-warning';
+            document.getElementById('submitBtn').innerText = '수정 저장';
+            document.getElementById('cancelEditBtn').style.display = 'block';
+            new bootstrap.Tab(document.querySelector('#input-tab')).show();
+        };
+
+        window.cancelEditMode = function() {
+            document.getElementById('logForm').reset();
+            document.getElementById('editId').value = "";
+            document.getElementById('inputHeader').className = 'card-header bg-success text-white';
+            document.getElementById('inputHeader').innerHTML = '<strong>✨ 신규 결과 등록</strong>';
+            document.getElementById('submitBtn').className = 'btn btn-success';
+            document.getElementById('submitBtn').innerText = '저장';
+            document.getElementById('cancelEditBtn').style.display = 'none';
+            document.getElementById('testDate').valueAsDate = new Date();
+        }
+
+        window.deleteData = async function(id) {
+            const targetItem = appData.find(item => item.id === id);
+            if (!targetItem) return;
+            
+            if(confirm(`이 데이터를 삭제하시겠습니까?\n날짜: ${targetItem.date}, 제형: ${targetItem.code}`)) {
+                appData = appData.filter(item => item.id !== id);
+                const saved = await saveDataToSheet(appData);
+                if (saved) {
+                    renderChart();
+                    renderTable();
+                }
+            }
+        };
+
+        window.clearData = async function() { 
+            if(confirm('모든 데이터를 초기화하시겠습니까?')) { 
+                appData = [];
+                const saved = await saveDataToSheet(appData);
+                if (saved) {
+                    renderChart();
+                    renderTable();
+                }
+            } 
+        };
+    </script>
+</body>
+</html>

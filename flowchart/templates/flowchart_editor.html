@@ -1,0 +1,1734 @@
+{% extends "base.html" %}
+
+{% block title %}플로우차트 편집{% endblock %}
+
+{% block content %}
+<script src="https://unpkg.com/cytoscape@3.21.1/dist/cytoscape.min.js"></script>
+<style>
+    /* Scoped styles for Flowchart Editor */
+    .flowchart-editor-wrapper {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        display: flex;
+        height: calc(100vh - 44px); /* Adjust for base.html navbar (43px + 1px border) */
+        overflow: hidden;
+        background: var(--bg-color);
+        position: relative;
+        width: 100%;
+        z-index: 1; /* Ensure it's above potential overlays */
+    }
+    
+    /* Override base.html padding */
+    main { padding-top: 44px !important; }
+
+    
+    /* Apply border-box to all elements within the editor */
+    .flowchart-editor-wrapper * {
+        box-sizing: border-box;
+    }
+
+    .fc-sidebar {
+        width: 280px;
+        background: var(--th-bg);
+        color: var(--text-color);
+        padding: 20px;
+        overflow-y: auto;
+        border-right: 1px solid var(--border-color);
+        flex-shrink: 0;
+        z-index: 10;
+    }
+    .fc-sidebar h2 {
+        margin-bottom: 15px;
+        font-size: 14px;
+        color: #00d9ff;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .fc-form-group {
+        margin-bottom: 15px;
+    }
+    .fc-form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 12px;
+        color: #a0a0a0;
+    }
+    .fc-form-group input,
+    .fc-form-group textarea,
+    .fc-form-group select {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        font-size: 13px;
+        background: var(--input-bg);
+        color: var(--text-color);
+        transition: border-color 0.2s;
+    }
+    .fc-form-group input:focus,
+    .fc-form-group textarea:focus,
+    .fc-form-group select:focus {
+        outline: none;
+        border-color: #00d9ff;
+    }
+    .fc-form-group textarea {
+        resize: vertical;
+        min-height: 60px;
+    }
+    .fc-btn {
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        margin-bottom: 10px;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .fc-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+    .fc-btn-success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+    .fc-btn-success:hover {
+        box-shadow: 0 5px 20px rgba(56, 239, 125, 0.4);
+    }
+    .fc-btn-secondary {
+        background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%);
+    }
+    .fc-btn-danger {
+        background: linear-gradient(135deg, #cb2d3e 0%, #ef473a 100%);
+    }
+    .fc-main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        min-width: 0; /* Important for flex child */
+        min-height: 0; /* Important for flex child */
+    }
+    .fc-toolbar {
+        background: var(--th-bg);
+        padding: 12px 20px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        border-bottom: 1px solid var(--border-color);
+        z-index: 10;
+    }
+    .toolbar-group {
+        display: flex;
+        gap: 8px;
+        padding-right: 15px;
+        border-right: 1px solid #0f3460;
+    }
+    .toolbar-group:last-child {
+        border-right: none;
+    }
+    .fc-toolbar button {
+        padding: 8px 16px;
+        background: var(--input-bg);
+        color: var(--text-color);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .fc-toolbar button:hover {
+        background: rgba(0, 217, 255, 0.2);
+        border-color: #00d9ff;
+    }
+    .fc-toolbar button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .fc-toolbar button.active {
+        background: rgba(0, 217, 255, 0.3);
+        border-color: #00d9ff;
+    }
+    .toolbar-link {
+        padding: 8px 16px;
+        background: var(--input-bg);
+        color: var(--text-color);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        text-decoration: none;
+    }
+    .toolbar-link:hover {
+        background: rgba(0, 217, 255, 0.2);
+        border-color: #00d9ff;
+    }
+    /* Dark Mode Override for Canvas to ensure lines (#404040) are visible */
+    body.dark-mode #cy {
+        background-color: #C8CDC3 !important;
+    }
+    
+    #cy {
+        flex: 1;
+        background: var(--bg-color);
+        width: 100%;
+        min-height: 0; /* Important for flex child */
+    }
+    .color-picker {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+    }
+    .color-option {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: transform 0.2s, border-color 0.2s;
+    }
+    .color-option:hover {
+        transform: scale(1.1);
+        border-color: #00d9ff;
+    }
+    .color-option.selected {
+        border-color: #00d9ff;
+        box-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+    }
+    .shape-picker {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        margin-top: 8px;
+    }
+    .shape-option {
+        padding: 10px 8px;
+        background: var(--input-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        text-align: center;
+        cursor: pointer;
+        font-size: 11px;
+        transition: all 0.2s;
+        color: var(--text-color);
+    }
+    .shape-option:hover {
+        background: rgba(0, 217, 255, 0.2);
+        border-color: #00d9ff;
+    }
+    .shape-option.selected {
+        background: rgba(0, 217, 255, 0.3);
+        border-color: #00d9ff;
+    }
+    .node-panel {
+        margin-top: 20px;
+        padding: 15px;
+        background: var(--input-bg);
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+    }
+    .node-panel h3 {
+        font-size: 13px;
+        margin-bottom: 12px;
+        color: #00d9ff;
+    }
+    .hint {
+        font-size: 11px;
+        color: #666;
+        margin-top: 20px;
+        padding: 10px;
+        background: rgba(0,0,0,0.2);
+        border-radius: 6px;
+        line-height: 1.6;
+    }
+    .hint strong {
+        color: #00d9ff;
+    }
+    .edge-panel {
+        margin-top: 15px;
+        padding: 15px;
+        background: var(--input-bg);
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        display: none;
+    }
+    .edge-panel h3 {
+        font-size: 13px;
+        margin-bottom: 12px;
+        color: #ff9800;
+    }
+    /* 모달 스타일 */
+    .fc-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.7);
+        z-index: 2000; /* Higher than navbar */
+        justify-content: center;
+        align-items: center;
+    }
+    .fc-modal.show {
+        display: flex;
+    }
+    .fc-modal-content {
+        background: var(--bg-color);
+        padding: 25px;
+        border-radius: 12px;
+        min-width: 300px;
+        border: 1px solid var(--border-color);
+    }
+    .fc-modal-content h3 {
+        margin-bottom: 15px;
+        color: #00d9ff;
+    }
+    .fc-modal-content input {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 15px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        background: var(--input-bg);
+        color: var(--text-color);
+    }
+    .fc-modal-buttons {
+        display: flex;
+        gap: 10px;
+    }
+    .fc-modal-buttons button {
+        flex: 1;
+    }
+</style>
+<div class="flowchart-editor-wrapper">
+    <div class="fc-sidebar">
+        <h2>📋 기본 정보</h2>
+        <div class="fc-form-group">
+            <label>제목</label>
+            <input type="text" id="title" placeholder="플로우차트 제목"
+                   value="{% if flowchart %}{{ flowchart['title'] }}{% endif %}">
+        </div>
+        <div class="fc-form-group">
+            <label>설명</label>
+            <textarea id="description" placeholder="간단한 설명">{% if flowchart %}{{ flowchart['description'] }}{% endif %}</textarea>
+        </div>
+
+        <div id="nodePanel" class="node-panel" style="display: none;">
+            <h3>🎯 선택된 노드</h3>
+            <div class="fc-form-group">
+                <label>라벨</label>
+                <input type="text" id="nodeLabel" placeholder="노드 이름">
+            </div>
+            <div class="fc-form-group">
+                <label>메모</label>
+                <textarea id="nodeMemo" placeholder="상세 설명"></textarea>
+            </div>
+            <div class="fc-form-group">
+                <label>타입</label>
+                <div class="shape-picker" id="typePicker">
+                    <div class="shape-option" data-type="start" style="background: #ACE7AE; border-color: #52CE60; color: #333;">● 시작</div>
+                    <div class="shape-option" data-type="state" style="background: #f5f5f0; border-color: #333; color: #333;">▢ 상태</div>
+                    <div class="shape-option" data-type="decision" style="background: #FFF2CC; border-color: #D6B656; color: #333;">◇ 조건</div>
+                    <div class="shape-option" data-type="end" style="background: #F8CECC; border-color: #B85450; color: #333;">◉ 종료</div>
+                </div>
+            </div>
+            <div class="fc-form-group">
+                <label>배경색</label>
+                <div class="color-picker" id="bgColorPicker">
+                    <div class="color-option" data-color="transparent" style="background: #f5f5f0; border: 1px dashed #999;" title="투명"></div>
+                    <div class="color-option" data-color="#DAE8FC" style="background: #DAE8FC;" title="파란색"></div>
+                    <div class="color-option" data-color="#D5E8D4" style="background: #D5E8D4;" title="초록색"></div>
+                    <div class="color-option" data-color="#FFF2CC" style="background: #FFF2CC;" title="노란색"></div>
+                    <div class="color-option" data-color="#F8CECC" style="background: #F8CECC;" title="빨간색"></div>
+                    <div class="color-option" data-color="#E1D5E7" style="background: #E1D5E7;" title="보라색"></div>
+                    <div class="color-option" data-color="#FFE6CC" style="background: #FFE6CC;" title="주황색"></div>
+                    <div class="color-option" data-color="#F5F5F5" style="background: #F5F5F5;" title="회색"></div>
+                </div>
+            </div>
+            <div class="fc-form-group" id="borderColorGroup">
+                <label>테두리색</label>
+                <div class="color-picker" id="borderColorPicker">
+                    <div class="color-option" data-color="none" style="background: #f5f5f0; border: 1px dashed #999; position: relative;" title="없음"><span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); width: 20px; height: 1px; background: #999;"></span></div>
+                    <div class="color-option" data-color="#333333" style="background: #333333;" title="검정"></div>
+                    <div class="color-option" data-color="#6C8EBF" style="background: #6C8EBF;" title="파란색"></div>
+                    <div class="color-option" data-color="#82B366" style="background: #82B366;" title="초록색"></div>
+                    <div class="color-option" data-color="#D6B656" style="background: #D6B656;" title="노란색"></div>
+                    <div class="color-option" data-color="#B85450" style="background: #B85450;" title="빨간색"></div>
+                    <div class="color-option" data-color="#9673A6" style="background: #9673A6;" title="보라색"></div>
+                    <div class="color-option" data-color="#D79B00" style="background: #D79B00;" title="주황색"></div>
+                </div>
+            </div>
+            <div id="textOptionsPanel" style="display: none;">
+                <div class="fc-form-group">
+                    <label>박스 너비</label>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                        <input type="checkbox" id="autoWidthCheck" style="width: auto; margin: 0;">
+                        <label for="autoWidthCheck" style="margin: 0; font-size: 13px; cursor: pointer;">텍스트에 맞춤 (자동)</label>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;" id="sliderContainer">
+                        <input type="range" id="boxWidthSlider" min="100" max="400" value="200" style="flex: 1;">
+                        <span id="boxWidthValue" style="min-width: 45px; text-align: right;">200px</span>
+                    </div>
+                </div>
+                <div class="fc-form-group">
+                    <label>텍스트 색상</label>
+                    <div class="color-picker" id="textColorPicker">
+                        <div class="color-option" data-color="#333333" style="background: #333333;" title="검정"></div>
+                        <div class="color-option" data-color="#6C8EBF" style="background: #6C8EBF;" title="파란색"></div>
+                        <div class="color-option" data-color="#82B366" style="background: #82B366;" title="초록색"></div>
+                        <div class="color-option" data-color="#D6B656" style="background: #D6B656;" title="노란색"></div>
+                        <div class="color-option" data-color="#B85450" style="background: #B85450;" title="빨간색"></div>
+                        <div class="color-option" data-color="#9673A6" style="background: #9673A6;" title="보라색"></div>
+                        <div class="color-option" data-color="#666666" style="background: #666666;" title="회색"></div>
+                    </div>
+                </div>
+                <div class="fc-form-group">
+                    <label>배경색</label>
+                    <div class="color-picker" id="textBgColorPicker">
+                        <div class="color-option" data-color="transparent" style="background: #f5f5f0; border: 1px dashed #999;" title="투명"></div>
+                        <div class="color-option" data-color="#DAE8FC" style="background: #DAE8FC;" title="파란색"></div>
+                        <div class="color-option" data-color="#D5E8D4" style="background: #D5E8D4;" title="초록색"></div>
+                        <div class="color-option" data-color="#FFF2CC" style="background: #FFF2CC;" title="노란색"></div>
+                        <div class="color-option" data-color="#F8CECC" style="background: #F8CECC;" title="빨간색"></div>
+                        <div class="color-option" data-color="#E1D5E7" style="background: #E1D5E7;" title="보라색"></div>
+                        <div class="color-option" data-color="#FFFFFF" style="background: #FFFFFF;" title="흰색"></div>
+                    </div>
+                </div>
+                <div class="fc-form-group">
+                    <label>테두리색</label>
+                    <div class="color-picker" id="textBorderColorPicker">
+                        <div class="color-option" data-color="none" style="background: #f5f5f0; border: 1px dashed #999; position: relative;" title="없음"><span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); width: 20px; height: 1px; background: #999;"></span></div>
+                        <div class="color-option" data-color="#333333" style="background: #333333;" title="검정"></div>
+                        <div class="color-option" data-color="#6C8EBF" style="background: #6C8EBF;" title="파란색"></div>
+                        <div class="color-option" data-color="#82B366" style="background: #82B366;" title="초록색"></div>
+                        <div class="color-option" data-color="#D6B656" style="background: #D6B656;" title="노란색"></div>
+                        <div class="color-option" data-color="#B85450" style="background: #B85450;" title="빨간색"></div>
+                        <div class="color-option" data-color="#9673A6" style="background: #9673A6;" title="보라색"></div>
+                    </div>
+                </div>
+                <div class="fc-form-group">
+                    <label>정렬</label>
+                    <div class="shape-picker" id="textAlignPicker">
+                        <div class="shape-option" data-align="left" style="padding: 8px;">⬅ 왼쪽</div>
+                        <div class="shape-option" data-align="center" style="padding: 8px;">⬌ 가운데</div>
+                        <div class="shape-option" data-align="right" style="padding: 8px;">➡ 오른쪽</div>
+                    </div>
+                </div>
+                <div class="fc-form-group">
+                    <label>글꼴 크기</label>
+                    <select id="fontSizeSelect">
+                        <option value="10px">10px</option>
+                        <option value="12px">12px</option>
+                        <option value="14px" selected>14px</option>
+                        <option value="16px">16px</option>
+                        <option value="18px">18px</option>
+                        <option value="20px">20px</option>
+                        <option value="24px">24px</option>
+                        <option value="28px">28px</option>
+                        <option value="32px">32px</option>
+                    </select>
+                </div>
+                <div class="fc-form-group">
+                    <label>스타일</label>
+                    <div class="shape-picker" id="fontStylePicker">
+                        <div class="shape-option" data-style="normal" style="padding: 8px;">일반</div>
+                        <div class="shape-option" data-style="bold" style="padding: 8px; font-weight: bold;">굵게</div>
+                        <div class="shape-option" data-style="italic" style="padding: 8px; font-style: italic;">기울임</div>
+                        <div class="shape-option" data-style="bold-italic" style="padding: 8px; font-weight: bold; font-style: italic;">굵게+기울임</div>
+                    </div>
+                </div>
+            </div>
+            <button class="btn fc-btn-danger" onclick="deleteSelected()" style="margin-top: 10px;">🗑️ 노드 삭제</button>
+        </div>
+
+        <div id="edgePanel" class="edge-panel">
+            <h3>🔗 선택된 연결선</h3>
+            <div class="fc-form-group">
+                <label>레이블</label>
+                <input type="text" id="edgeLabel" placeholder="연결선 설명">
+            </div>
+            <div class="fc-form-group">
+                <label>선 스타일</label>
+                <select id="edgeStyle">
+                    <option value="solid">실선</option>
+                    <option value="dashed">점선</option>
+                    <option value="dotted">쇄선</option>
+                </select>
+            </div>
+            <div class="fc-form-group">
+                <label>곡선 스타일</label>
+                <select id="edgeCurve">
+                    <option value="straight">직선 (기본)</option>
+                    <option value="taxi">꺾인선</option>
+                    <option value="unbundled-bezier">곡선 (Bezier)</option>
+                </select>
+            </div>
+            <button class="btn fc-btn-danger" onclick="deleteSelected()" style="margin-top: 10px;">🗑️ 연결선 삭제</button>
+        </div>
+
+        <div class="hint">
+            <strong>💡 사용법</strong><br>
+            • 캔버스 더블클릭: 상태 노드 추가<br>
+            • 연결 모드: 노드 클릭 → 다른 노드 클릭<br>
+            • 노드 더블클릭: 이름 편집<br>
+            • Bezier 곡선: 빨간 포인트 드래그로 조절<br>
+            • Delete 키: 선택 항목 삭제<br>
+            • Ctrl+Z / Ctrl+Y: 실행 취소 / 다시 실행
+        </div>
+
+        <button class="fc-btn btn-success" onclick="saveFlowchart()" style="margin-top: 20px;">💾 저장</button>
+        <button class="fc-btn fc-btn-secondary" onclick="location.href='{{ url_for('flowchart.index') }}'">← 목록으로</button>
+    </div>
+
+    <div class="fc-main-content">
+        <div class="fc-toolbar">
+            <div class="toolbar-group">
+                <button onclick="addStartNode()" title="시작 노드 추가">🟢 시작</button>
+                <button onclick="addStateNode()" title="상태 노드 추가">📦 상태</button>
+                <button onclick="addDecisionNode()" title="결정 노드 추가">◇ 결정</button>
+                <button onclick="addEndNode()" title="종료 노드 추가">🔴 종료</button>
+                <button onclick="addTextNode()" title="텍스트 박스 추가">📝 텍스트</button>
+            </div>
+            <div class="toolbar-group">
+                <button id="drawModeBtn" onclick="toggleDrawMode()" title="연결 모드 토글 (노드 위 핸들 드래그)">🔗 연결</button>
+            </div>
+            <div class="toolbar-group">
+                <button onclick="undo()" title="실행 취소 (Ctrl+Z)">↩️ 되돌리기</button>
+                <button onclick="redo()" title="다시 실행 (Ctrl+Y)">↪️ 다시</button>
+            </div>
+            <div class="toolbar-group">
+                <button onclick="fitToView()" title="전체 보기">🔍 맞춤</button>
+                <button onclick="exportImage()" title="이미지로 저장">📸 저장</button>
+            </div>
+            {% if flowchart and flowchart['id'] %}
+            <div class="toolbar-group">
+                <a href="{{ url_for('flowchart.view', id=flowchart['id']) }}" class="toolbar-link" title="보기 모드로 이동">👁️ 보기</a>
+            </div>
+            {% endif %}
+        </div>
+        <div id="cy"></div>
+    </div>
+
+    <!-- 노드 이름 편집 모달 -->
+    <div id="editModal" class="fc-modal">
+        <div class="fc-modal-content">
+            <h3>노드 이름 편집</h3>
+            <input type="text" id="editNodeName" placeholder="노드 이름">
+            <div class="fc-modal-buttons">
+                <button class="fc-btn fc-btn-secondary" onclick="closeEditModal()">취소</button>
+                <button class="fc-btn btn-success" onclick="saveNodeName()">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let cy;
+        let nodeCounter = 1;
+        let edgeCounter = 1;
+        let undoStack = [];
+        let redoStack = [];
+        let editingNode = null;
+        let drawModeEnabled = false; // 연결 모드 상태
+        let flowchartId = {% if flowchart %}{{ flowchart['id'] }}{% else %}null{% endif %};
+
+        // Cytoscape 초기화
+        cy = cytoscape({
+            container: document.getElementById('cy'),
+            elements: {% if flowchart %}{{ flowchart['data']|safe }}{% else %}{ nodes: [], edges: [] }{% endif %},
+            style: [
+                // 기본 노드 스타일 (투명 배경, 검은 테두리, pill 모양)
+                {
+                    selector: 'node',
+                    style: {
+                        'content': 'data(label)',
+                        'text-valign': 'center',
+                        'text-halign': 'center',
+                        'background-color': '#f5f5f0',
+                        'border-color': '#333333',
+                        'border-width': 1.5,
+                        'width': 120,
+                        'height': 40,
+                        'shape': 'round-rectangle',
+                        'font-size': '14px',
+                        'font-weight': 'normal',
+                        'color': '#333333',
+                        'text-wrap': 'wrap',
+                        'text-max-width': '110px'
+                    }
+                },
+                // Start 노드 (이중 원, 연두색)
+                {
+                    selector: 'node[nodeType="start"]',
+                    style: {
+                        'background-color': '#ACE7AE',
+                        'border-color': '#52CE60',
+                        'border-width': 4,
+                        'border-style': 'double',
+                        'width': 70,
+                        'height': 70,
+                        'shape': 'ellipse'
+                    }
+                },
+                // End 노드 (단일 원, 핑크색)
+                {
+                    selector: 'node[nodeType="end"]',
+                    style: {
+                        'background-color': '#F8CECC',
+                        'border-color': '#B85450',
+                        'border-width': 2,
+                        'width': 60,
+                        'height': 60,
+                        'shape': 'ellipse'
+                    }
+                },
+                // State 노드 (투명 배경, 검은 테두리, pill 모양)
+                {
+                    selector: 'node[nodeType="state"]',
+                    style: {
+                        'background-color': '#f5f5f0',
+                        'border-color': '#333333',
+                        'border-width': 1.5,
+                        'width': 120,
+                        'height': 40,
+                        'shape': 'round-rectangle',
+                        'color': '#333333'
+                    }
+                },
+                // Decision 노드 (다이아몬드, 노란색)
+                {
+                    selector: 'node[nodeType="decision"]',
+                    style: {
+                        'background-color': '#FFF2CC',
+                        'border-color': '#D6B656',
+                        'border-width': 2,
+                        'width': 80,
+                        'height': 80,
+                        'shape': 'diamond'
+                    }
+                },
+                // Text 노드 (텍스트 박스)
+                {
+                    selector: 'node[nodeType="text"]',
+                    style: {
+                        'content': 'data(memo)',
+                        'background-color': 'transparent',
+                        'background-opacity': 0,
+                        'border-width': 0,
+                        'width': 'label',
+                        'height': 'label',
+                        'padding': '10px',
+                        'shape': 'rectangle',
+                        'text-wrap': 'wrap',
+                        'text-max-width': '400px',
+                        'font-size': '14px',
+                        'color': '#333333',
+                        'text-halign': 'center',
+                        'text-valign': 'center'
+                    }
+                },
+                // Text 노드 너비 데이터 적용
+                {
+                    selector: 'node[nodeType="text"][boxWidth]',
+                    style: {
+                        'width': 'data(boxWidth)',
+                        'text-max-width': 'data(textMaxWidth)'
+                    }
+                },
+                // Text 노드 배경색 적용
+                {
+                    selector: 'node[nodeType="text"][bgColor]',
+                    style: {
+                        'background-color': 'data(bgColor)',
+                        'background-opacity': 1
+                    }
+                },
+                // Text 노드 테두리 적용
+                {
+                    selector: 'node[nodeType="text"][borderColor]',
+                    style: {
+                        'border-color': 'data(borderColor)',
+                        'border-width': 'data(borderWidth)'
+                    }
+                },
+                // Text 노드 폰트 스타일
+                {
+                    selector: 'node[fontSize]',
+                    style: {
+                        'font-size': 'data(fontSize)'
+                    }
+                },
+                {
+                    selector: 'node[fontWeight]',
+                    style: {
+                        'font-weight': 'data(fontWeight)'
+                    }
+                },
+                {
+                    selector: 'node[fontStyle]',
+                    style: {
+                        'font-style': 'data(fontStyle)'
+                    }
+                },
+                // Text 노드 정렬 (박스 내부 정렬)
+                {
+                    selector: 'node[nodeType="text"][textAlign]',
+                    style: {
+                        'text-justification': 'data(textAlign)'
+                    }
+                },
+                // 기존 데이터 호환용 스타일
+                {
+                    selector: 'node[bgColor]',
+                    style: {
+                        'background-color': 'data(bgColor)',
+                        'color': '#333333'
+                    }
+                },
+                {
+                    selector: 'node[borderColor]',
+                    style: {
+                        'border-color': 'data(borderColor)'
+                    }
+                },
+                {
+                    selector: 'node[borderWidth]',
+                    style: {
+                        'border-width': 'data(borderWidth)'
+                    }
+                },
+                {
+                    selector: 'node[textColor]',
+                    style: {
+                        'color': 'data(textColor)'
+                    }
+                },
+                {
+                    selector: 'node[shape]',
+                    style: {
+                        'shape': 'data(shape)'
+                    }
+                },
+                {
+                    selector: 'node:selected',
+                    style: {
+                        'border-color': '#00d9ff',
+                        'border-width': 3,
+                        'overlay-color': '#00d9ff',
+                        'overlay-opacity': 0.2
+                    }
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'width': 1.5,
+                        'line-color': '#404040',
+                        'target-arrow-color': '#404040',
+                        'target-arrow-shape': 'triangle',
+                        'arrow-scale': 1.2,
+                        'curve-style': 'straight',
+                        'taxi-direction': 'auto',
+                        'taxi-turn': '50%',
+                        'line-style': 'solid',
+                        'label': 'data(label)',
+                        'font-size': '12px',
+                        'color': '#333',
+                        'text-background-color': '#FFF2CC',
+                        'text-background-opacity': 1,
+                        'text-background-padding': '4px',
+                        'text-background-shape': 'roundrectangle',
+                        'text-border-color': '#D6B656',
+                        'text-border-width': 1,
+                        'text-border-opacity': 1,
+                        'source-endpoint': 'outside-to-node',
+                        'target-endpoint': 'outside-to-node'
+                    }
+                },
+                {
+                    selector: 'edge[curveStyle]',
+                    style: {
+                        'curve-style': 'data(curveStyle)'
+                    }
+                },
+                {
+                    selector: 'edge[!label], edge[label=""]',
+                    style: {
+                        'text-background-opacity': 0,
+                        'text-border-opacity': 0
+                    }
+                },
+                {
+                    selector: 'edge[lineColor]',
+                    style: {
+                        'line-color': 'data(lineColor)',
+                        'target-arrow-color': 'data(lineColor)'
+                    }
+                },
+                {
+                    selector: 'edge[lineStyle]',
+                    style: {
+                        'line-style': 'data(lineStyle)'
+                    }
+                },
+                {
+                    selector: 'edge:selected',
+                    style: {
+                        'line-color': '#00d9ff',
+                        'target-arrow-color': '#00d9ff',
+                        'width': 2
+                    }
+                },
+                // 연결 모드 소스 노드 스타일
+                {
+                    selector: 'node.connect-source',
+                    style: {
+                        'border-color': '#00d9ff',
+                        'border-width': 4,
+                        'overlay-color': '#00d9ff',
+                        'overlay-opacity': 0.2
+                    }
+                },
+                // Bezier 컨트롤 포인트 핸들 스타일
+                {
+                    selector: 'node.bezier-handle',
+                    style: {
+                        'width': 14,
+                        'height': 14,
+                        'background-color': '#ff6b6b',
+                        'border-color': '#c92a2a',
+                        'border-width': 2,
+                        'shape': 'ellipse',
+                        'label': '',
+                        'overlay-opacity': 0,
+                        'z-index': 9999
+                    }
+                },
+                // Bezier 컨트롤 라인 스타일
+                {
+                    selector: 'edge.bezier-control-line',
+                    style: {
+                        'width': 1,
+                        'line-color': '#ff6b6b',
+                        'line-style': 'dashed',
+                        'target-arrow-shape': 'none',
+                        'curve-style': 'straight',
+                        'z-index': 9998
+                    }
+                }
+            ],
+            layout: { name: 'preset' },
+            userZoomingEnabled: true,
+            userPanningEnabled: true,
+            boxSelectionEnabled: true,
+            minZoom: 0.3,
+            maxZoom: 3
+        });
+
+        // 노드 카운터 초기화
+        if (cy.nodes().length > 0) {
+            const maxId = Math.max(...cy.nodes().map(n => {
+                const match = n.id().match(/\d+/);
+                return match ? parseInt(match[0]) : 0;
+            }));
+            nodeCounter = maxId + 1;
+        }
+
+        // 연결 모드 변수
+        let connectSourceNode = null;
+
+        // 연결 모드 토글
+        function toggleDrawMode() {
+            drawModeEnabled = !drawModeEnabled;
+            const btn = document.getElementById('drawModeBtn');
+            if (drawModeEnabled) {
+                btn.classList.add('active');
+                btn.innerHTML = '🔗 연결 ON';
+            } else {
+                btn.classList.remove('active');
+                btn.innerHTML = '🔗 연결 OFF';
+                // 연결 모드 해제 시 소스 노드 초기화
+                if (connectSourceNode) {
+                    connectSourceNode.removeClass('connect-source');
+                    connectSourceNode = null;
+                }
+            }
+        }
+
+        // 초기 연결 모드 활성화
+        drawModeEnabled = true;
+        document.getElementById('drawModeBtn').classList.add('active');
+        document.getElementById('drawModeBtn').innerHTML = '🔗 연결 ON';
+
+        // 연결 모드에서 노드 클릭 처리
+        cy.on('tap', 'node', function(evt) {
+            if (!drawModeEnabled) return;
+
+            const node = evt.target;
+
+            if (!connectSourceNode) {
+                // 소스 노드 선택
+                connectSourceNode = node;
+                node.addClass('connect-source');
+            } else if (connectSourceNode.id() !== node.id()) {
+                // 타겟 노드 선택 - 연결선 생성
+                const sourceId = connectSourceNode.id();
+                const targetId = node.id();
+
+                // 중복 연결 체크
+                const existing = cy.edges().filter(e =>
+                    e.data('source') === sourceId && e.data('target') === targetId
+                );
+
+                if (existing.length === 0) {
+                    saveState();
+                    const edgeId = 'edge' + edgeCounter++;
+                    cy.add({
+                        group: 'edges',
+                        data: {
+                            id: edgeId,
+                            source: sourceId,
+                            target: targetId,
+                            label: '',
+                            lineColor: '#404040',
+                            lineStyle: 'solid'
+                        }
+                    });
+                }
+
+                // 소스 노드 초기화
+                connectSourceNode.removeClass('connect-source');
+                connectSourceNode = null;
+            } else {
+                // 같은 노드 클릭 - 선택 해제
+                connectSourceNode.removeClass('connect-source');
+                connectSourceNode = null;
+            }
+        });
+
+        // 캔버스 클릭 시 연결 모드 소스 초기화
+        cy.on('tap', function(evt) {
+            if (evt.target === cy && connectSourceNode) {
+                connectSourceNode.removeClass('connect-source');
+                connectSourceNode = null;
+            }
+        });
+
+        // 상태 저장 (Undo/Redo용)
+        function saveState() {
+            undoStack.push(cy.json().elements);
+            if (undoStack.length > 50) undoStack.shift();
+            redoStack = [];
+        }
+
+        function undo() {
+            if (undoStack.length > 0) {
+                redoStack.push(cy.json().elements);
+                const state = undoStack.pop();
+                cy.json({ elements: state });
+            }
+        }
+
+        function redo() {
+            if (redoStack.length > 0) {
+                undoStack.push(cy.json().elements);
+                const state = redoStack.pop();
+                cy.json({ elements: state });
+            }
+        }
+
+        // 노드 추가 함수들
+        function addNode(type, x, y) {
+            saveState();
+            const nodeId = 'node' + nodeCounter++;
+            const configs = {
+                start: { label: 'Start', nodeType: 'start' },
+                state: { label: '새 상태', nodeType: 'state' },
+                decision: { label: '조건?', nodeType: 'decision' },
+                end: { label: 'End', nodeType: 'end' },
+                text: { label: '텍스트를 입력하세요', nodeType: 'text' }
+            };
+            const config = configs[type] || configs.state;
+
+            const nodeData = {
+                id: nodeId,
+                label: config.label,
+                nodeType: config.nodeType,
+                memo: ''
+            };
+
+            // 텍스트 노드 기본값
+            if (type === 'text') {
+                nodeData.label = '';
+                nodeData.memo = '텍스트를 입력하세요';
+                nodeData.fontSize = '14px';
+                nodeData.fontWeight = 'normal';
+                nodeData.fontStyle = 'normal';
+                nodeData.textAlign = 'center';
+                nodeData.textColor = '#333333';
+            }
+
+            cy.add({
+                group: 'nodes',
+                data: nodeData,
+                position: { x: x || Math.random() * 400 + 200, y: y || Math.random() * 300 + 150 }
+            });
+
+            return nodeId;
+        }
+
+        function addStartNode() { addNode('start'); }
+        function addStateNode() { addNode('state'); }
+        function addDecisionNode() { addNode('decision'); }
+        function addEndNode() { addNode('end'); }
+        function addTextNode() { addNode('text'); }
+
+        // 연결선 추가 (수동)
+        function addEdge(source, target) {
+            if (source === target) return;
+
+            // 중복 연결 체크
+            const existing = cy.edges().filter(e =>
+                e.data('source') === source && e.data('target') === target
+            );
+            if (existing.length > 0) return;
+
+            saveState();
+            const edgeId = 'edge' + edgeCounter++;
+            cy.add({
+                group: 'edges',
+                data: {
+                    id: edgeId,
+                    source: source,
+                    target: target,
+                    label: '',
+                    lineColor: '#90A4AE',
+                    lineStyle: 'solid'
+                }
+            });
+        }
+
+        // 캔버스 더블클릭 - 노드 추가
+        cy.on('dblclick', function(evt) {
+            if (evt.target === cy) {
+                const pos = evt.position;
+                addNode('state', pos.x, pos.y);
+            }
+        });
+
+        // 노드 더블클릭 - 이름 편집
+        cy.on('dblclick', 'node', function(evt) {
+            editingNode = evt.target;
+            document.getElementById('editNodeName').value = editingNode.data('label');
+            document.getElementById('editModal').classList.add('show');
+            document.getElementById('editNodeName').focus();
+        });
+
+        // 노드 선택 - 사이드바 업데이트
+        cy.on('select', 'node', function(evt) {
+            const node = evt.target;
+            document.getElementById('nodePanel').style.display = 'block';
+            document.getElementById('edgePanel').style.display = 'none';
+            document.getElementById('nodeLabel').value = node.data('label') || '';
+            document.getElementById('nodeMemo').value = node.data('memo') || '';
+
+            // 타입 선택 표시
+            const nodeType = node.data('nodeType') || 'state';
+            document.querySelectorAll('#typePicker .shape-option').forEach(opt => {
+                opt.classList.toggle('selected', opt.dataset.type === nodeType);
+            });
+
+            // 텍스트 노드 여부에 따라 패널 표시/숨김
+            const isTextNode = nodeType === 'text';
+            document.getElementById('textOptionsPanel').style.display = isTextNode ? 'block' : 'none';
+            document.getElementById('bgColorPicker').parentElement.style.display = isTextNode ? 'none' : 'block';
+            document.getElementById('borderColorGroup').style.display = isTextNode ? 'none' : 'block';
+
+            if (isTextNode) {
+                // 박스 너비 표시
+                const boxWidth = node.data('boxWidth');
+                const isAutoWidth = !boxWidth; 
+                
+                document.getElementById('autoWidthCheck').checked = isAutoWidth;
+                
+                if (isAutoWidth) {
+                    document.getElementById('sliderContainer').style.opacity = '0.5';
+                    document.getElementById('sliderContainer').style.pointerEvents = 'none';
+                } else {
+                    document.getElementById('sliderContainer').style.opacity = '1';
+                    document.getElementById('sliderContainer').style.pointerEvents = 'auto';
+                    document.getElementById('boxWidthSlider').value = boxWidth;
+                    document.getElementById('boxWidthValue').textContent = boxWidth + 'px';
+                }
+
+                // 텍스트 색상 선택 표시
+                const textColor = node.data('textColor') || '#333333';
+                document.querySelectorAll('#textColorPicker .color-option').forEach(opt => {
+                    opt.classList.toggle('selected', opt.dataset.color === textColor);
+                });
+
+                // 텍스트 노드 배경색 선택 표시
+                const textBgColor = node.data('bgColor') || 'transparent';
+                document.querySelectorAll('#textBgColorPicker .color-option').forEach(opt => {
+                    opt.classList.toggle('selected', opt.dataset.color === textBgColor);
+                });
+
+                // 텍스트 노드 테두리색 선택 표시
+                const textBorderColor = node.data('borderColor') || 'none';
+                document.querySelectorAll('#textBorderColorPicker .color-option').forEach(opt => {
+                    opt.classList.toggle('selected', opt.dataset.color === textBorderColor);
+                });
+
+                // 정렬 선택 표시
+                const textAlign = node.data('textAlign') || 'center';
+                document.querySelectorAll('#textAlignPicker .shape-option').forEach(opt => {
+                    opt.classList.toggle('selected', opt.dataset.align === textAlign);
+                });
+
+                // 글꼴 크기 선택 표시
+                document.getElementById('fontSizeSelect').value = node.data('fontSize') || '14px';
+
+                // 스타일 선택 표시
+                const fontWeight = node.data('fontWeight') || 'normal';
+                const fontStyle = node.data('fontStyle') || 'normal';
+                let styleValue = 'normal';
+                if (fontWeight === 'bold' && fontStyle === 'italic') styleValue = 'bold-italic';
+                else if (fontWeight === 'bold') styleValue = 'bold';
+                else if (fontStyle === 'italic') styleValue = 'italic';
+                document.querySelectorAll('#fontStylePicker .shape-option').forEach(opt => {
+                    opt.classList.toggle('selected', opt.dataset.style === styleValue);
+                });
+            } else {
+                // 배경색 선택 표시
+                const bgColor = node.data('bgColor') || 'transparent';
+                document.querySelectorAll('#bgColorPicker .color-option').forEach(opt => {
+                    opt.classList.toggle('selected', opt.dataset.color === bgColor);
+                });
+
+                // 테두리색 선택 표시
+                const borderColor = node.data('borderColor') || '#333333';
+                document.querySelectorAll('#borderColorPicker .color-option').forEach(opt => {
+                    opt.classList.toggle('selected', opt.dataset.color === borderColor);
+                });
+            }
+        });
+
+        // 엣지 선택 - 사이드바 업데이트
+        cy.on('select', 'edge', function(evt) {
+            const edge = evt.target;
+            document.getElementById('nodePanel').style.display = 'none';
+            document.getElementById('edgePanel').style.display = 'block';
+            document.getElementById('edgeLabel').value = edge.data('label') || '';
+            document.getElementById('edgeStyle').value = edge.data('lineStyle') || 'solid';
+            document.getElementById('edgeCurve').value = edge.data('curveStyle') || 'taxi';
+        });
+
+        cy.on('unselect', function() {
+            if (cy.$(':selected').length === 0) {
+                document.getElementById('nodePanel').style.display = 'none';
+                document.getElementById('edgePanel').style.display = 'none';
+            }
+        });
+
+        // 사이드바 입력 이벤트
+        document.getElementById('nodeLabel').addEventListener('input', function() {
+            const selected = cy.$('node:selected');
+            if (selected.length > 0) {
+                saveState();
+                selected.data('label', this.value);
+            }
+        });
+
+        document.getElementById('nodeMemo').addEventListener('input', function() {
+            const selected = cy.$('node:selected');
+            if (selected.length > 0) {
+                selected.data('memo', this.value);
+            }
+        });
+
+        document.getElementById('edgeLabel').addEventListener('input', function() {
+            const selected = cy.$('edge:selected');
+            if (selected.length > 0) {
+                saveState();
+                selected.data('label', this.value);
+            }
+        });
+
+        document.getElementById('edgeStyle').addEventListener('change', function() {
+            const selected = cy.$('edge:selected');
+            if (selected.length > 0) {
+                saveState();
+                selected.data('lineStyle', this.value);
+            }
+        });
+
+        document.getElementById('edgeCurve').addEventListener('change', function() {
+            const selected = cy.$('edge:selected');
+            if (selected.length > 0) {
+                saveState();
+                const newCurveStyle = this.value;
+                selected.data('curveStyle', newCurveStyle);
+
+                // Bezier 선택 시 컨트롤 포인트 표시
+                if (newCurveStyle === 'unbundled-bezier') {
+                    showBezierHandles(selected);
+                } else {
+                    hideBezierHandles();
+                }
+            }
+        });
+
+        // ==================== Bezier 컨트롤 포인트 시스템 ====================
+        let bezierHandles = [];
+        let bezierControlLines = [];
+        let activeEdge = null;
+
+        function showBezierHandles(edge) {
+            hideBezierHandles(); // 기존 핸들 제거
+
+            activeEdge = edge;
+            const sourceNode = cy.getElementById(edge.data('source'));
+            const targetNode = cy.getElementById(edge.data('target'));
+
+            if (!sourceNode.length || !targetNode.length) return;
+
+            const sourcePos = sourceNode.position();
+            const targetPos = targetNode.position();
+
+            // 기존 컨트롤 포인트 데이터가 있으면 사용, 없으면 기본값 계산
+            let cp1 = edge.data('controlPoint1');
+            let cp2 = edge.data('controlPoint2');
+
+            if (!cp1 || !cp2) {
+                // 기본 컨트롤 포인트: 소스와 타겟 사이의 1/3, 2/3 지점에서 수직으로 오프셋
+                const dx = targetPos.x - sourcePos.x;
+                const dy = targetPos.y - sourcePos.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const offset = Math.min(dist * 0.3, 80); // 최대 80px 오프셋
+
+                // 수직 방향 계산
+                const perpX = -dy / dist;
+                const perpY = dx / dist;
+
+                cp1 = {
+                    x: sourcePos.x + dx * 0.33 + perpX * offset,
+                    y: sourcePos.y + dy * 0.33 + perpY * offset
+                };
+                cp2 = {
+                    x: sourcePos.x + dx * 0.67 + perpX * offset,
+                    y: sourcePos.y + dy * 0.67 + perpY * offset
+                };
+
+                // 데이터에 저장
+                edge.data('controlPoint1', cp1);
+                edge.data('controlPoint2', cp2);
+            }
+
+            // 컨트롤 포인트 핸들 노드 생성
+            const handle1 = cy.add({
+                group: 'nodes',
+                data: { id: 'bezier-handle-1', handleIndex: 1 },
+                position: cp1,
+                classes: 'bezier-handle'
+            });
+
+            const handle2 = cy.add({
+                group: 'nodes',
+                data: { id: 'bezier-handle-2', handleIndex: 2 },
+                position: cp2,
+                classes: 'bezier-handle'
+            });
+
+            // 컨트롤 라인 생성 (소스-핸들1, 핸들2-타겟)
+            const line1 = cy.add({
+                group: 'edges',
+                data: {
+                    id: 'bezier-line-1',
+                    source: edge.data('source'),
+                    target: 'bezier-handle-1'
+                },
+                classes: 'bezier-control-line'
+            });
+
+            const line2 = cy.add({
+                group: 'edges',
+                data: {
+                    id: 'bezier-line-2',
+                    source: 'bezier-handle-2',
+                    target: edge.data('target')
+                },
+                classes: 'bezier-control-line'
+            });
+
+            bezierHandles = [handle1, handle2];
+            bezierControlLines = [line1, line2];
+
+            // 엣지에 unbundled-bezier 스타일 적용
+            updateBezierCurve(edge, cp1, cp2);
+        }
+
+        function hideBezierHandles() {
+            // 핸들과 컨트롤 라인 제거
+            bezierHandles.forEach(h => {
+                if (h && cy.getElementById(h.id()).length) {
+                    cy.remove(h);
+                }
+            });
+            bezierControlLines.forEach(l => {
+                if (l && cy.getElementById(l.id()).length) {
+                    cy.remove(l);
+                }
+            });
+            bezierHandles = [];
+            bezierControlLines = [];
+            activeEdge = null;
+        }
+
+        function updateBezierCurve(edge, cp1, cp2) {
+            const sourceNode = cy.getElementById(edge.data('source'));
+            const targetNode = cy.getElementById(edge.data('target'));
+
+            if (!sourceNode.length || !targetNode.length) return;
+
+            const sourcePos = sourceNode.position();
+            const targetPos = targetNode.position();
+
+            // 라인의 중점 계산
+            const midX = (sourcePos.x + targetPos.x) / 2;
+            const midY = (sourcePos.y + targetPos.y) / 2;
+
+            // 컨트롤 포인트에서 중점까지의 거리와 가중치 계산
+            const dx = targetPos.x - sourcePos.x;
+            const dy = targetPos.y - sourcePos.y;
+            const lineLength = Math.sqrt(dx * dx + dy * dy);
+
+            // 수직 방향 단위 벡터
+            const perpX = -dy / lineLength;
+            const perpY = dx / lineLength;
+
+            // 컨트롤 포인트에서 라인까지의 수직 거리 계산
+            const dist1 = (cp1.x - sourcePos.x) * perpX + (cp1.y - sourcePos.y) * perpY;
+            const dist2 = (cp2.x - sourcePos.x) * perpX + (cp2.y - sourcePos.y) * perpY;
+
+            // 라인을 따른 가중치 계산 (0~1)
+            const weight1 = ((cp1.x - sourcePos.x) * dx + (cp1.y - sourcePos.y) * dy) / (lineLength * lineLength);
+            const weight2 = ((cp2.x - sourcePos.x) * dx + (cp2.y - sourcePos.y) * dy) / (lineLength * lineLength);
+
+            // 스타일 적용
+            edge.style({
+                'curve-style': 'unbundled-bezier',
+                'control-point-distances': [dist1, dist2],
+                'control-point-weights': [weight1, weight2]
+            });
+        }
+
+        // 핸들 드래그 이벤트
+        cy.on('drag', 'node.bezier-handle', function(evt) {
+            const handle = evt.target;
+            const handleIndex = handle.data('handleIndex');
+            const pos = handle.position();
+
+            if (activeEdge) {
+                if (handleIndex === 1) {
+                    activeEdge.data('controlPoint1', { x: pos.x, y: pos.y });
+                } else {
+                    activeEdge.data('controlPoint2', { x: pos.x, y: pos.y });
+                }
+
+                const cp1 = activeEdge.data('controlPoint1');
+                const cp2 = activeEdge.data('controlPoint2');
+                updateBezierCurve(activeEdge, cp1, cp2);
+            }
+        });
+
+        // 핸들 드래그 종료 시 상태 저장
+        cy.on('dragfree', 'node.bezier-handle', function() {
+            saveState();
+        });
+
+        // 엣지 선택 해제 시 핸들 숨김
+        cy.on('unselect', 'edge', function(evt) {
+            const edge = evt.target;
+            if (edge === activeEdge || (activeEdge && edge.id() === activeEdge.id())) {
+                hideBezierHandles();
+            }
+        });
+
+        // 엣지 선택 시 bezier이면 핸들 표시
+        cy.on('select', 'edge', function(evt) {
+            const edge = evt.target;
+            if (edge.hasClass('bezier-control-line')) return; // 컨트롤 라인은 무시
+
+            const curveStyle = edge.data('curveStyle');
+            if (curveStyle === 'unbundled-bezier') {
+                showBezierHandles(edge);
+            }
+        });
+
+        // 타입 선택
+        document.querySelectorAll('#typePicker .shape-option').forEach(opt => {
+            opt.addEventListener('click', function() {
+                const selected = cy.$('node:selected');
+                if (selected.length > 0) {
+                    saveState();
+                    selected.data('nodeType', this.dataset.type);
+                    // 기존 데이터 속성 제거 (새 스타일 적용되도록)
+                    selected.removeData('bgColor');
+                    selected.removeData('borderColor');
+                    selected.removeData('shape');
+
+                    document.querySelectorAll('#typePicker .shape-option').forEach(o => o.classList.remove('selected'));
+                    this.classList.add('selected');
+
+                    // 색상 선택 초기화
+                    document.querySelectorAll('#bgColorPicker .color-option').forEach(o => o.classList.remove('selected'));
+                    document.querySelectorAll('#borderColorPicker .color-option').forEach(o => o.classList.remove('selected'));
+                }
+            });
+        });
+
+        // 배경색 선택
+        document.querySelectorAll('#bgColorPicker .color-option').forEach(opt => {
+            opt.addEventListener('click', function() {
+                const selected = cy.$('node:selected');
+                if (selected.length > 0) {
+                    saveState();
+                    const color = this.dataset.color;
+                    if (color === 'transparent') {
+                        selected.data('bgColor', '#f5f5f0');
+                    } else {
+                        selected.data('bgColor', color);
+                    }
+                    selected.data('textColor', '#333333');
+
+                    document.querySelectorAll('#bgColorPicker .color-option').forEach(o => o.classList.remove('selected'));
+                    this.classList.add('selected');
+                }
+            });
+        });
+
+        // 테두리색 선택
+        document.querySelectorAll('#borderColorPicker .color-option').forEach(opt => {
+            opt.addEventListener('click', function() {
+                const selected = cy.$('node:selected');
+                if (selected.length > 0) {
+                    saveState();
+                    const color = this.dataset.color;
+                    if (color === 'none') {
+                        selected.data('borderWidth', 0);
+                        selected.data('borderColor', '#f5f5f0');
+                    } else {
+                        selected.data('borderColor', color);
+                        selected.data('borderWidth', 1.5);
+                    }
+
+                    document.querySelectorAll('#borderColorPicker .color-option').forEach(o => o.classList.remove('selected'));
+                    this.classList.add('selected');
+                }
+            });
+        });
+
+        // 박스 너비 슬라이더
+
+        document.getElementById('boxWidthSlider').addEventListener('input', function() {
+            const selected = cy.$('node:selected');
+            if (selected.length > 0 && selected.data('nodeType') === 'text') {
+                document.getElementById('autoWidthCheck').checked = false;
+                document.getElementById('sliderContainer').style.opacity = '1';
+                
+                const width = parseInt(this.value);
+                document.getElementById('boxWidthValue').textContent = width + 'px';
+                selected.data('boxWidth', width);
+                selected.data('textMaxWidth', (width - 10) + 'px');
+            }
+        });
+
+        // 자동 너비 체크박스
+        document.getElementById('autoWidthCheck').addEventListener('change', function() {
+            const selected = cy.$('node:selected');
+            if (selected.length > 0 && selected.data('nodeType') === 'text') {
+                saveState();
+                if (this.checked) {
+                    // 자동 모드: 데이터 제거하여 기본 스타일(label width) 따르게 함
+                    selected.removeData('boxWidth');
+                    selected.removeData('textMaxWidth');
+                    document.getElementById('sliderContainer').style.opacity = '0.5';
+                    document.getElementById('sliderContainer').style.pointerEvents = 'none';
+                } else {
+                    // 수동 모드: 현재 슬라이더 값 적용
+                    const width = parseInt(document.getElementById('boxWidthSlider').value);
+                    selected.data('boxWidth', width);
+                    selected.data('textMaxWidth', (width - 10) + 'px');
+                    document.getElementById('sliderContainer').style.opacity = '1';
+                    document.getElementById('sliderContainer').style.pointerEvents = 'auto';
+                }
+            }
+        });
+
+        document.getElementById('boxWidthSlider').addEventListener('change', function() {
+            saveState();
+        });
+
+        // 텍스트 색상 선택
+        document.querySelectorAll('#textColorPicker .color-option').forEach(opt => {
+            opt.addEventListener('click', function() {
+                const selected = cy.$('node:selected');
+                if (selected.length > 0) {
+                    saveState();
+                    selected.data('textColor', this.dataset.color);
+
+                    document.querySelectorAll('#textColorPicker .color-option').forEach(o => o.classList.remove('selected'));
+                    this.classList.add('selected');
+                }
+            });
+        });
+
+        // 텍스트 노드 배경색 선택
+        document.querySelectorAll('#textBgColorPicker .color-option').forEach(opt => {
+            opt.addEventListener('click', function() {
+                const selected = cy.$('node:selected');
+                if (selected.length > 0 && selected.data('nodeType') === 'text') {
+                    saveState();
+                    const color = this.dataset.color;
+                    if (color === 'transparent') {
+                        selected.removeData('bgColor');
+                    } else {
+                        selected.data('bgColor', color);
+                    }
+
+                    document.querySelectorAll('#textBgColorPicker .color-option').forEach(o => o.classList.remove('selected'));
+                    this.classList.add('selected');
+                }
+            });
+        });
+
+        // 텍스트 노드 테두리색 선택
+        document.querySelectorAll('#textBorderColorPicker .color-option').forEach(opt => {
+            opt.addEventListener('click', function() {
+                const selected = cy.$('node:selected');
+                if (selected.length > 0 && selected.data('nodeType') === 'text') {
+                    saveState();
+                    const color = this.dataset.color;
+                    if (color === 'none') {
+                        selected.removeData('borderColor');
+                        selected.removeData('borderWidth');
+                    } else {
+                        selected.data('borderColor', color);
+                        selected.data('borderWidth', 1.5);
+                    }
+
+                    document.querySelectorAll('#textBorderColorPicker .color-option').forEach(o => o.classList.remove('selected'));
+                    this.classList.add('selected');
+                }
+            });
+        });
+
+        // 텍스트 정렬 선택
+        document.querySelectorAll('#textAlignPicker .shape-option').forEach(opt => {
+            opt.addEventListener('click', function() {
+                const selected = cy.$('node:selected');
+                if (selected.length > 0) {
+                    saveState();
+                    selected.data('textAlign', this.dataset.align);
+
+                    document.querySelectorAll('#textAlignPicker .shape-option').forEach(o => o.classList.remove('selected'));
+                    this.classList.add('selected');
+                }
+            });
+        });
+
+        // 글꼴 크기 선택
+        document.getElementById('fontSizeSelect').addEventListener('change', function() {
+            const selected = cy.$('node:selected');
+            if (selected.length > 0) {
+                saveState();
+                selected.data('fontSize', this.value);
+            }
+        });
+
+        // 글꼴 스타일 선택
+        document.querySelectorAll('#fontStylePicker .shape-option').forEach(opt => {
+            opt.addEventListener('click', function() {
+                const selected = cy.$('node:selected');
+                if (selected.length > 0) {
+                    saveState();
+                    const style = this.dataset.style;
+                    if (style === 'bold') {
+                        selected.data('fontWeight', 'bold');
+                        selected.data('fontStyle', 'normal');
+                    } else if (style === 'italic') {
+                        selected.data('fontWeight', 'normal');
+                        selected.data('fontStyle', 'italic');
+                    } else if (style === 'bold-italic') {
+                        selected.data('fontWeight', 'bold');
+                        selected.data('fontStyle', 'italic');
+                    } else {
+                        selected.data('fontWeight', 'normal');
+                        selected.data('fontStyle', 'normal');
+                    }
+
+                    document.querySelectorAll('#fontStylePicker .shape-option').forEach(o => o.classList.remove('selected'));
+                    this.classList.add('selected');
+                }
+            });
+        });
+
+        // 삭제
+        function deleteSelected() {
+            const selected = cy.$(':selected');
+            if (selected.length > 0) {
+                saveState();
+                selected.remove();
+                document.getElementById('nodePanel').style.display = 'none';
+                document.getElementById('edgePanel').style.display = 'none';
+            }
+        }
+
+        // 전체 보기
+        function fitToView() {
+            cy.fit(null, 50);
+        }
+
+        // 이미지 내보내기
+        function exportImage() {
+            // Get computed background color from #cy container
+            const cyContainer = document.getElementById('cy');
+            const bgColor = window.getComputedStyle(cyContainer).backgroundColor;
+
+            const png = cy.png({
+                output: 'blob',
+                bg: bgColor,
+                full: true,
+                scale: 2
+            });
+            const url = URL.createObjectURL(png);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = (document.getElementById('title').value || 'flowchart') + '.png';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+
+        // 모달 함수들
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('show');
+            editingNode = null;
+        }
+
+        function saveNodeName() {
+            if (editingNode) {
+                saveState();
+                editingNode.data('label', document.getElementById('editNodeName').value);
+            }
+            closeEditModal();
+        }
+
+        // Enter 키로 모달 확인
+        document.getElementById('editNodeName').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') saveNodeName();
+        });
+
+        // 키보드 단축키
+        document.addEventListener('keydown', function(e) {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                deleteSelected();
+            }
+            if (e.ctrlKey && e.key === 'z') {
+                e.preventDefault();
+                undo();
+            }
+            if (e.ctrlKey && e.key === 'y') {
+                e.preventDefault();
+                redo();
+            }
+            if (e.key === 'Escape') {
+                closeEditModal();
+            }
+        });
+
+        // 저장
+        function saveFlowchart() {
+            const title = document.getElementById('title').value;
+            const description = document.getElementById('description').value;
+
+            if (!title) {
+                alert('제목을 입력하세요.');
+                return;
+            }
+
+            // Bezier 핸들 숨기기 (저장에서 제외)
+            hideBezierHandles();
+
+            // Bezier 핸들과 컨트롤 라인 제외하고 요소 가져오기
+            const elements = cy.json().elements;
+            const filteredElements = {
+                nodes: (elements.nodes || []).filter(n => !n.classes || !n.classes.includes('bezier-handle')),
+                edges: (elements.edges || []).filter(e => !e.classes || !e.classes.includes('bezier-control-line'))
+            };
+
+            const data = {
+                id: flowchartId,
+                title: title,
+                description: description,
+                flowchart_data: filteredElements
+            };
+
+            fetch('{{ url_for("flowchart.save") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    // 새 플로우차트인 경우 ID 업데이트 (이후 저장 시 업데이트 모드로 동작)
+                    if (!flowchartId && result.id) {
+                        flowchartId = result.id;
+                        window.history.replaceState({}, '', '{{ url_for("flowchart.edit", id=0) }}'.replace('0', result.id));
+                    }
+                    // 저장 성공 메시지 (간단한 토스트)
+                    showToast('저장되었습니다!');
+                }
+            })
+            .catch(error => {
+                alert('저장 중 오류가 발생했습니다.');
+                console.error(error);
+            });
+        }
+
+        // 토스트 메시지 표시
+        function showToast(message) {
+            let toast = document.getElementById('toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'toast';
+                toast.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#38ef7d;color:#000;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+                document.body.appendChild(toast);
+            }
+            toast.textContent = message;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 2000);
+        }
+
+        // 초기 뷰 설정
+        if (cy.nodes().length > 0) {
+            setTimeout(() => cy.fit(null, 50), 100);
+        }
+    </script>
+</div>
+<div id="toast" class="toast"></div>
+
+{% endblock %}
+

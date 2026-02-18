@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% block title %}
+새 메모 작성
+{% endblock %}
+
+{% block content %}
+<div class="modern-container" style="max-width: 800px;">
+    
+    <div class="header-section" style="border-bottom: 2px solid var(--link-color); padding-bottom: 15px; margin-bottom: 25px;">
+        <h1 class="title">New Memo</h1>
+    </div>
+
+    <form id="memo-form" action="{{ url_for('add_memo') }}" method="POST" enctype="multipart/form-data" onsubmit="return validateMemoForm()" class="form-card">
+        
+        <div class="form-group">
+            <label class="form-label">Date</label>
+            <input type="datetime-local" id="created_at" name="created_at" class="form-input">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Tag</label>
+            <select id="tag" name="tag" class="form-select">
+                <option value="">태그 선택</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Product</label>
+            <select id="product" name="product" class="form-select">
+                <option value="">제품 선택</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Project</label>
+            <select id="project" name="project_id" class="form-select">
+                <option value="">프로젝트 선택</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Content</label>
+            <textarea id="content" name="content" class="form-textarea" placeholder="메모 내용을 입력하세요" required rows="8"></textarea>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Image / File</label>
+            <select id="image_option" name="image_option" class="form-select" onchange="toggleImageInput(this.value)">
+                <option value="file">파일 업로드</option>
+                <option value="paste">이미지 붙여넣기</option>
+            </select>
+            
+            <div id="file-upload-wrapper" style="margin-top: 15px;">
+                <div id="file-upload">
+                    <input type="file" id="file" name="file" class="form-input" accept="image/*, .pdf, .doc, .xlsx, .ppt" multiple="multiple" onchange="validateFileCount(this)">
+                    <small style="display:block; color:#666; margin-top:5px; font-size: 0.9em;">
+                        💡 Long press to select multiple files
+                    </small>
+                </div>
+                <div id="image-paste" style="display: none;">
+                    <textarea id="paste-area" 
+                              placeholder="여기를 탭하고 이미지 붙여넣기 (Ctrl+V 또는 길게 눌러서 붙여넣기)"
+                              style="border: 2px dashed var(--link-color); 
+                                     padding: 30px; 
+                                     width: 100%; 
+                                     min-height: 150px;
+                                     text-align: center;
+                                     border-radius: 12px;
+                                     background-color: var(--stripe-bg);
+                                     font-weight: 500;
+                                     color: var(--secondary-text);
+                                     resize: vertical;
+                                     font-family: inherit;
+                                     font-size: 14px;"></textarea>
+                    <div id="preview-container" style="margin-top: 15px; display: none;">
+                        <img id="pasted-image" alt="Preview" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                        <button type="button" onclick="clearPastedImage()" style="margin-top: 10px; padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 6px; cursor: pointer;">이미지 제거</button>
+                    </div>
+                    <input type="hidden" id="pasted_image_data" name="pasted_image_data">
+                </div>
+            </div>
+        </div>
+
+        <div class="btn-group-right">
+            <button type="button" class="btn btn-danger" onclick="window.history.back();">취소</button>
+            <button type="submit" class="btn btn-primary">저장</button>
+        </div>
+
+    </form>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        document.getElementById('created_at').value = now.toISOString().slice(0, 16);
+        loadTagsAndProducts();
+        setupPasteEvent();
+    });
+
+    async function loadTagsAndProducts() {
+        try {
+            const response = await fetch('/api/get_tags_and_products');
+            if (!response.ok) throw new Error('Network error');
+            const data = await response.json();
+            const tagSelect = document.getElementById('tag');
+            data.tags.forEach(tag => tagSelect.add(new Option(tag.name, tag.id)));
+            const productSelect = document.getElementById('product');
+            data.products.forEach(product => productSelect.add(new Option(product.name, product.id)));
+            const projectSelect = document.getElementById('project');
+            data.projects.forEach(project => projectSelect.add(new Option(project.title, project.id)));
+        } catch (e) { console.warn('API Load Failed', e); }
+    }
+
+    function setupPasteEvent() {
+        const pasteArea = document.getElementById('paste-area');
+        const pastedImage = document.getElementById('pasted-image');
+        const previewContainer = document.getElementById('preview-container');
+        const hiddenInput = document.getElementById('pasted_image_data');
+        
+        // textarea에 직접 paste 이벤트 연결 (iPad/모바일 지원)
+        pasteArea.addEventListener('paste', function(e) {
+            const items = e.clipboardData.items;
+            
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    e.preventDefault();
+                    const blob = items[i].getAsFile();
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(event) {
+                        // 이미지 미리보기 표시
+                        pastedImage.src = event.target.result;
+                        previewContainer.style.display = 'block';
+                        
+                        // textarea 숨기기
+                        pasteArea.style.display = 'none';
+                        
+                        // hidden input에 base64 데이터 저장
+                        hiddenInput.value = event.target.result;
+                    };
+                    
+                    reader.readAsDataURL(blob);
+                    break;
+                }
+            }
+        });
+        
+        // 포커스 시 placeholder 효과
+        pasteArea.addEventListener('focus', function() {
+            this.style.borderColor = 'var(--link-color)';
+            this.style.backgroundColor = '#f8f9fa';
+        });
+        
+        pasteArea.addEventListener('blur', function() {
+            this.style.borderColor = 'var(--link-color)';
+            this.style.backgroundColor = 'var(--stripe-bg)';
+        });
+    }
+
+    function clearPastedImage() {
+        const pasteArea = document.getElementById('paste-area');
+        const pastedImage = document.getElementById('pasted-image');
+        const previewContainer = document.getElementById('preview-container');
+        const hiddenInput = document.getElementById('pasted_image_data');
+        
+        // 초기화
+        pastedImage.src = '';
+        previewContainer.style.display = 'none';
+        pasteArea.style.display = 'block';
+        pasteArea.value = '';
+        hiddenInput.value = '';
+    }
+
+    function toggleImageInput(option) {
+        document.getElementById('file-upload').style.display = option === 'file' ? 'block' : 'none';
+        document.getElementById('image-paste').style.display = option === 'paste' ? 'block' : 'none';
+        
+        // 전환 시 붙여넣기 영역 초기화
+        if (option === 'paste') {
+            clearPastedImage();
+        }
+    }
+    
+    function validateMemoForm() {
+        if (!document.getElementById('content').value.trim()) { 
+            alert('내용을 입력해주세요.'); 
+            return false; 
+        }
+        
+        if (document.getElementById('image_option').value === 'paste' && !document.getElementById('pasted_image_data').value) { 
+            alert('이미지를 붙여넣어 주세요.'); 
+            return false; 
+        }
+        
+        return true;
+    }
+
+    function validateFileCount(input) {
+        if (input.files.length > 0) {
+            let imageCount = 0;
+            const imageExts = ['jpg', 'jpeg', 'png', 'gif'];
+            
+            for (let i = 0; i < input.files.length; i++) {
+                const fileName = input.files[i].name;
+                const ext = fileName.split('.').pop().toLowerCase();
+                if (imageExts.includes(ext)) {
+                    imageCount++;
+                }
+            }
+            
+            if (imageCount > 5) {
+                alert('이미지는 최대 5장까지만 업로드할 수 있습니다.');
+                input.value = ''; // 선택 초기화
+            }
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,2124 @@
+{% extends "base.html" %}
+{% block title %}
+프로젝트-{{ project.title }}
+{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="left-pane" id="leftPane">
+        <h1 class="project-heading" style="display: inline;">
+            {{ project.title }}
+        </h1>
+        <span style="display: inline; margin-left: 10px; font-size: 24px; color: gray;">
+            ({{ project.status }})
+        </span>
+
+        <ul style="list-style-type: none; padding: 0; margin-top: 10px;">
+            {% for product in project.products %}
+            <li style="display: flex; align-items: center;">
+                <span style="color: #FF4500;"># {{ product.name }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        <hr>
+        <div style="text-align: left; margin-bottom: 10px; margin-left: 10px;">
+            <div id="description" class="markdown-content">{{ project.description | markdown | auto_link | safe }}</div>
+            <div style="margin-bottom: 20px;">
+                <button id="edit-toggle-button" onclick="toggleEdit()" class="icon-link"
+                    style="background: #E9E8EF; border: none; color: #007BFF;">Edit</button>
+                <div id="edit-form" style="display: none;">
+                    <form method="POST" action="{{ url_for('edit_project_description', project_id=project.id) }}"
+                        style="display: inline;">
+                        <textarea name="description" rows="10" style="width: 95%; font-size: 1.05rem;">{{ project.description }}</textarea>
+                        <input type="submit" value="Save" class="icon-link"
+                            style="background: #E9E8EF; border: none; color: #007BFF; font-size: 1.05rem;">
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; align-items: center;">
+            <h3 class="sub-heading" style="margin: 0; margin-right: 10px;">
+                <a href="{{ url_for('project_tasks', project_id=project.id) }}"
+                    style="text-decoration: none; color: inherit;">Tasks</a>
+            </h3>
+            <button id="toggleTaskFormButton" onclick="toggleTaskForm()" class="plus-button style=" background: none;
+                border: none; padding: 0;">➕</button>
+        </div>
+        <form method="POST" action="{{ url_for('create_task', project_id=project.id) }}" class="flex-form"
+            id="task-form" style="display: none;">
+            <input type="text" name="title" placeholder="New task title" required>
+            <input type="submit" value="Add" class="icon-button">
+        </form>
+
+        <table class="task-table">
+            {% for task in project.tasks if task.status != 'Done' %}
+            <tr id="task-item-{{ task.id }}">
+                <td class="checkbox-cell">
+                    <input type="checkbox" id="task_{{ task.id }}" {% if task.status=='Done' %}checked{% endif %}
+                        onchange="updateTaskStatus({{ task.id }})">
+                </td>
+                <td class="task-title-cell">
+                    <span
+                        onmouseover="showComment({{ task.id }}, '{{ task.comment if task.comment else '' | escape }}')"
+                        onmouseout="hideComment()" style="cursor: pointer;">
+                        {{ task.title }}
+                    </span>
+                    {% if task.due_date %}
+                    <span class="task-due-date">(~ {{ task.due_date.strftime('%Y-%m-%d') }})</span>
+                    {% endif %}
+                    <a href="{{ url_for('edit_task', task_id=task.id) }}" class="edit-icon">✎</a>
+                </td>
+                <div id="taskCommentTooltip" class="tooltip" style="display: none;">
+                    <p id="taskCommentText"></p>
+                </div>
+            </tr>
+            {% endfor %}
+        </table>
+        <div style="margin-bottom: 20px;"></div>
+
+        <div style="display: flex; align-items: center;">
+            <h3 class="sub-heading" style="margin: 0; margin-right: 10px;">Links</h3>
+            <button id="toggleLinkFormButton" onclick="toggleLinkForm()" class="plus-button"
+                style="background: none; border: none; padding: 0;">➕</button>
+        </div>
+        <form method="POST" action="{{ url_for('create_link', project_id=project.id) }}" class="flex-form"
+            id="link-form" style="display: none;">
+            <input type="hidden" id="http-prefix" value="http://">
+            <input type="text" name="url" id="url-input" placeholder="example.com" required>
+            <input type="text" name="description" placeholder="Description">
+            <input type="submit" value="Add" class="icon-button"
+                style="background: none; border: none; color: #007BFF;">
+        </form>
+
+        <ul class="link-list">
+            {% for link in project.links %}
+            <li>
+                <a href="{{ link.url }}" target="_blank" style="text-decoration: none;">
+                    {% if link.description %}
+                    {{ link.description }}
+                    {% else %}
+                    {{ link.url }}
+                    {% endif %}
+                </a>
+                <a href="{{ url_for('edit_link', link_id=link.id) }}" class="icon-link"
+                    style="margin-left: 10px; color: #007BFF; font-size:13px;">Edit</a>
+            </li>
+            {% endfor %}
+        </ul>
+        <div style="margin-bottom: 20px;"></div>
+
+        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+            <h3 class="sub-heading" style="margin: 0; margin-right: 10px;">
+                <a href="{{ url_for('project_images', project_id=project.id) }}"
+                    style="text-decoration: none; color: inherit;">Images</a>
+            </h3>
+            <button id="toggleImageFormButton" onclick="toggleImageForm()" class="plus-button style=" background: none;
+                border: none; padding: 0;">➕</button>
+        </div>
+
+        <form id="image-upload-form" action="{{ url_for('upload_image', project_id=project.id) }}" method="post"
+            enctype="multipart/form-data" style="display: none; margin-bottom: 20px;"
+            onsubmit="return validateImageForm()">
+            <label for="image_option">Image Option:</label>
+            <select id="image_option" name="image_option" style="width: 200px;" onchange="toggleImageInput(this.value)">
+                <option value="file">Upload Image File</option>
+                <option value="paste">Paste Image</option>
+            </select>
+
+            <div id="image-file" style="display: block;">
+                <input type="file" name="file" id="file" accept="image/*">
+            </div>
+
+            <div id="image-paste" style="display: none;">
+                <textarea id="paste-area" placeholder="탭하고 이미지 붙여넣기 (Ctrl+V 또는 길게 눌러서 붙여넣기)" style="width: 100%; 
+                                 min-height: 150px; 
+                                 border: 2px dashed #ccc; 
+                                 padding: 20px;
+                                 text-align: center;
+                                 border-radius: 8px;
+                                 background-color: #f8f9fa;
+                                 font-weight: 500;
+                                 color: #666;
+                                 resize: vertical;
+                                 font-family: inherit;"></textarea>
+                <div id="image-preview-container" style="margin-top: 10px; display: none;">
+                    <img id="pasted-image"
+                        style="max-width: 100%; max-height: 200px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"
+                        alt="Pasted Image Preview">
+                    <button type="button" onclick="clearImagePaste()"
+                        style="display: block; margin-top: 10px; padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">이미지
+                        제거</button>
+                </div>
+                <input type="hidden" id="pasted_image_data" name="pasted_image_data">
+            </div>
+            <textarea name="memo" placeholder="Add a memo (optional)" style="height: 60px; width: 90%;"></textarea>
+            <input type="submit" value="Upload Image" class="icon-button">
+            <div id="error-message" class="error"></div>
+        </form>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+            {% for image in project.images[:10]|reverse %}
+            <div style="width: 150px; height: 150px; overflow: hidden; position: relative; background-color: #eeeeee;">
+                <a href="{{ url_for('view_image', project_id=project.id, image_id=image.id) }}" target="_blank" style="display: block; width: 100%; height: 100%;">
+                    <img src="{{ url_for('static', filename='data/' ~ image.filename) }}" alt="Image"
+                        style="width: 100%; height: 100%; object-fit: contain;">
+                </a>
+                {% if image.memo %}
+                <div
+                    style="text-align: center; font-size: 12px; color: #333; position: absolute; bottom: 0; width: 100%; background: rgba(255, 255, 255, 0.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    {{ image.memo }}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Resizable divider -->
+    <div class="resizer" id="resizer"></div>
+
+    <div class="right-pane" id="rightPane">
+        <div style="width: 100%; margin: 0 auto; text-align: left;">
+            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                <h3 class="sub-heading" style="margin: 0; margin-right: 10px;">
+                    <a href="{{ url_for('memo_list', project_id=project.id) }}"
+                        style="text-decoration: none; color: inherit;">Memos</a>
+                </h3>
+                <button id="toggleMemoFormButton" onclick="toggleMemoForm()" class="plus-button style=" background:
+                    none; border: none; padding: 0;">➕</button>
+
+                <div style="margin-left: 30px;">
+                    <label class="switch">
+                        <input type="checkbox" id="viewModeToggle"
+                            onchange="toggleViewMode(this.checked ? 'table' : 'note')" {% if view_mode=='table'
+                            %}checked{% endif %}>
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ url_for('create_memo', project_id=project.id) }}"
+                enctype="multipart/form-data" class="flex-form" id="memo-form"
+                style="display: none; margin-bottom: 20px;">
+                <input type="datetime-local" name="created_at" value="{{ datetime.now().strftime('%Y-%m-%dT%H:%M') }}"
+                    style="width: auto; padding: 5px; box-sizing: border-box; margin-right: 10px;">
+                <input type="hidden" name="next_url" value="{{ request.url }}">
+
+                <textarea name="content" placeholder="New memo content" required
+                    style="height: 150px; width: 80%; border: 1px solid #ccc; font-size: 13pt;"></textarea>
+
+                <div style="margin-top: 10px;">
+                    <select id="memo_image_option" name="image_option" style="width: 200px;"
+                        onchange="toggleMemoImageInput(this.value)">
+                        <option value="file">Upload Image/File</option>
+                        <option value="paste">Paste Image</option>
+                    </select>
+                </div>
+
+                <div id="memo-image-file" style="margin-top: 10px;">
+                    <input type="file" name="file" multiple="multiple" onchange="validateFileCount(this)"
+                        accept=".jpg,.jpeg,.png,.gif,.pdf,.xls,.xlsx,.ppt,.pptx,.md,.html,.htm">
+                    <small style="display:block; color:#666; margin-top:5px; font-size: 0.9em;">
+                        💡 Ctrl(또는 Command) 키를 누르고 클릭하여 여러 파일을 선택할 수 있습니다.
+                    </small>
+                </div>
+
+                <div id="memo-image-paste" style="display: none; margin-top: 10px;">
+                    <textarea id="memo-paste-area" placeholder="탭하고 이미지 붙여넣기 (Ctrl+V 또는 길게 눌러서 붙여넣기)" style="width: 100%; 
+                                     min-height: 120px; 
+                                     border: 2px dashed #ccc;
+                                     padding: 20px;
+                                     text-align: center;
+                                     border-radius: 8px;
+                                     background-color: #f8f9fa;
+                                     font-weight: 500;
+                                     color: #666;
+                                     resize: vertical;
+                                     font-family: inherit;"></textarea>
+                    <div id="memo-preview-container" style="margin-top: 10px; display: none;">
+                        <img id="memo-pasted-image"
+                            style="max-width: 100%; max-height: 150px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"
+                            alt="Pasted Image Preview">
+                        <button type="button" onclick="clearMemoPaste()"
+                            style="display: block; margin-top: 10px; padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">이미지
+                            제거</button>
+                    </div>
+                    <input type="hidden" id="memo-pasted-image-data" name="pasted_image_data">
+                </div>
+
+                <div style="margin-top: 10px;">
+
+                    <select id="tag" name="tag" style="width: auto; padding: 5px; box-sizing: border-box;">
+                        <option value="">Select a tag</option>
+                        {% for tag in tags %}
+                        <option value="{{ tag.id }}">{{ tag.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div style="margin-top: 10px; display: flex; justify-content: center; gap: 10px;">
+                    <button type="button" onclick="resetMemoForm()" class="icon-button">Cancel</button>
+                    <input type="submit" value="Upload" class="icon-button" style="color: red;">
+                </div>
+            </form>
+
+            <div id="noteView" class="memo-view {% if view_mode != 'note' %}hidden{% endif %}">
+                {% for memo in recent_memos if (memo.tag and (memo.tag.name == 'Todo' or memo.tag.name == 'pin')) %}
+                <div class="memo-date-group" style="margin-bottom: 15px;">
+                    <div style="display: inline;">
+                        <h3 style="margin: 0; margin-bottom: 5px; font-size: 18px; color: #007BFF; display: inline;">
+                            <a href="{{ url_for('view_memo', memo_id=memo.id) }}"
+                                style="color: #007BFF; text-decoration: none;">
+                                {{ memo.created_at.strftime('%Y-%m-%d') }}
+                            </a>
+                        </h3>
+                    </div>
+                    <div class="memo-section">
+                        <div class="memo-content-container"
+                            style="background-color: #E1F5FE; padding: 5px; border-radius: 5px; margin-top: 0;">
+                            {% if memo.tag %}
+                            <div class="memo-tag"
+                                style="color: #F44336; margin-bottom: 1px; font-size: 14px; line-height: 1;">
+                                #{{ memo.tag.name }}
+                            </div>
+                            {% endif %}
+                            <div class="memo-content" style="margin: 0">
+                                {{ memo.content | markdown | auto_link | safe }}
+                            </div>
+
+                            <div class="toggle-link-container" style="display: none;">
+                                <span class="toggle-link" style="color: #007BFF; cursor: pointer;">더보기</span>
+                            </div>
+                        </div>
+                        {% set all_images = [] %}
+                        {% if memo.image_filename %}
+                            {% set _ = all_images.append(memo.image_filename) %}
+                        {% endif %}
+                        {% for img in memo.images %}
+                            {% if img.filename != memo.image_filename %}
+                                {% set _ = all_images.append(img.filename) %}
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if all_images %}
+                            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                                {% for img_file in all_images %}
+                                <a href="{{ url_for('static', filename='data/' ~ img_file) }}" target="_blank">
+                                    <img src="{{ url_for('static', filename='data/' ~ img_file) }}" alt="Memo Image"
+                                        style="width: 300px; max-width: 100%;">
+                                </a>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        {% if memo.pdf_filename %}
+                        <a href="{{ url_for('static', filename='data/' ~ memo.pdf_filename) }}" target="_blank"
+                            style="color: #007BFF;">PDF: {{ memo.pdf_filename }}</a>
+                        {% endif %}
+
+                        {% if memo.ppt_filename %}
+                        <a href="{{ url_for('static', filename='data/' ~ memo.ppt_filename) }}" target="_blank"
+                            style="color: #007BFF;">PPT: {{ memo.ppt_filename }}</a>
+                        {% endif %}
+
+                        {% if memo.excel_filename %}
+                        <a href="{{ url_for('static', filename='data/' ~ memo.excel_filename) }}" target="_blank"
+                            style="color: #007BFF;">XLSX: {{ memo.excel_filename }}</a>
+                        {% endif %}
+
+                        {% if memo.md_filename %}
+                        <a href="{{ url_for('static', filename='data/' ~ memo.md_filename) }}" target="_blank"
+                            style="color: #007BFF;">Markdown: {{ memo.md_filename }}</a>
+                        {% endif %}
+
+                        {% if memo.html_filename %}
+                        <a href="{{ url_for('view_html_file', memo_id=memo.id) }}" target="_blank"
+                            style="color: #FF8C00;">HTML: {{ memo.html_filename }}</a>
+                        {% endif %}
+
+                        {% for reply in memo.replies %}
+                        <div
+                            style="margin-left: 20px; border-left: 2px solid #007BFF; padding-left: 10px; margin-top: 10px;">
+                            <div style="display: inline;">
+                                <h3
+                                    style="margin: 0; margin-bottom: 10px; font-size: 16px; color: #007BFF; display: inline;">
+                                    <a href="{{ url_for('view_memo', memo_id=reply.id) }}"
+                                        style="color: #007BFF; text-decoration: none;">
+                                        {{ reply.created_at.strftime('%Y-%m-%d') }}
+                                    </a>
+                                </h3>
+                            </div>
+                            <div class="memo-content"
+                                style="padding: 5px; border-radius: 5px;">
+                                {{ reply.content | markdown | auto_link | safe }}
+                            </div>
+                            <div class="toggle-link-container" style="display: none;">
+                                <span class="toggle-link" style="color: #007BFF; cursor: pointer;">더보기</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <hr>
+                {% endfor %}
+                {% for date, memos in grouped_memos %}
+                <div class="memo-date-group" style="margin-bottom: 5px;">
+                    <div style="display: inline;">
+                        <h3 style="margin: 0; margin-bottom: 5px; font-size: 18px; color: #007BFF; display: inline;">
+                            <a href="{{ url_for('view_memo', memo_id=memos[0].id) }}"
+                                style="color: #007BFF; text-decoration: none;">
+                                {{ date.strftime("%Y-%m-%d") }}
+                            </a>
+                        </h3>
+                    </div>
+                    {% for memo in memos %}
+                    <div class="memo-section" style="margin-bottom: 5px;">
+                        {% if memo.tag %}
+                        <div class="memo-tag"
+                            style="color: #F44336; margin-bottom: 1px; font-size: 14px; line-height: 1;">
+                            #{{ memo.tag.name }}
+                        </div>
+                        {% endif %}
+                        <div class="memo-content" style="margin: 0;">
+                            {{ memo.content | markdown | auto_link | safe }}
+                        </div>
+                        <div class="toggle-link-container" style="display: none;">
+                            <span class="toggle-link" style="color: #007BFF; cursor: pointer;">더보기</span>
+                        </div>
+
+                        {% set all_images = [] %}
+                        {% if memo.image_filename %}
+                            {% set _ = all_images.append(memo.image_filename) %}
+                        {% endif %}
+                        {% for img in memo.images %}
+                            {% if img.filename != memo.image_filename %}
+                                {% set _ = all_images.append(img.filename) %}
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if all_images %}
+                            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                                {% for img_file in all_images %}
+                                <a href="{{ url_for('static', filename='data/' ~ img_file) }}" target="_blank">
+                                    <img src="{{ url_for('static', filename='data/' ~ img_file) }}" alt="Memo Image"
+                                        style="width: 300px; max-width: 100%;">
+                                </a>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        {% if memo.pdf_filename %}
+                        <a href="{{ url_for('static', filename='data/' ~ memo.pdf_filename) }}" target="_blank"
+                            style="color: #007BFF;">PDF: {{ memo.pdf_filename }}</a>
+                        {% endif %}
+
+                        {% if memo.ppt_filename %}
+                        <a href="{{ url_for('static', filename='data/' ~ memo.ppt_filename) }}" target="_blank"
+                            style="color: #007BFF;">PPT: {{ memo.ppt_filename }}</a>
+                        {% endif %}
+
+                        {% if memo.excel_filename %}
+                        <a href="{{ url_for('static', filename='data/' ~ memo.excel_filename) }}" target="_blank"
+                            style="color: #007BFF;">XLSX: {{ memo.excel_filename }}</a>
+                        {% endif %}
+
+                        {% if memo.md_filename %}
+                        <a href="{{ url_for('static', filename='data/' ~ memo.md_filename) }}" target="_blank"
+                            style="color: #007BFF;">Markdown: {{ memo.md_filename }}</a>
+                        {% endif %}
+
+                        {% if memo.html_filename %}
+                        <a href="{{ url_for('view_html_file', memo_id=memo.id) }}" target="_blank"
+                            style="color: #FF8C00;">HTML: {{ memo.html_filename }}</a>
+                        {% endif %}
+
+                        {% for reply in memo.replies %}
+                        <div
+                            style="margin-left: 20px; border-left: 2px solid #007BFF; padding-left: 10px; margin-top: 10px;">
+                            <div style="display: inline;">
+                                <h3
+                                    style="margin: 0; margin-bottom: 5px; font-size: 16px; color: #007BFF; display: inline;">
+                                    <a href="{{ url_for('view_memo', memo_id=reply.id) }}"
+                                        style="color: #007BFF; text-decoration: none;">
+                                        {{ reply.created_at.strftime('%Y-%m-%d') }}
+                                    </a>
+                                </h3>
+                            </div>
+                            <div class="memo-content">
+                                {{ reply.content | markdown | auto_link | safe }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% if not loop.last %}
+                    <hr style="border-top: 1px dashed #ccc;">
+                    {% endif %}
+                    {% endfor %}
+                </div>
+
+                {% if not loop.last %}
+                <hr style="margin-bottom: 15px; margin-top: 15px;">
+                {% endif %}
+                {% endfor %}
+            </div>
+
+
+            <div id="tableView" class="memo-view {% if view_mode != 'table' %}hidden{% endif %}">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 100px; min-width: 120px;">Date</th>
+                            <th style="width: 50px; min-width: 80px; text-align: center;">Tag</th>
+                            <th style="width: auto;">Content</th>
+                        </tr>
+                    </thead>
+                    <tbody id="memoTableBody">
+                        {% set memo_count = 0 %}
+
+                        {% for memo in recent_memos if memo.tag and memo.tag.name == 'pin' %}
+                        {% if memo_count < 15 %} <tr onclick="viewMemo({{ memo.id }})" style="cursor: pointer;">
+                            <td>{{ memo.created_at.strftime("%Y-%m-%d") }}</td>
+                            <td style="font-size: 14px; color: #F44336;">{{ memo.tag.name if memo.tag else '' }}</td>
+                            <td>
+                                <span class="ellipsis" data-content="{{ memo.content }}">
+                                    {{ memo.content | striptags }}
+                                </span>
+                                <span class="file-icons">
+                                    {% set img_count = memo.images|length %}
+                                    {% if img_count == 0 and memo.image_filename %}{% set img_count = 1 %}{% endif %}
+                                    
+                                    {% if img_count > 1 %}
+                                    <i class="fas fa-images" style="color: var(--product-blue);"></i>
+                                    {% elif img_count == 1 %}
+                                    <i class="fas fa-file-image" style="color: var(--product-blue);"></i>
+                                    {% endif %}
+                                    {% if memo.pdf_filename %}
+                                    <i class="fas fa-file-pdf" style="color: red;"></i>
+                                    {% endif %}
+                                    {% if memo.excel_filename %}
+                                    <i class="fas fa-file-excel" style="color: green;"></i>
+                                    {% endif %}
+                                    {% if memo.ppt_filename %}
+                                    <i class="fas fa-file-powerpoint" style="color: orange;"></i>
+                                    {% endif %}
+                                    {% if memo.md_filename %}
+                                    <i class="fas fa-file-alt" style="color: purple;"></i>
+                                    {% endif %}
+                                    {% if memo.html_filename %}
+                                    <i class="fas fa-file-code" style="color: #FF8C00;"></i>
+                                    {% endif %}
+                                </span>
+                            </td>
+                            </tr>
+                            {% set memo_count = memo_count + 1 %}
+                            {% endif %}
+                            {% endfor %}
+
+                            {% for memo in recent_memos if not memo.tag or memo.tag.name != 'pin' %}
+                            {% if memo_count < 15 %} <tr onclick="viewMemo({{ memo.id }})" style="cursor: pointer;">
+                                <td>{{ memo.created_at.strftime("%Y-%m-%d") }}</td>
+                                <td style="font-size: 14px; color: #F44336;">{{ memo.tag.name if memo.tag else '' }}
+                                </td>
+                                <td>
+                                    <span class="ellipsis" data-content="{{ memo.content }}">
+                                        {{ memo.content | striptags }}
+                                    </span>
+                                    <span class="file-icons">
+                                        {% set img_count = memo.images|length %}
+                                        {% if img_count == 0 and memo.image_filename %}{% set img_count = 1 %}{% endif %}
+                                        
+                                        {% if img_count > 1 %}
+                                        <i class="fas fa-images" style="color: var(--product-blue);"></i>
+                                        {% elif img_count == 1 %}
+                                        <i class="fas fa-file-image" style="color: var(--product-blue);"></i>
+                                        {% endif %}
+                                        {% if memo.pdf_filename %}
+                                        <i class="fas fa-file-pdf" style="color: red;"></i>
+                                        {% endif %}
+                                        {% if memo.excel_filename %}
+                                        <i class="fas fa-file-excel" style="color: green;"></i>
+                                        {% endif %}
+                                        {% if memo.ppt_filename %}
+                                        <i class="fas fa-file-powerpoint" style="color: orange;"></i>
+                                        {% endif %}
+                                        {% if memo.md_filename %}
+                                        <i class="fas fa-file-alt" style="color: purple;"></i>
+                                        {% endif %}
+                                        {% if memo.html_filename %}
+                                        <i class="fas fa-file-code" style="color: #FF8C00;"></i>
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                </tr>
+                                {% set memo_count = memo_count + 1 %}
+                                {% endif %}
+                                {% endfor %}
+                    </tbody>
+                </table>
+
+                {% if recent_memos|length > 15 %}
+                <div id="loadMoreContainer" style="text-align: center; margin-top: 20px;">
+                    <button onclick="loadMoreMemos()" id="loadMoreButton" class="btn"
+                        style="color: #007BFF;">더보기</button>
+                    <div id="loading" style="display: none;">로딩 중...</div>
+                </div>
+                {% endif %}
+            </div>
+
+            <style>
+                h1.project-heading {
+                    display: inline;
+                    font-size: 1.6rem;
+                    font-weight: bold;
+                }
+
+                h3.sub-heading {
+                    margin: 20px 0 10px 0;
+                    /* 위아래 간격 확보 */
+                    margin-right: 10px;
+                    font-size: 1.4rem;
+                    /* 글자 크기 키움 */
+                    font-weight: 700;
+                    /* 굵게 설정 */
+                    color: #333;
+                    /* 진한 회색 (라이트 모드 기본) */
+                    display: inline-block;
+                    border-bottom: 2px solid #333;
+                    /* 하단 밑줄 추가로 섹션 강조 (선택사항) */
+                    padding-bottom: 5px;
+                }
+
+                /* 제목 링크 스타일 */
+                h3.sub-heading a {
+                    text-decoration: none;
+                    /* 밑줄 제거 (깔끔하게) */
+                    color: inherit;
+                    /* 부모 색상(#333) 상속 */
+                    transition: color 0.2s ease;
+                }
+
+                h3.sub-heading a:hover {
+                    color: #0056b3;
+                    /* 마우스 올렸을 때 파란색 */
+                    text-decoration: none;
+                }
+
+                /* 다크 모드 대응 (필수) */
+                body.dark-mode h3.sub-heading {
+                    color: #e0e0e0;
+                    /* 다크 모드에서는 밝은 회색 */
+                    border-bottom: 2px solid #e0e0e0;
+                }
+
+                /* 다크모드에서의 파일 아이콘 색상 조절 (채도 및 명도 하향) */
+                body.dark-mode .container .fa-file-pdf {
+                    color: #A65252 !important;
+                    /* 차분한 레드 */
+                }
+
+                body.dark-mode .container .fa-file-image {
+                    color: #5C85AD !important;
+                    /* 차분한 블루 */
+                }
+
+                body.dark-mode .container .fa-file-excel {
+                    color: #5B8C5B !important;
+                    /* 차분한 그린 */
+                }
+
+                body.dark-mode .container .fa-file-powerpoint {
+                    color: #A67C52 !important;
+                    /* 차분한 오렌지/브라운 */
+                }
+
+                body.dark-mode .container .fa-file-alt {
+                    color: #8E6B8E !important;
+                    /* 차분한 퍼플 */
+                }
+
+                body.dark-mode .container .fa-file-code {
+                    color: #A68A52 !important;
+                    /* 차분한 골드/황토색 */
+                }
+
+                /* 추가: 테이블 뷰에서 마우스 호버 시 가독성을 위해 행 색상 조정 */
+                body.dark-mode #tableView tr:hover {
+                    background-color: #333333 !important;
+                }
+
+                #noteView p {
+                    margin-top: 0.3em;
+                    margin-bottom: 0.3em;
+                }
+
+                #noteView * {
+                    line-height: 1.5;
+                }
+
+                /* 마크다운 내용의 제목과 텍스트 사이의 간격 조절 */
+                .markdown-content h1,
+                .markdown-content h2,
+                .markdown-content h3 {
+                    margin-top: 10px;
+                    margin-bottom: 5px;
+                    /* 제목 하단 여백 줄이기 */
+                }
+
+                .markdown-content p {
+                    margin-top: 15px;
+                    /* 문단 상단 여백 줄이기 */
+                    margin-bottom: 10px;
+                    /* 문단 하단 여백 줄이기 */
+                    line-height: 1.5em;
+                    font-size: 1.05rem;
+                }
+
+                .markdown-content ol {
+                    list-style-type: decimal !important;
+                    margin-top: 5px;
+                    margin-bottom: 2px;
+                    padding-left: 20px;
+                }
+
+                .markdown-content ul {
+                    list-style-type: disc !important;
+                    /* 불릿 목록 */
+                    margin-top: 5px;
+                    margin-bottom: 5px;
+                    padding-left: 20px;
+                }
+
+                /* 레벨별 구분 표시 - 더 구체적인 선택자 */
+                .markdown-content ul ul,
+                .markdown-content ul > li > ul {
+                    list-style-type: circle !important;  /* 2단계: 빈 원 */
+                }
+
+                .markdown-content ul ul ul,
+                .markdown-content ul > li > ul > li > ul {
+                    list-style-type: square !important;  /* 3단계: 사각형 */
+                }
+
+                .markdown-content li {
+                    margin-bottom: 1px;
+                    /* 항목 간 간격 줄이기 */
+                }
+
+                /* 컨테이너 구조 */
+                .container {
+                    display: flex;
+                    width: 97%;
+                    margin: 0 auto;
+                    /* 기존 코드: 좌우 중앙 정렬 */
+                    margin-top: 20px;
+                    /* [추가됨] 상단 메뉴바와의 간격 추가 */
+                    max-width: 100%;
+                    padding: 0;
+                    position: relative;
+                }
+
+                .left-pane {
+                    /* width will be set by JavaScript from admin settings */
+
+                    padding-right: 10px;
+                    overflow-x: hidden;
+                    min-width: 200px;
+                    box-sizing: border-box;
+                    /* [추가됨] 여백이 너비에 포함되도록 설정 (레이아웃 깨짐 방지) */
+                }
+
+                /* New resizer styles */
+                .resizer {
+                    width: 4px;
+                    cursor: col-resize;
+                    background-color: #cccccc;
+                    position: relative;
+                    flex-shrink: 0;
+                    transition: background-color 0.2s;
+                }
+
+                .resizer:hover {
+                    background-color: #007BFF;
+                }
+
+                .resizer::before {
+                    content: '';
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    width: 2px;
+                    height: 40px;
+                    background-color: #999;
+                    border-radius: 2px;
+                    pointer-events: none;
+                }
+
+                .resizer:hover::before {
+                    background-color: white;
+                }
+
+                /* Tooltip for double-click hint */
+                .resizer:hover::after {
+                    content: 'Double-click to reset';
+                    position: absolute;
+                    top: -30px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background-color: rgba(0, 0, 0, 0.8);
+                    color: white;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-size: 11px;
+                    white-space: nowrap;
+                    pointer-events: none;
+                    z-index: 1000;
+                }
+
+                .right-pane {
+                    flex: 1;
+                    padding-left: 20px;
+                    overflow-x: hidden;
+                    min-width: 300px;
+                    /* 최소 너비 */
+                }
+
+                /* 표 스타일 */
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                }
+
+                th,
+                td {
+                    padding: 5px;
+                    text-align: left;
+                    vertical-align: middle;
+                    /* overflow: hidden; */
+                    /* 이 부분을 제거했습니다. */
+                    /* text-overflow: ellipsis; */
+                    /* 이 부분을 제거했습니다. */
+                    white-space: normal;
+                    /* nowrap에서 normal로 변경하여 줄바꿈을 허용합니다. */
+                    word-wrap: break-word;
+                    /* 긴 단어가 잘리지 않고 줄바꿈되도록 추가합니다. */
+                    border: none;
+                }
+
+
+                th {
+                    background-color: var(--th-bg);
+                    font-weight: bold;
+                    border-bottom: 1px solid var(--border-color);
+                    /* 2px -> 1px 로 변경하면 더 얇아집니다 */
+                    font-size: 1.05em; /* 헤더 글자 크기 조정 */
+                }
+
+                tr {
+                    height: auto;
+                    border-bottom: 1px solid #ddd;
+                    cursor: pointer;
+                    /* 클릭 가능 */
+                }
+
+                tr:nth-child(even) {
+                    background-color: #f9f9f9;
+                }
+
+                /* 내용 ellipsis 처리 */
+                .content-ellipsis {
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                }
+
+                /* 메모 내용 */
+                .memo-content {
+                    max-height: 10.4em;
+                    /* 7줄 기준 */
+                    overflow: hidden;
+                    line-height: 1.5em;
+                    font-size: 1.05rem;
+                    padding: 7px;
+                    margin-bottom: 3px;
+                    transition: max-height 0.3s ease;
+                    position: relative;
+                }
+
+                .memo-content.expanded {
+                    max-height: none;
+                }
+
+                /* memo-content 내 리스트 스타일 */
+                .memo-content ul {
+                    list-style-type: disc !important;
+                    margin-top: 5px;
+                    margin-bottom: 5px;
+                    padding-left: 20px;
+                }
+
+                .memo-content ul ul,
+                .memo-content ul > li > ul {
+                    list-style-type: circle !important;  /* 2단계: 빈 원 */
+                }
+
+                .memo-content ul ul ul,
+                .memo-content ul > li > ul > li > ul {
+                    list-style-type: square !important;  /* 3단계: 사각형 */
+                }
+
+                .memo-content ol {
+                    list-style-type: decimal !important;
+                    margin-top: 5px;
+                    margin-bottom: 5px;
+                    padding-left: 20px;
+                }
+
+                .memo-content li {
+                    margin-bottom: 1px;
+                }
+
+                .toggle-link {
+                    display: inline-block;
+                    cursor: pointer;
+                    color: #007BFF;
+                    padding: 2px 5px;
+                    border-radius: 3px;
+                }
+
+                /* 숨김 처리 */
+                .hidden {
+                    display: none;
+                }
+
+                /* 파일 아이콘 처리 */
+                .ellipsis {
+                    display: inline-block;
+                    max-width: calc(100% - 50px);
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                    font-size: 1.05em; /* 내용 글자 크기 조정 */
+                }
+
+                .file-icons {
+                    display: inline-block;
+                    vertical-align: bottom;
+                    margin-left: 5px;
+                }
+
+                .container .fa-file-pdf {
+                    color: #CC0000;
+                }
+
+                /* 빨간색 - 명도 낮춤 */
+                .container .fa-file-image {
+                    color: #0066CC;
+                }
+
+                /* 파란색 - 명도 낮춤 */
+                .container .fa-file-excel {
+                    color: #006600;
+                }
+
+                /* 녹색 - 명도 낮춤 */
+                .container .fa-file-powerpoint {
+                    color: #CC6600;
+                }
+
+                /* 주황색 - 명도 낮춤 */
+                .container .fa-file-alt {
+                    color: #660066;
+                }
+
+                /* 보라색 - 명도 낮춤 */
+                /* 🌟 HTML 파일 아이콘 스타일 추가 🌟 */
+                .container .fa-file-code {
+                    color: #CC6600;
+                    /* 주황색 - 명도 낮춤 */
+                }
+
+                /* 스위치 스타일 */
+                .switch {
+                    position: relative;
+                    display: inline-block;
+                    width: 45px;
+                    height: 22px;
+                }
+
+                .switch input {
+                    opacity: 0;
+                    width: 0;
+                    height: 0;
+                }
+
+                .slider {
+                    position: absolute;
+                    cursor: pointer;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background-color: #ccc;
+                    transition: .3s;
+                    border-radius: 34px;
+                }
+
+                .slider:before {
+                    position: absolute;
+                    content: "";
+                    height: 18px;
+                    width: 18px;
+                    left: 4px;
+                    bottom: 2px;
+                    background-color: white;
+                    transition: .3s;
+                    border-radius: 50%;
+                }
+
+                input:checked+.slider {
+                    background-color: #2196F3;
+                }
+
+                input:checked+.slider:before {
+                    transform: translateX(19px);
+                }
+
+                /* 둥근 스위치 */
+                .slider.round {
+                    border-radius: 34px;
+                }
+
+                .slider.round:before {
+                    border-radius: 50%;
+                }
+                
+                /* Task 테이블 스타일 */
+                .task-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    border: none;
+                    margin: 10px 0 10px 7px;
+                }
+
+                .task-table tr {
+                    border-bottom: none !important;
+                    border-top: none !important;
+                    background-color: transparent !important;
+                }
+
+                .task-table tr:nth-child(even) {
+                    background-color: transparent !important;
+                }
+
+                .task-table td {
+                    padding: 0;
+                    vertical-align: middle;
+                    border: none !important;
+                }
+
+                /* 다크모드에서 task 테이블 줄선 제거 */
+                body.dark-mode .task-table tr {
+                    border-bottom: none !important;
+                    border-top: none !important;
+                    background-color: transparent !important;
+                }
+
+                body.dark-mode .task-table td {
+                    border: none !important;
+                }
+
+                .checkbox-cell {
+                    width: 30px;
+                }
+
+                .task-title-cell {
+                    text-align: left;
+                    font-size: 1.05rem;
+                }
+
+                .task-title-cell span {
+                    transition: color 0.2s ease;
+                    cursor: pointer;
+                }
+
+                /* 라이트모드 호버 */
+                .task-title-cell span:hover {
+                    color: #007BFF;
+                }
+
+                /* 다크모드 호버 - Links와 동일한 색상 */
+                body.dark-mode .task-title-cell span:hover {
+                    color: var(--link-hover, #4A9EFF);
+                }
+
+                .task-due-date {
+                    color: var(--link-color);
+                    margin-left: 5px;
+                    font-size: 0.9em;
+                }
+
+
+                .edit-icon {
+                    text-decoration: none;
+                }
+
+                .tooltip {
+                    display: none;
+                    position: absolute;
+                    background-color: #FAB27B;
+                    border: 1px solid #ccc;
+                    padding: 1px 5px;
+                    z-index: 1000;
+                    max-width: 250px;
+                    font-size: 14px;
+                    color: #333;
+                    border-radius: 4px;
+                }
+
+                /* LaTeX 수식 스타일링 */
+                .math-inline,
+                .math-block {
+                    font-family: "Times New Roman", serif;
+                    font-size: 1em;
+                }
+
+                .math-block {
+                    display: block;
+                    margin: 1em 0;
+                    padding: 0.5em;
+                    background-color: #f8f9fa;
+                    border-radius: 4px;
+                }
+
+                .math-inline {
+                    display: inline-block;
+                    margin: 0 0.2em;
+                }
+
+                /* 수식 기호 스타일링 */
+                .math-inline ×,
+                .math-block × {
+                    margin: 0 0.2em;
+                }
+
+                .math-inline ≈,
+                .math-block ≈ {
+                    margin: 0 0.2em;
+                }
+
+                #task-form input,
+                #link-form input {
+                    font-size: 1em;
+                }
+
+                /* + 버튼 색상 - 빨간색 */
+                .plus-button {
+                    background: none !important;
+                    border: none !important;
+                    padding: 0 !important;
+                    font-size: 32px !important;
+                    color: #FF6B6B !important;
+                    cursor: pointer !important;
+                }
+
+                .plus-button:hover {
+                    transform: scale(1.1);
+                }
+
+                body.dark-mode .plus-button {
+                    color: #FF6B6B !important;
+                }
+
+                /* Cancel 버튼 */
+                button[onclick*="reset"],
+                button[type="button"]:not(.plus-button) {
+                    background: #6c757d !important;
+                    color: white !important;
+                    border: none !important;
+                    padding: 6px 14px !important;
+                    font-size: 14px !important;
+                }
+
+                /* Upload 버튼 */
+                input[type="submit"][value="Upload"] {
+                    background: #007BFF !important;
+                    color: white !important;
+                    border: none !important;
+                    padding: 6px 14px !important;
+                    font-size: 14px !important;
+                }
+
+                body.dark-mode input[type="submit"][value="Upload"] {
+                    background: #4A9EFF !important;
+                    color: #1a1a1a !important;
+                }
+
+                /* Edit 버튼 */
+                #edit-toggle-button {
+                    font-size: 13px !important;
+                    padding: 3px 10px !important;
+                    background: transparent !important;
+                    border: 1px solid #007BFF !important;
+                    color: #007BFF !important;
+                }
+
+                body.dark-mode #edit-toggle-button {
+                    color: #4A9EFF !important;
+                    border-color: #4A9EFF !important;
+                }
+
+                /* 다크 모드 링크 스타일 변경 */
+                body.dark-mode .memo-content-box a,
+                body.dark-mode .memo-content a {
+                    /* 실제 사용하는 콘텐츠 영역의 클래스에 맞게 조정 필요 */
+                    color: var(--link-color) !important;
+                    /* 밝은 파란색 (Light Blue) */
+                    text-decoration: none !important;
+                    /* 밑줄 제거 */
+                }
+
+                /* (선택 사항) 마우스를 올렸을 때 밑줄 표시 */
+                body.dark-mode .memo-content-box a:hover,
+                body.dark-mode .memo-content a:hover {
+                    text-decoration: underline !important;
+                    color: var(--link-hover) !important;
+                }
+
+                /* 모바일 대응: 창을 세로로 정렬 */
+                @media screen and (max-width: 1024px) {
+                    .container {
+                        flex-direction: column;
+                    }
+
+                    .left-pane,
+                    .right-pane {
+                        width: 100% !important;
+                        padding: 10px !important;
+                        /* 0 -> 10px 로 변경하여 모바일에서도 여백 확보 */
+                        box-sizing: border-box;
+                        /* 패딩 때문에 가로 스크롤 생기는 것 방지 */
+                        border: none;
+                    }
+
+                    .resizer {
+                        display: none;
+                    }
+
+                    .memo-list-container {
+                        width: 100%;
+                        padding: 0 10px;
+                    }
+
+                    /* 메모 섹션 글자 크기 조정 */
+                    .memo-content,
+                    .ellipsis,
+                    .memo-content-container,
+                    .markdown-content {
+                        font-size: 1.2em !important;
+                        line-height: 1.5em !important;
+                    }
+
+                    /* 메모 섹션의 다른 요소들도 일관성 있게 조정 */
+                    .memo-section h3 {
+                        font-size: 18px !important;
+                    }
+
+                    .memo-section a {
+                        font-size: 18px !important;
+                    }
+
+                    .memo-date-group h3 {
+                        font-size: 18px !important;
+                    }
+
+                    /* 파일 링크 텍스트 */
+                    .memo-section a[href*="uploads"] {
+                        font-size: 16px !important;
+                    }
+
+                    /* 1. Tag 컬럼 (2번째) 숨기기 */
+                    #tableView th:nth-child(2),
+                    #tableView td:nth-child(2) {
+                        display: none;
+                    }
+
+                    /* 2. Date 컬럼 (1번째) 너비 넓히기 */
+                    #tableView th:nth-child(1),
+                    #tableView td:nth-child(1) {
+                        width: 20% !important;
+                        /* 날짜가 줄바꿈 되지 않을 만큼 확보 */
+                        min-width: 90px;
+                        /* 최소 너비 설정 */
+                        white-space: nowrap;
+                        /* 날짜 줄바꿈 방지 */
+                        font-size: 14px;
+                        /* 모바일에서 폰트 크기 살짝 조정 */
+                    }
+
+                    /* 3. Content 컬럼 (3번째) 나머지 공간 차지 */
+                    #tableView th:nth-child(3),
+                    #tableView td:nth-child(3) {
+                        width: auto !important;
+                        /* 남은 공간 모두 사용 */
+                        display: table-cell;
+                        /* 테이블 셀 속성 유지 */
+                    }
+
+                    /* (선택사항) 모바일에서 테이블 행 높이 확보 */
+                    #tableView tr {
+                        height: 50px;
+                    }
+
+                }
+            </style>
+
+            <script>
+                // 이미지 붙여넣기 영역 초기화 함수 (Images 섹션)
+                function clearImagePaste() {
+                    const pasteArea = document.getElementById('paste-area');
+                    const pastedImage = document.getElementById('pasted-image');
+                    const previewContainer = document.getElementById('image-preview-container');
+                    const hiddenInput = document.getElementById('pasted_image_data');
+
+                    pasteArea.style.display = 'block';
+                    pasteArea.value = '';
+                    pastedImage.src = '';
+                    previewContainer.style.display = 'none';
+                    hiddenInput.value = '';
+                }
+
+                // 이미지 붙여넣기 영역 초기화 함수 (Memos 섹션)
+                function clearMemoPaste() {
+                    const pasteArea = document.getElementById('memo-paste-area');
+                    const pastedImage = document.getElementById('memo-pasted-image');
+                    const previewContainer = document.getElementById('memo-preview-container');
+                    const hiddenInput = document.getElementById('memo-pasted-image-data');
+
+                    pasteArea.style.display = 'block';
+                    pasteArea.value = '';
+                    pastedImage.src = '';
+                    previewContainer.style.display = 'none';
+                    hiddenInput.value = '';
+                }
+
+                // iPad 지원 붙여넣기 설정 함수
+                function setupPasteAreaForIPad(textareaId, imageId, previewContainerId, dataFieldId) {
+                    const pasteArea = document.getElementById(textareaId);
+                    const pastedImage = document.getElementById(imageId);
+                    const previewContainer = document.getElementById(previewContainerId);
+                    const pastedImageData = document.getElementById(dataFieldId);
+
+                    if (!pasteArea || !pastedImage || !previewContainer || !pastedImageData) return;
+
+                    // textarea에 직접 paste 이벤트 연결
+                    pasteArea.addEventListener('paste', function (e) {
+                        const items = e.clipboardData.items;
+
+                        for (let i = 0; i < items.length; i++) {
+                            if (items[i].type.indexOf('image') !== -1) {
+                                e.preventDefault();
+                                const blob = items[i].getAsFile();
+                                const reader = new FileReader();
+
+                                reader.onload = function (event) {
+                                    pastedImage.src = event.target.result;
+                                    previewContainer.style.display = 'block';
+                                    pasteArea.style.display = 'none';
+                                    pastedImageData.value = event.target.result;
+                                };
+
+                                reader.readAsDataURL(blob);
+                                break;
+                            }
+                        }
+                    });
+
+                    // 포커스 효과
+                    pasteArea.addEventListener('focus', function () {
+                        this.style.borderColor = '#007BFF';
+                        this.style.backgroundColor = '#f0f8ff';
+                    });
+
+                    pasteArea.addEventListener('blur', function () {
+                        this.style.borderColor = '#ccc';
+                        this.style.backgroundColor = '#f8f9fa';
+                    });
+                }
+
+                // Resizer functionality
+                let isResizing = false;
+                let currentX = 0;
+                let leftPaneWidth = 0;
+                let defaultWidth = 43.5; // Store default width
+
+                // Load initial width from admin settings or use default
+                function initializePaneWidths() {
+                    const leftPane = document.getElementById('leftPane');
+                    const container = document.querySelector('.container');
+
+                    // localStorage에 저장된 값을 우선 사용
+                    const savedWidth = localStorage.getItem('leftPaneWidth');
+
+                    // settings.json에서 가져온 값 (백엔드에서 전달)
+                    const adminWidth = '{{ left_pane_width if left_pane_width else "" }}';
+
+                    let initialWidth;
+
+                    // 우선순위: 1. localStorage > 2. settings.json > 3. 기본값 43.5
+                    if (savedWidth) {
+                        initialWidth = parseFloat(savedWidth);
+                    } else if (adminWidth && adminWidth !== '') {
+                        initialWidth = parseFloat(adminWidth);
+                        defaultWidth = initialWidth; // Update default width from admin settings
+                    } else {
+                        initialWidth = 43.5; // default
+                    }
+
+                    // 유효성 검사
+                    if (initialWidth < 20) initialWidth = 20;
+                    if (initialWidth > 80) initialWidth = 80;
+
+                    leftPane.style.width = initialWidth + '%';
+                }
+
+                // Reset to default width
+                function resetToDefaultWidth() {
+                    const leftPane = document.getElementById('leftPane');
+                    leftPane.style.width = defaultWidth + '%';
+
+                    // Clear saved width from localStorage
+                    localStorage.removeItem('leftPaneWidth');
+
+                    // Visual feedback with smooth transition
+                    leftPane.style.transition = 'width 0.3s ease';
+                    setTimeout(() => {
+                        leftPane.style.transition = '';
+                    }, 300);
+                }
+
+                // Setup resizer
+                function setupResizer() {
+                    const resizer = document.getElementById('resizer');
+                    const leftPane = document.getElementById('leftPane');
+                    const container = document.querySelector('.container');
+
+                    if (!resizer || !leftPane || !container) return;
+
+                    resizer.addEventListener('mousedown', startResize);
+                    document.addEventListener('mousemove', resize);
+                    document.addEventListener('mouseup', stopResize);
+
+                    // Double click to reset to default width
+                    resizer.addEventListener('dblclick', resetToDefaultWidth);
+
+                    // Touch events for mobile
+                    resizer.addEventListener('touchstart', startResize);
+                    document.addEventListener('touchmove', resize);
+                    document.addEventListener('touchend', stopResize);
+                }
+
+                function startResize(e) {
+                    isResizing = true;
+                    currentX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+
+                    const leftPane = document.getElementById('leftPane');
+                    leftPaneWidth = leftPane.offsetWidth;
+
+                    // Prevent text selection while resizing
+                    document.body.style.userSelect = 'none';
+                    document.body.style.cursor = 'col-resize';
+
+                    e.preventDefault();
+                }
+
+                function resize(e) {
+                    if (!isResizing) return;
+
+                    const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                    const deltaX = clientX - currentX;
+
+                    const leftPane = document.getElementById('leftPane');
+                    const container = document.querySelector('.container');
+
+                    const containerWidth = container.offsetWidth;
+                    const newWidth = leftPaneWidth + deltaX;
+                    const newWidthPercent = (newWidth / containerWidth) * 100;
+
+                    // Set boundaries (min 20%, max 80%)
+                    if (newWidthPercent >= 20 && newWidthPercent <= 80) {
+                        leftPane.style.width = newWidthPercent + '%';
+                    }
+
+                    e.preventDefault();
+                }
+
+                function stopResize() {
+                    if (!isResizing) return;
+
+                    isResizing = false;
+                    document.body.style.userSelect = '';
+                    document.body.style.cursor = '';
+
+                    // Save the width to localStorage
+                    const leftPane = document.getElementById('leftPane');
+                    const container = document.querySelector('.container');
+                    const widthPercent = (leftPane.offsetWidth / container.offsetWidth) * 100;
+                    localStorage.setItem('leftPaneWidth', widthPercent.toFixed(2));
+                }
+
+                // 기존 토글 관련 함수들
+                function toggleEdit() {
+                    var description = document.getElementById('description');
+                    var editForm = document.getElementById('edit-form');
+                    var toggleButton = document.getElementById('edit-toggle-button');
+
+                    if (editForm.style.display === 'none') {
+                        description.style.display = 'none';
+                        editForm.style.display = 'block';
+                        toggleButton.textContent = 'Cancel';
+                    } else {
+                        description.style.display = 'block';
+                        editForm.style.display = 'none';
+                        toggleButton.textContent = 'Edit';
+                    }
+                }
+
+                function toggleTaskForm() {
+                    var taskForm = document.getElementById('task-form');
+                    var toggleButton = document.getElementById('toggleTaskFormButton');
+                    if (taskForm.style.display === 'none') {
+                        taskForm.style.display = 'flex';
+                        toggleButton.textContent = '➖';
+                    } else {
+                        taskForm.style.display = 'none';
+                        toggleButton.textContent = '➕';
+                    }
+                }
+
+                function toggleMemoForm() {
+                    var memoForm = document.getElementById('memo-form');
+                    var toggleButton = document.getElementById('toggleMemoFormButton');
+                    if (memoForm.style.display === 'none') {
+                        memoForm.style.display = 'block';
+                        toggleButton.textContent = '➖';
+                    } else {
+                        memoForm.style.display = 'none';
+                        toggleButton.textContent = '➕';
+                    }
+                }
+
+                function toggleLinkForm() {
+                    var linkForm = document.getElementById('link-form');
+                    var toggleButton = document.getElementById('toggleLinkFormButton');
+                    if (linkForm.style.display === 'none') {
+                        linkForm.style.display = 'flex';
+                        toggleButton.textContent = '➖';
+                    } else {
+                        linkForm.style.display = 'none';
+                        toggleButton.textContent = '➕';
+                    }
+                }
+
+                function toggleContent(button) {
+                    var contentElement = button.previousElementSibling.previousElementSibling;
+                    var isExpanded = contentElement.style.whiteSpace === 'normal';
+
+                    if (isExpanded) {
+                        contentElement.style.whiteSpace = 'nowrap';
+                        contentElement.style.overflow = 'hidden';
+                        contentElement.style.textOverflow = 'ellipsis';
+                        button.textContent = '더보기';
+                    } else {
+                        contentElement.style.whiteSpace = 'normal';
+                        contentElement.style.overflow = 'visible';
+                        contentElement.style.textOverflow = 'clip';
+                        button.textContent = '접기';
+                    }
+                }
+
+                // 무한 스크롤 관련 변수
+                let currentPage = 1;
+                let isLoading = false;
+                let hasMore = true;
+                let scrollHandler = null;
+
+                // 디바운스 함수
+                function debounce(func, wait) {
+                    let timeout;
+                    return function (...args) {
+                        const later = () => {
+                            clearTimeout(timeout);
+                            func(...args);
+                        };
+                        clearTimeout(timeout);
+                        timeout = setTimeout(later, wait);
+                    };
+                }
+
+                // 메모 로드 함수
+                function loadMoreMemos() {
+                    if (isLoading || !hasMore) return;
+
+                    // Show loading indicator
+                    const loadingElement = document.getElementById('loading');
+                    if (loadingElement) loadingElement.style.display = 'block';
+
+                    // Disable load more button if it exists
+                    const loadMoreButton = document.getElementById('loadMoreButton');
+                    if (loadMoreButton) loadMoreButton.disabled = true;
+
+                    isLoading = true;
+
+                    // Get project ID from the current page
+                    const projectId = window.location.pathname.split('/').filter(Boolean).pop();
+
+                    // Make API request to get more memos
+                    fetch(`/api/project/${projectId}/memos?page=${currentPage + 1}`)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            // 현재 활성화된 뷰 모드 확인
+                            const noteView = document.getElementById('noteView');
+                            const tableView = document.getElementById('tableView');
+                            const isTableView = !tableView.classList.contains('hidden');
+
+                            if (data.memos && data.memos.length > 0) {
+                                if (isTableView) {
+                                    // 테이블 뷰 로직 (기존)
+                                    const tbody = document.getElementById('memoTableBody');
+                                    data.memos.forEach(memo => {
+                                        const tr = document.createElement('tr');
+                                        tr.onclick = () => viewMemo(memo.id);
+                                        tr.style.cursor = 'pointer';
+
+                                        // Strip HTML tags from content
+                                        const content = memo.content.replace(/<[^>]*>/g, '');
+                                        const date = new Date(memo.created_at);
+                                        const formattedDate = date.toISOString().split('T')[0];
+                                        
+                                        let tagName = '';
+                                        if (memo.tag) {
+                                            if (typeof memo.tag === 'object' && memo.tag.name) tagName = memo.tag.name;
+                                            else if (typeof memo.tag === 'string') tagName = memo.tag;
+                                        }
+
+                                        tr.innerHTML = `
+                                            <td>${formattedDate}</td>
+                                            <td style="font-size: 14px; color: #F44336;">${tagName}</td>
+                                            <td>
+                                                <span class="ellipsis" data-content="${escapeHtml(content)}">
+                                                    ${escapeHtml(content.substring(0, 100))}${content.length > 100 ? '...' : ''}
+                                                </span>
+                                                <span class="file-icons">
+                                                    ${memo.image_count > 1 ? '<i class="fas fa-images" style="color: var(--product-blue);"></i>' : (memo.has_image ? '<i class="fas fa-file-image" style="color: var(--product-blue);"></i>' : '')}
+                                                    ${memo.has_pdf ? '<i class="fas fa-file-pdf" style="color: red;"></i>' : ''}
+                                                    ${memo.has_excel ? '<i class="fas fa-file-excel" style="color: green;"></i>' : ''}
+                                                    ${memo.has_ppt ? '<i class="fas fa-file-powerpoint" style="color: orange;"></i>' : ''}
+                                                    ${memo.has_md ? '<i class="fas fa-file-alt" style="color: purple;"></i>' : ''}
+                                                    ${memo.html_filename ? '<i class="fas fa-file-code" style="color: #FF8C00;"></i>' : ''}
+                                                </span>
+                                            </td>
+                                        `;
+                                        tbody.appendChild(tr);
+                                    });
+                                } else {
+                                    // 노트 뷰 로직 (Infinite Scroll for Note View)
+                                    const noteContainer = document.getElementById('noteView');
+                                    
+                                    // 마지막 날짜 그룹 찾기
+                                    let lastDateGroup = noteContainer.lastElementChild;
+                                    while (lastDateGroup && lastDateGroup.tagName === 'HR') {
+                                        lastDateGroup = lastDateGroup.previousElementSibling;
+                                    }
+                                    
+                                    let lastDate = '';
+                                    if (lastDateGroup && lastDateGroup.classList.contains('memo-date-group')) {
+                                        // Find date text inside h3 > a
+                                        const h3 = lastDateGroup.querySelector('h3');
+                                        if (h3) lastDate = h3.innerText.trim();
+                                    }
+
+                                    let currentDateGroup = lastDateGroup;
+
+                                    data.memos.forEach(memo => {
+                                        const dateObj = new Date(memo.created_at);
+                                        const dateStr = dateObj.toISOString().split('T')[0];
+
+                                        if (dateStr !== lastDate) {
+                                            // 새로운 날짜 그룹 생성
+                                            const newGroup = document.createElement('div');
+                                            newGroup.className = 'memo-date-group';
+                                            newGroup.style.marginBottom = '5px';
+                                            newGroup.innerHTML = `
+                                                <div style="display: inline;">
+                                                    <h3 style="margin: 0; margin-bottom: 5px; font-size: 18px; color: #007BFF; display: inline;">
+                                                        <a href="/view_memo/${memo.id}" style="color: #007BFF; text-decoration: none;">
+                                                            ${dateStr}
+                                                        </a>
+                                                    </h3>
+                                                </div>
+                                            `;
+                                            // 구분선 추가
+                                            if (noteContainer.lastElementChild.tagName !== 'HR') {
+                                                 const hr = document.createElement('hr');
+                                                 hr.style.margin = '15px 0';
+                                                 noteContainer.appendChild(hr);
+                                            }
+                                            noteContainer.appendChild(newGroup);
+                                            currentDateGroup = newGroup;
+                                            lastDate = dateStr;
+                                        }
+
+                                        // 메모 섹션 생성
+                                        const memoSection = document.createElement('div');
+                                        memoSection.className = 'memo-section';
+                                        memoSection.style.marginBottom = '5px';
+                                        
+                                        let tagHtml = '';
+                                        if (memo.tag) {
+                                            tagHtml = `<div class="memo-tag" style="color: #F44336; margin-bottom: 1px; font-size: 14px; line-height: 1;">#${memo.tag}</div>`;
+                                        }
+                                        
+                                        // 이미지 HTML 생성
+                                        let imagesHtml = '';
+                                        let allImages = [];
+                                        if (memo.image_filename) allImages.push(memo.image_filename);
+                                        if (memo.images && memo.images.length > 0) {
+                                            memo.images.forEach(img => {
+                                                if (img !== memo.image_filename) allImages.push(img);
+                                            });
+                                        }
+                                        
+                                        if (allImages.length > 0) {
+                                            // 중복 제거 (Set 사용)
+                                            allImages = [...new Set(allImages)];
+                                            
+                                            if (allImages.length > 0) {
+                                                let imgs = '';
+                                                allImages.forEach(img => {
+                                                    imgs += `<a href="/static/data/${img}" target="_blank">
+                                                        <img src="/static/data/${img}" alt="Memo Image" style="width: 300px; max-width: 100%;">
+                                                    </a>`;
+                                                });
+                                                imagesHtml = `<div style="display: flex; flex-wrap: wrap; gap: 10px;">${imgs}</div>`;
+                                            }
+                                        }
+
+                                        // 파일 링크들
+                                        let filesHtml = '';
+                                        if (memo.pdf_filename) filesHtml += `<a href="/static/data/${memo.pdf_filename}" target="_blank" style="color: #007BFF; display:block;">PDF: ${memo.pdf_filename}</a>`;
+                                        if (memo.ppt_filename) filesHtml += `<a href="/static/data/${memo.ppt_filename}" target="_blank" style="color: #007BFF; display:block;">PPT: ${memo.ppt_filename}</a>`;
+                                        if (memo.excel_filename) filesHtml += `<a href="/static/data/${memo.excel_filename}" target="_blank" style="color: #007BFF; display:block;">XLSX: ${memo.excel_filename}</a>`;
+                                        if (memo.md_filename) filesHtml += `<a href="/static/data/${memo.md_filename}" target="_blank" style="color: #007BFF; display:block;">Markdown: ${memo.md_filename}</a>`;
+                                        if (memo.html_filename) filesHtml += `<a href="/view_html_file/${memo.id}" target="_blank" style="color: #FF8C00; display:block;">HTML: ${memo.html_filename}</a>`;
+
+                                        memoSection.innerHTML = `
+                                            ${tagHtml}
+                                            <div class="memo-content" style="margin: 0;">
+                                                ${memo.content_html}
+                                            </div>
+                                            <div class="toggle-link-container" style="display: none;">
+                                                <span class="toggle-link" style="color: #007BFF; cursor: pointer;">더보기</span>
+                                            </div>
+                                            ${imagesHtml}
+                                            ${filesHtml}
+                                        `;
+                                        
+                                        currentDateGroup.appendChild(memoSection);
+                                        
+                                        // Update content expansion logic for new elements
+                                        const content = memoSection.querySelector('.memo-content');
+                                        const lineHeight = parseFloat(getComputedStyle(content).lineHeight || '20px'); // fallback
+                                        const maxHeight = lineHeight * 7.4;
+
+                                        if (content.scrollHeight > maxHeight) {
+                                            content.style.maxHeight = `${maxHeight}px`;
+                                            content.style.overflow = 'hidden';
+                                            const toggleLinkContainer = content.nextElementSibling;
+                                            if (toggleLinkContainer) toggleLinkContainer.style.display = 'block';
+                                            
+                                            toggleLinkContainer.querySelector('.toggle-link').addEventListener('click', function() {
+                                                const isExpanded = content.classList.toggle('expanded');
+                                                if (isExpanded) {
+                                                    content.style.maxHeight = `${content.scrollHeight}px`;
+                                                    this.textContent = '접기';
+                                                } else {
+                                                    content.style.maxHeight = '11.4em'; // approximate 7 lines
+                                                    this.textContent = '더보기';
+                                                }
+                                            });
+                                        }
+                                    });
+                                }
+
+                                currentPage++;
+                                hasMore = data.has_more;
+                            } else {
+                                hasMore = false;
+                                const loadMoreContainer = document.getElementById('loadMoreContainer');
+                                if (loadMoreContainer) loadMoreContainer.style.display = 'none';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error loading memos:', error);
+                        })
+                        .finally(() => {
+                            isLoading = false;
+
+                            // Hide loading indicator
+                            const loadingElement = document.getElementById('loading');
+                            if (loadingElement) loadingElement.style.display = 'none';
+
+                            // Re-enable load more button
+                            const loadMoreButton = document.getElementById('loadMoreButton');
+                            if (loadMoreButton) loadMoreButton.disabled = false;
+                        });
+                }
+
+                // Helper function to escape HTML content
+                function escapeHtml(unsafe) {
+                    return unsafe
+                        .replace(/&/g, "&amp;")
+                        .replace(/</g, "&lt;")
+                        .replace(/>/g, "&gt;")
+                        .replace(/"/g, "&quot;")
+                        .replace(/'/g, "&#039;");
+                }
+
+                // PC 및 모바일 모두에서 작동하는 스크롤 이벤트 핸들러
+                function checkScrollAndLoad() {
+                    // 현재 스크롤 위치, 화면 높이, 문서 전체 높이 계산
+                    const scrollTop = window.scrollY || window.pageYOffset || document.documentElement.scrollTop;
+                    const windowHeight = window.innerHeight || document.documentElement.clientHeight;
+                    const documentHeight = Math.max(
+                        document.body.scrollHeight,
+                        document.body.offsetHeight,
+                        document.documentElement.scrollHeight,
+                        document.documentElement.offsetHeight,
+                        document.documentElement.clientHeight
+                    );
+
+                    // 스크롤이 하단에 가까울 때 추가 메모 로드
+                    if (documentHeight - (scrollTop + windowHeight) < 300) {
+                        loadMoreMemos();
+                    }
+                }
+
+                // 뷰 모드 토글 함수
+                function toggleViewMode(mode) {
+                    const noteView = document.getElementById('noteView');
+                    const tableView = document.getElementById('tableView');
+
+                    // 기존 이벤트 리스너 제거
+                    if (scrollHandler) {
+                        window.removeEventListener('scroll', scrollHandler);
+                        scrollHandler = null;
+                    }
+
+                    if (mode === 'table') {
+                        noteView.classList.add('hidden');
+                        tableView.classList.remove('hidden');
+
+                        // 새 이벤트 리스너 등록 (debounce 제거 - 반응성 향상)
+                        scrollHandler = checkScrollAndLoad;
+                        window.addEventListener('scroll', scrollHandler);
+
+                        // 초기 로드 체크 (페이지가 짧은 경우 스크롤 없이 로드하기 위함)
+                        setTimeout(checkScrollAndLoad, 500);
+                    } else {
+                        noteView.classList.remove('hidden');
+                        tableView.classList.add('hidden');
+                        
+                        // 노트 뷰일 때도 스크롤 리스너 등록
+                        scrollHandler = checkScrollAndLoad;
+                        window.addEventListener('scroll', scrollHandler);
+                        
+                        setTimeout(checkScrollAndLoad, 500);
+                    }
+
+                    // 세션에 모드 저장
+                    fetch('/set_view_mode', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ view_mode: mode }),
+                    }).then(response => {
+                        if (!response.ok) {
+                            console.error('Failed to save view mode');
+                        }
+                    });
+                }
+
+                function updateTaskStatus(taskId) {
+                    var checkbox = document.getElementById('task_' + taskId);
+                    var status = checkbox.checked ? 'Done' : 'To Do';
+
+                    fetch('/update_task_status', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ task_id: taskId, status: status }),
+                    }).then(response => {
+                        if (response.ok) {
+                            if (status === 'Done') {
+                                var taskItem = document.getElementById('task-item-' + taskId);
+                                taskItem.style.opacity = '0';
+                                setTimeout(() => {
+                                    taskItem.remove();
+                                }, 300); // 300ms 후에 요소를 완전히 제거
+                            }
+                        } else {
+                            console.log('Failed to update task status');
+                            checkbox.checked = !checkbox.checked; // 업데이트 실패 시 체크박스 상태를 되돌림
+                        }
+                    });
+                }
+
+                // 기타 유틸리티 함수들
+                function viewMemo(memoId) {
+                    window.location.href = "/view_memo/" + memoId;
+                }
+
+                function toggleTagInput(selectElement) {
+                    var tagInput = document.getElementById('tag-input');
+                    if (selectElement.value === 'other') {
+                        tagInput.style.display = 'inline-block';
+                        tagInput.focus();
+                    } else {
+                        tagInput.style.display = 'none';
+                    }
+                }
+
+                function isiOS() {
+                    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                }
+
+                function showComment(taskId, comment) {
+                    var tooltip = document.getElementById("taskCommentTooltip");
+                    var commentText = document.getElementById("taskCommentText");
+
+                    // 코멘트가 문자열이 아니거나 빈 문자열인 경우 툴팁 숨김
+                    if (typeof comment === "string" && comment.trim() !== "") {
+                        commentText.textContent = comment;
+                        tooltip.style.display = "block";
+
+                        // 마우스 위치에 따라 툴팁 위치 조정
+                        tooltip.style.left = event.pageX + "px";
+                        tooltip.style.top = (event.pageY + 20) + "px";
+                    } else {
+                        tooltip.style.display = "none"; // 코멘트가 없으면 툴팁을 숨김
+                    }
+                }
+
+                function hideComment() {
+                    var tooltip = document.getElementById("taskCommentTooltip");
+                    tooltip.style.display = "none";
+                }
+
+                // 기존의 이벤트 리스너 등록
+                document.getElementById('link-form').addEventListener('submit', function (event) {
+                    var urlInput = document.getElementById('url-input');
+                    var httpPrefix = document.getElementById('http-prefix').value;
+
+                    if (!urlInput.value.startsWith('http://') && !urlInput.value.startsWith('https://')) {
+                        urlInput.value = httpPrefix + urlInput.value;
+                    }
+                });
+
+                function toggleImageForm() {
+                    var form = document.getElementById('image-upload-form');
+                    var toggleButton = document.getElementById('toggleImageFormButton');
+                    if (form.style.display === 'none') {
+                        form.style.display = 'block';
+                        toggleButton.textContent = '➖';
+                    } else {
+                        form.style.display = 'none';
+                        toggleButton.textContent = '➕';
+                    }
+                }
+
+                function toggleImageInput(option) {
+                    document.getElementById('image-file').style.display = (option === 'file') ? 'block' : 'none';
+                    document.getElementById('image-paste').style.display = (option === 'paste') ? 'block' : 'none';
+
+                    // 옵션 전환 시 붙여넣기 영역 초기화
+                    if (option === 'paste') {
+                        clearImagePaste();
+                    }
+                }
+
+                function validateImageForm() {
+                    const imageOption = document.getElementById('image_option').value;
+                    const imageFile = document.getElementById('file').value;
+                    const pastedImageData = document.getElementById('pasted_image_data').value;
+                    const errorDiv = document.getElementById('error-message');
+
+                    errorDiv.textContent = ''; // Reset error message
+
+                    if (imageOption === 'file' && imageFile === '') {
+                        errorDiv.textContent = 'Please upload an image file or choose another image option.';
+                        return false;
+                    }
+
+                    if (imageOption === 'paste' && pastedImageData === '') {
+                        errorDiv.textContent = 'Please paste an image or choose another image option.';
+                        return false;
+                    }
+
+                    return true;
+                }
+
+                function toggleMemoImageInput(option) {
+                    document.getElementById('memo-image-file').style.display = (option === 'file') ? 'block' : 'none';
+                    document.getElementById('memo-image-paste').style.display = (option === 'paste') ? 'block' : 'none';
+
+                    // 옵션 전환 시 붙여넣기 영역 초기화
+                    if (option === 'paste') {
+                        clearMemoPaste();
+                    }
+                }
+
+                // 메모 폼 리셋 함수
+                function resetMemoForm() {
+                    document.getElementById('memo-form').style.display = 'none';
+                    document.getElementById('toggleMemoFormButton').textContent = '➕';
+
+                    // 이미지 관련 필드 초기화
+                    clearMemoPaste();
+                    document.getElementById('memo_image_option').value = 'file';
+                    toggleMemoImageInput('file');
+                }
+
+                // 초기화 및 이벤트 리스너
+                document.addEventListener('DOMContentLoaded', function () {
+                    // Initialize pane widths from admin settings
+                    initializePaneWidths();
+
+                    // Setup the resizer
+                    setupResizer();
+
+                    // iPad 지원 붙여넣기 설정 (두 영역 모두)
+                    setupPasteAreaForIPad(
+                        'paste-area',
+                        'pasted-image',
+                        'image-preview-container',
+                        'pasted_image_data'
+                    );
+
+                    setupPasteAreaForIPad(
+                        'memo-paste-area',
+                        'memo-pasted-image',
+                        'memo-preview-container',
+                        'memo-pasted-image-data'
+                    );
+
+                    // URL 파라미터에서 view_mode 가져오기
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const viewMode = urlParams.get('view_mode') || 'note';
+
+                    // 초기 뷰 모드 설정
+                    toggleViewMode(viewMode);
+
+                    // 메모 내용 처리
+                    document.querySelectorAll('.memo-content').forEach(function (content) {
+                        const lineHeight = parseFloat(getComputedStyle(content).lineHeight);
+                        const maxHeight = lineHeight * 7.4;  // 7줄 기준
+
+                        content.style.display = 'block';
+
+                        if (content.scrollHeight > maxHeight) {
+                            content.style.maxHeight = `${maxHeight}px`;
+                            content.style.overflow = 'hidden';
+
+                            const toggleLinkContainer = content.nextElementSibling;
+                            if (toggleLinkContainer) {
+                                toggleLinkContainer.style.display = 'block';
+                            }
+                        }
+                    });
+
+                    // 더보기/접기 버튼 이벤트
+                    document.querySelectorAll('.toggle-link').forEach(function (button) {
+                        button.addEventListener('click', function () {
+                            const content = this.closest('.memo-section').querySelector('.memo-content');
+                            const isExpanded = content.classList.toggle('expanded');
+
+                            if (isExpanded) {
+                                content.style.maxHeight = `${content.scrollHeight}px`;
+                                this.textContent = '접기';
+                            } else {
+                                content.style.maxHeight = '11.4em';
+                                this.textContent = '더보기';
+                            }
+                        });
+                    });
+
+                    // iOS 대응
+                    if (isiOS()) {
+                        document.querySelector('.container').style.flexDirection = 'column';
+                        document.querySelectorAll('.left-pane, .right-pane').forEach(function (pane) {
+                            pane.style.width = '100%';
+                            pane.style.padding = '0';
+                            pane.style.border = 'none';
+                        });
+                    }
+
+                    // Set up load more button
+                    const loadMoreButton = document.getElementById('loadMoreButton');
+                    if (loadMoreButton) {
+                        loadMoreButton.addEventListener('click', loadMoreMemos);
+                    }
+
+                    // 수식 렌더링
+                    if (typeof renderMathInElement !== 'undefined') {
+                        renderMathInElement(document.body, {
+                            delimiters: [
+                                { left: "$$", right: "$$", display: true },  // 블록 수식
+                                { left: "$", right: "$", display: false },   // 인라인 수식
+                                { left: "\\[", right: "\\]", display: true },  // 블록 수식 (LaTeX)
+                                { left: "\\(", right: "\\)", display: false }  // 인라인 수식 (LaTeX)
+                            ],
+                            throwOnError: false  // 수식 에러가 발생해도 멈추지 않도록 설정
+                        });
+                    }
+
+                    // 모바일 환경에서의 수식 크기 조정
+                    if (window.innerWidth <= 768) {
+                        document.querySelectorAll('.math-inline, .math-block').forEach(function (element) {
+                            element.style.fontSize = '18px';
+                        });
+                    }
+
+                    // 페이지 사이즈가 작아서 스크롤이 없을 경우에도 초기 데이터 로드 체크
+                    if (viewMode === 'table') {
+                        setTimeout(checkScrollAndLoad, 500);
+                    }
+                });
+                function validateFileCount(input) {
+                    if (input.files.length > 0) {
+                        let imageCount = 0;
+                        const imageExts = ['jpg', 'jpeg', 'png', 'gif'];
+                        
+                        for (let i = 0; i < input.files.length; i++) {
+                            const fileName = input.files[i].name;
+                            const ext = fileName.split('.').pop().toLowerCase();
+                            if (imageExts.includes(ext)) {
+                                imageCount++;
+                            }
+                        }
+                        
+                        if (imageCount > 5) {
+                            alert('이미지는 최대 5장까지만 업로드할 수 있습니다.');
+                            input.value = ''; // 선택 초기화
+                        }
+                    }
+                }
+            </script>
+            {% endblock %}

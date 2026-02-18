@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="width: 50%; margin: 0 auto; text-align: center;">
+    <h1>View Task</h1>
+    <div>
+        <label for="title">Title:</label>
+        <input type="text" id="title" name="title" value="{{ task.title }}" readonly>
+    </div>
+    <div>
+        <label for="status">Status:</label>
+        <select id="status" name="status" disabled>
+            <option value="To Do" {% if task.status == 'To Do' %}selected{% endif %}>To Do</option>
+            <option value="Done" {% if task.status == 'Done' %}selected{% endif %}>Done</option>
+        </select>
+    </div>
+    <div style="display: flex; justify-content: space-between;">
+        <div style="flex: 1; margin-right: 10px;">
+            <label for="start_date">Start Date:</label>
+            <input type="date" id="start_date" name="start_date" value="{{ task.start_date.strftime('%Y-%m-%d') if task.start_date else '' }}" readonly>
+        </div>
+        <div style="flex: 1; margin-left: 10px;">
+            <label for="due_date">Due Date:</label>
+            <input type="date" id="due_date" name="due_date" value="{{ task.due_date.strftime('%Y-%m-%d') if task.due_date else '' }}" readonly>
+        </div>
+    </div>
+    
+    <!-- Comment Section -->
+    <div style="margin-top: 10px; text-align: left;">
+        <label for="comment">Comment:</label>
+        <textarea id="comment" name="comment" rows="3" style="width: 100%; padding: 5px;" readonly>{{ task.comment or 'No comment available.' }}</textarea>
+    </div>
+
+    <!-- Edit and Back to Project Buttons -->
+    <div style="margin-top: 20px;">
+        <a href="{{ url_for('edit_task', task_id=task.id) }}" class="btn btn-primary" style="margin-right: 10px;">Edit Task</a>
+        <a href="{{ url_for('project', project_id=task.project_id) }}" class="btn btn-secondary">Back to Project</a>
+    </div>
+</div>
+{% endblock %}

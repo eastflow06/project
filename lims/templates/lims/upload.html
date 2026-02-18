@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML 템플릿 업로드 - LIMS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#0f172a',
+                            card: '#1e293b',
+                            border: '#334155',
+                            text: '#e2e8f0',
+                            muted: '#94a3b8'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+    </style>
+</head>
+<body class="dark min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-5xl">
+        <!-- 헤더 -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-white mb-2">HTML 템플릿 등록</h1>
+                    <p class="text-dark-muted">외부에서 생성된 완성된 HTML 템플릿을 등록합니다</p>
+                </div>
+                <button onclick="window.location.href='/lims/'" 
+                        class="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition">
+                    ← 대시보드로
+                </button>
+            </div>
+        </div>
+
+        <!-- 업로드 폼 -->
+        <div class="bg-dark-card rounded-xl border border-dark-border p-6">
+            <form id="uploadForm" class="space-y-6">
+                <!-- 시험 제목 -->
+                <div>
+                    <label class="block text-sm font-medium text-white mb-2">
+                        시험 제목 <span class="text-red-400">*</span>
+                    </label>
+                    <input type="text" id="testTitle" required
+                           placeholder="예: 페라스타_AG_안심.안정성"
+                           class="w-full px-4 py-2 bg-dark-bg border border-dark-border rounded-lg text-white placeholder-dark-muted focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <!-- 제품명 -->
+                <div>
+                    <label class="block text-sm font-medium text-white mb-2">
+                        제품명 (선택사항)
+                    </label>
+                    <input type="text" id="productName"
+                           placeholder="예: 페라스타 AG"
+                           class="w-full px-4 py-2 bg-dark-bg border border-dark-border rounded-lg text-white placeholder-dark-muted focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <!-- HTML 템플릿 -->
+                <div>
+                    <label class="block text-sm font-medium text-white mb-2">
+                        HTML 템플릿 <span class="text-red-400">*</span>
+                    </label>
+                    <textarea id="htmlTemplate" rows="20" required
+                              placeholder="<!DOCTYPE html>&#10;<html lang=&quot;ko&quot;>&#10;<head>&#10;    <meta charset=&quot;UTF-8&quot;>&#10;    ...&#10;</head>&#10;<body>&#10;    ...&#10;</body>&#10;</html>"
+                              class="w-full px-4 py-2 bg-dark-bg border border-dark-border rounded-lg text-white placeholder-dark-muted font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"></textarea>
+                    <p class="mt-2 text-xs text-dark-muted">
+                        완성된 HTML 템플릿 전체를 붙여넣으세요. &lt;html&gt;...&lt;/html&gt; 형식이어야 합니다.
+                    </p>
+                </div>
+
+                <!-- 버튼 -->
+                <div class="flex gap-4 pt-4">
+                    <button type="submit" 
+                            class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        등록
+                    </button>
+                    <button type="button" onclick="previewHTML()" 
+                            class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                        </svg>
+                        미리보기
+                    </button>
+                    <button type="button" onclick="loadSampleTemplate()" 
+                            class="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition font-medium">
+                        샘플 템플릿 로드
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- 로딩 인디케이터 -->
+        <div id="loading" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-dark-card rounded-lg p-6 flex items-center gap-4">
+                <svg class="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span class="text-white text-lg">등록 중...</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 폼 제출 처리
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const testTitle = document.getElementById('testTitle').value.trim();
+            const productName = document.getElementById('productName').value.trim();
+            const htmlTemplate = document.getElementById('htmlTemplate').value.trim();
+            
+            if (!testTitle) {
+                alert('시험 제목을 입력해주세요.');
+                return;
+            }
+            
+            if (!htmlTemplate) {
+                alert('HTML 템플릿을 입력해주세요.');
+                return;
+            }
+            
+            // 간단한 HTML 형식 검증
+            if (!htmlTemplate.toLowerCase().includes('<html') || !htmlTemplate.toLowerCase().includes('</html>')) {
+                if (!confirm('입력한 내용이 완전한 HTML 문서가 아닌 것 같습니다. 계속 진행하시겠습니까?')) {
+                    return;
+                }
+            }
+            
+            const data = {
+                test_title: testTitle,
+                product_name: productName || null,
+                html_template: htmlTemplate
+            };
+            
+            showLoading(true);
+            
+            try {
+                const response = await fetch('/lims/api/tests', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('✓ 등록 완료!\n\nID: ' + result.data.id + '\n제목: ' + result.data.test_title);
+                    window.location.href = '/lims/';
+                } else {
+                    alert('오류: ' + result.error);
+                }
+            } catch (error) {
+                alert('오류: ' + error.message);
+                console.error(error);
+            } finally {
+                showLoading(false);
+            }
+        });
+        
+        // 미리보기
+        function previewHTML() {
+            const html = document.getElementById('htmlTemplate').value;
+            
+            if (!html.trim()) {
+                alert('미리볼 HTML 템플릿을 입력해주세요.');
+                return;
+            }
+            
+            const win = window.open('', '_blank', 'width=1200,height=800');
+            win.document.write(html);
+            win.document.close();
+        }
+        
+        // 샘플 템플릿 로드
+        function loadSampleTemplate() {
+            const sample = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>샘플 안정성 시험 결과</title>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background: #0f1923;
+            color: #e8edf2;
+            padding: 2rem;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #1a2735;
+            border-radius: 16px;
+            padding: 2rem;
+        }
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #00d4aa, #5b8def);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 2rem;
+        }
+        .data-table th,
+        .data-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #2a3f52;
+        }
+        .data-table th {
+            background: #0f1923;
+            color: #00d4aa;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 샘플 안정성 시험 결과</h1>
+        <p style="color: #8a9bb0; margin-bottom: 2rem;">Stability Study — Sample Data</p>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>경과일</th>
+                    <th>Batch A (%)</th>
+                    <th>Batch B (%)</th>
+                    <th>Batch C (%)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>0</td>
+                    <td>98.5</td>
+                    <td>99.1</td>
+                    <td>98.8</td>
+                </tr>
+                <tr>
+                    <td>30</td>
+                    <td>98.2</td>
+                    <td>98.9</td>
+                    <td>98.5</td>
+                </tr>
+                <tr>
+                    <td>60</td>
+                    <td>97.8</td>
+                    <td>98.5</td>
+                    <td>98.2</td>
+                </tr>
+                <tr>
+                    <td>90</td>
+                    <td>97.5</td>
+                    <td>98.2</td>
+                    <td>97.9</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <p style="margin-top: 2rem; color: #8a9bb0; font-size: 0.875rem;">
+            ✓ 데이터 로드 완료 — ${new Date().toLocaleString('ko-KR')}
+        </p>
+    </div>
+</body>
+</html>`;
+            
+            if (confirm('현재 입력된 내용을 샘플 템플릿으로 교체하시겠습니까?')) {
+                document.getElementById('htmlTemplate').value = sample;
+                document.getElementById('testTitle').value = '샘플 안정성 시험';
+                document.getElementById('productName').value = '샘플 제품';
+            }
+        }
+        
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            if (show) {
+                loading.classList.remove('hidden');
+            } else {
+                loading.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>

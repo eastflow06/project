@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIMS 시험 목록</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#0f172a',
+                            card: '#1e293b',
+                            border: '#334155',
+                            text: '#e2e8f0',
+                            muted: '#94a3b8'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+        /* Toast 알림 스타일 */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            min-width: 300px;
+            max-width: 500px;
+            padding: 16px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            z-index: 9999;
+            animation: slideIn 0.3s ease-out;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .toast.success {
+            background-color: #10b981;
+            color: white;
+        }
+        .toast.error {
+            background-color: #ef4444;
+            color: white;
+        }
+        .toast.info {
+            background-color: #3b82f6;
+            color: white;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+        .toast.hiding {
+            animation: slideOut 0.3s ease-out;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569; 
+        }
+    </style>
+</head>
+<body class="dark h-screen w-screen flex flex-col overflow-hidden bg-dark-bg text-dark-text">
+    
+    <!-- 1. 최상단 헤더 -->
+    <header class="h-16 flex-none bg-dark-card border-b border-dark-border px-6 flex items-center justify-between z-20">
+        <div class="flex items-center gap-4">
+            <div>
+                <h1 class="text-xl font-bold text-white">LIMS 시험 목록</h1>
+                <p class="text-xs text-dark-muted">시험결과 관리 시스템</p>
+            </div>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="window.location.href='/lims/'" 
+                    class="px-4 py-2 bg-dark-bg border border-dark-border text-dark-muted hover:text-white rounded-lg hover:bg-dark-border transition font-medium text-sm flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                </svg>
+                대시보드
+            </button>
+            <button onclick="window.location.href='/lims/upload'" 
+                    class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium text-sm flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+                HTML 템플릿 업로드
+            </button>
+            <button onclick="window.location.href='/lims/edit/0'" 
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-sm flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                새 시험 등록
+            </button>
+        </div>
+    </header>
+
+    <!-- 2. 메인 콘텐츠 영역 (테이블 목록) -->
+    <main class="flex-1 overflow-auto p-6">
+        <div class="max-w-7xl mx-auto bg-dark-card border border-dark-border rounded-xl shadow-sm overflow-hidden">
+            <div class="p-6 border-b border-dark-border">
+                <h2 class="text-lg font-semibold text-white">등록된 시험 목록</h2>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-dark-text">
+                    <thead class="bg-dark-bg/50 text-dark-muted uppercase font-medium">
+                        <tr>
+                            <th class="px-6 py-4 font-semibold tracking-wider">ID</th>
+                            <th class="px-6 py-4 font-semibold tracking-wider">시험 제목</th>
+                            <th class="px-6 py-4 font-semibold tracking-wider">제품명</th>
+                            <th class="px-6 py-4 font-semibold tracking-wider">유형</th>
+                            <th class="px-6 py-4 font-semibold tracking-wider">등록일</th>
+                            <th class="px-6 py-4 font-semibold tracking-wider text-right">관리</th>
+                        </tr>
+                    </thead>
+                    <tbody id="test-table-body" class="divide-y divide-dark-border">
+                        <!-- 데이터가 여기에 동적으로 추가됩니다 -->
+                    </tbody>
+                </table>
+                
+                <!-- 빈 상태 -->
+                <div id="empty-state" class="hidden py-16 text-center">
+                    <svg class="mx-auto h-12 w-12 text-dark-muted opacity-50 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                    </svg>
+                    <p class="text-dark-muted text-lg">등록된 시험이 없습니다</p>
+                    <p class="text-dark-muted/60 text-sm mt-1">새 시험을 등록하거나 데이터를 업로드하세요</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 토스트 컨테이너 -->
+    <div id="toast-container"></div>
+
+    <!-- 로딩 인디케이터 -->
+    <div id="loading" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-dark-card rounded-lg p-6 flex items-center gap-4">
+            <svg class="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="text-white text-lg">로딩 중...</span>
+        </div>
+    </div>
+
+    <script>
+        // 페이지 로드 시 시험 목록 조회
+        document.addEventListener('DOMContentLoaded', loadTests);
+
+        async function loadTests() {
+            showLoading(true);
+            try {
+                const response = await fetch('/lims/api/tests');
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error);
+                }
+
+                const tests = result.data;
+                const tbody = document.getElementById('test-table-body');
+                const emptyState = document.getElementById('empty-state');
+
+                if (tests.length === 0) {
+                    tbody.innerHTML = '';
+                    emptyState.classList.remove('hidden');
+                } else {
+                    emptyState.classList.add('hidden');
+                    tbody.innerHTML = tests.map(test => `
+                        <tr class="hover:bg-dark-bg/50 transition-colors group">
+                            <td class="px-6 py-4 whitespace-nowrap text-dark-muted font-mono text-xs">
+                                #${test.id}
+                            </td>
+                            <td class="px-6 py-4">
+                                <a href="${test.html_template ? `/lims/result/${test.id}` : `/lims/view/${test.id}`}" 
+                                   class="text-white font-medium hover:text-blue-400 transition-colors block">
+                                    ${escapeHtml(test.test_title)}
+                                </a>
+                            </td>
+                            <td class="px-6 py-4 text-dark-muted">
+                                ${test.product_name ? escapeHtml(test.product_name) : '-'}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                ${test.html_template 
+                                    ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-green-900/30 text-green-400 border border-green-800">HTML Report</span>' 
+                                    : '<span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-blue-900/30 text-blue-400 border border-blue-800">Chart Data</span>'}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-dark-muted text-sm">
+                                ${formatDate(test.created_at)}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                                <button onclick="window.location.href='/lims/edit/${test.id}'" 
+                                        class="text-dark-muted hover:text-white transition px-2 py-1 rounded hover:bg-dark-border">
+                                    수정
+                                </button>
+                                <button onclick="deleteTest(${test.id}, '${escapeHtml(test.test_title)}')" 
+                                        class="text-red-400 hover:text-red-300 transition px-2 py-1 rounded hover:bg-red-900/20">
+                                    삭제
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                showToast('시험 목록 로드 실패: ' + error.message, 'error');
+                console.error(error);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function deleteTest(id, title) {
+            if (!confirm(`"${title}" 시험을 삭제하시겠습니까?`)) {
+                return;
+            }
+
+            showLoading(true);
+            try {
+                const response = await fetch(`/lims/api/tests/${id}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error);
+                }
+
+                showToast(result.message, 'success');
+                await loadTests(); // 목록 새로고침
+            } catch (error) {
+                showToast('삭제 실패: ' + error.message, 'error');
+                console.error(error);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('ko-KR', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            if (show) {
+                loading.classList.remove('hidden');
+            } else {
+                loading.classList.add('hidden');
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
+            toast.innerHTML = `
+                <span style="font-size: 20px; font-weight: bold;">${icon}</span>
+                <span style="flex: 1;">${message}</span>
+            `;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.add('hiding');
+                setTimeout(() => {
+                    container.removeChild(toast);
+                }, 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ year }}.{{ month }}월분 법인카드 사용내역</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h2 {
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+
+        .table-container {
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        th, td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+
+        .amount-column {
+            text-align: right;
+        }
+
+        .total-amount {
+            text-align: left;
+            margin-top: 15px;
+            margin-left: 5px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        @media print {
+            body {
+                margin: 0;
+                font-size: 12px;
+                line-height: 1.4;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+
+            th, td {
+                padding: 8px;
+                border: 1px solid #000;
+                text-align: left;
+            }
+
+            /* 번호 셀 너비 조정 */
+            th:nth-child(1), td:nth-child(1) {
+                width: 15px;
+                text-align: center;
+                white-space: nowrap;
+            }
+
+            /* 일자 셀 */
+            th:nth-child(2), td:nth-child(2) {
+                width: 80px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            /* 금액 셀 */
+            th:nth-child(4), td:nth-child(4) {
+                width: 30px;
+                text-align: right;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            /* 사용자 셀 */
+            th:nth-child(5), td:nth-child(5) {
+                width: 60px;
+                text-align: center;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            /* 목적 셀 */
+            th:nth-child(6), td:nth-child(6) {
+                width: 100px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            /* 줄넘기 허용 (사용처, 내용, 비고) */
+            th:nth-child(3), td:nth-child(3), 
+            th:nth-child(7), td:nth-child(7), 
+            th:nth-child(8), td:nth-child(8) {
+                white-space: normal;
+            }
+
+            /* 번호, 일자, 사용자 셀 가운데 정렬 */
+            th:nth-child(1), td:nth-child(1),
+            th:nth-child(2), td:nth-child(2),
+            th:nth-child(5), td:nth-child(5) {
+                text-align: center;
+            }
+            
+            thead {
+                display: table-header-group;
+            }
+
+            tbody {
+                display: table-row-group;
+            }
+
+            .total-amount {
+                font-size: 20px;
+                margin-top: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h2>{{ year }}.{{ month }}월분 법인카드 (5589 2098 8192 6732) 사용내역</h2>
+    {% if data %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>번호</th>
+                    <th>일자</th>
+                    <th>사용처</th>
+                    <th>금액</th>
+                    <th>사용자</th>
+                    <th>목적</th>
+                    <th>내용</th>
+                    <th>비고</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in data %}
+                <tr>
+                    <td>{{ row.number }}</td>
+                    <td>{{ row.date }}</td>
+                    <td>{{ row.usage }}</td>
+                    <td class="amount-column">{{ "{:,}".format(row.amount) }}</td>
+                    <td>{{ row.user }}</td>
+                    <td>{{ row.purpose }}</td>
+                    <td>{{ row.content }}</td>
+                    <td>{{ row.note }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="total-amount">
+            합계: {{ "{:,}".format(total_amount) }}원
+        </div>
+    </div>
+    {% else %}
+    <p>데이터가 없습니다.</p>
+    {% endif %}
+</body>
+</html>

@@ -1,0 +1,2815 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard-wrapper">
+    <!-- Left Sidebar: Stats -->
+    <aside class="dashboard-sidebar">
+        <!-- Bookmarks -->
+        <div class="card stats-card compact bookmark-widget">
+            <h3 class="card-title clickable" onclick="openBookmarkModal()">
+                <span style="display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-bookmark"></i> Bookmarks
+                </span>
+                <i class="fas fa-cog" style="margin-left: auto; font-size: 0.9rem; color: var(--dashboard-text-secondary);"></i>
+            </h3>
+            
+            <div class="bookmark-list-sidebar" style="height: 160px; overflow-y: auto;">
+                {% for bookmark in bookmarks %}
+                <a href="{{ bookmark.url }}" class="bookmark-item-sidebar">
+                    <i class="{{ bookmark.icon }}"></i> {{ bookmark.name }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Real-time Memory Chart -->
+        <div class="card stats-card compact">
+            <div class="sidebar-chart-header">
+                <h3 class="card-title"><i class="fas fa-chart-line"></i> Memory</h3>
+                <span class="memory-badge" id="memoryCurrentValue">--</span>
+            </div>
+            <div class="sidebar-chart-body">
+                <canvas id="memoryChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Disk Stats -->
+        <div class="card stats-card compact">
+            <h3 class="card-title"><i class="fas fa-hdd"></i> Storage</h3>
+            <div class="disk-list">
+                {% for name, stats in disk_stats.items() %}
+                    {% if stats.error %}
+                        <div style="color: #ff6b6b;">{{ name }}: {{ stats.error }}</div>
+                    {% else %}
+                        <div class="disk-item">
+                            <div class="disk-header">
+                                <span>{{ name }}</span>
+                                <span class="disk-usage-text">{{ stats.used }} / {{ stats.total }}</span>
+                            </div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" style="width: {{ stats.percent }}%; background: {% if stats.percent > 90 %}#ff6b6b{% elif stats.percent > 70 %}#ffa94d{% else %}#51cf66{% endif %};"></div>
+                            </div>
+                            <div class="disk-footer">{{ stats.percent }}% Used</div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+
+
+        <!-- DB Stats -->
+        <div class="card stats-card compact">
+            <h3 class="card-title"><i class="fas fa-database"></i> Database</h3>
+            <div class="stat-list">
+                {% if db_stats.error %}
+                    <div style="color: #ff6b6b;">Error: {{ db_stats.error }}</div>
+                {% else %}
+                    {% for model, count in db_stats.items() %}
+                        <div class="stat-row">
+                            <span class="stat-label">{{ model }}</span>
+                            <span class="stat-value">{{ count }}</span>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="dashboard-main">
+        <!-- Widgets Grid (Top) -->
+        <div class="widgets-grid">
+            <!-- Weather Widget -->
+            <div class="card widget-card weather-widget">
+                <h3 class="card-title weather-header clickable" onclick="flipWeatherCard()">
+                    <span class="weather-title-left">
+                        <i class="fas fa-cloud-sun"></i> Weather
+                    </span>
+                    <i class="fas fa-sync-alt flip-icon" id="flipIcon"></i>
+                </h3>
+                <div class="flip-card-container" id="flipCardContainer">
+                    <!-- Front: Weather Display -->
+                    <div class="flip-card-front" id="weatherDisplay">
+                        <div class="widget-content" id="weatherWidget">
+                            <div class="weather-loading">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <span>날씨 정보 로딩중...</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Back: City Search -->
+                    <div class="flip-card-back" id="citySearch">
+                        <div class="city-search-container">
+                            <input type="text" id="citySearchInput" placeholder="도시 검색 (예: 서울, 강남구, 부산)" autocomplete="off">
+                            <div class="recent-cities" id="recentCitiesContainer">
+                                <h4>최근 도시</h4>
+                                <div id="recentCitiesList"></div>
+                            </div>
+                            <div class="search-results" id="searchResults"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Mini Calendar Widget -->
+            <div class="card widget-card calendar-widget">
+                <h3 class="card-title calendar-header">
+                    <span id="calHeaderTitle"><i class="fas fa-calendar-alt"></i> Calendar</span>
+                    <div class="cal-nav-group" id="calNavGroup">
+                        <button class="cal-nav" onclick="changeMonth(-1)">&lt;</button>
+                        <button class="cal-nav cal-nav-today" onclick="goToToday()">◼</button>
+                        <button class="cal-nav" onclick="changeMonth(1)">&gt;</button>
+                    </div>
+                    <span class="cal-title-inline" id="calendarTitle">2026년 2월</span>
+                </h3>
+                
+                <div class="flip-card-container" id="calendarFlipContainer">
+                    <!-- Front: Calendar -->
+                    <div class="flip-card-front">
+                        <div class="widget-content" id="calendarWidget">
+                            <div class="mini-calendar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Back: Detail -->
+                    <div class="flip-card-back">
+                        <div class="calendar-detail-container">
+                            <div class="detail-header">
+                                <span class="detail-date" id="detailDate">--</span>
+                            </div>
+                            <div class="detail-body">
+                                <div class="event-item" id="detailEvent">
+                                    <span class="event-marker"></span>
+                                    <span class="event-title" id="detailTitle">--</span>
+                                </div>
+                            </div>
+                            <button class="btn-calendar-back" onclick="flipCalendarBack()">
+                                <i class="fas fa-undo"></i> 달력으로
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Favorite Contacts Widget -->
+            <div class="card widget-card">
+                <h3 class="card-title">
+                    <i class="fas fa-star"></i> 
+                    <a href="{{ url_for('contact.index') }}" class="widget-title-link">Favorites</a>
+                </h3>
+                <div class="widget-content contact-list contact-list-grid">
+                    {% for contact in favorite_contacts[:8] %}
+                    <a href="{{ url_for('contact.contact_detail', contact_id=contact.id) }}" class="contact-item-simple">
+                        <span class="contact-name">{{ contact.name }}</span>
+                        <span class="contact-extension">{{ contact.extension }}</span>
+                    </a>
+                    {% else %}
+                    <div class="no-data">No favorites</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Task & Todo Status Grid -->
+        <div class="task-todo-grid">
+            <div class="card stats-card task-status-card">
+                <h3 class="card-title"><i class="fas fa-tasks"></i> <a href="/index#tasks" class="widget-title-link">Task Status</a></h3>
+                <div class="stat-grid">
+                    <div class="stat-item">
+                        <span class="stat-label">Overdue</span>
+                        <span class="stat-value" style="color: #dc3545;" id="taskOverdue">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Today</span>
+                        <span class="stat-value" style="color: #fd7e14;" id="taskToday">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Due Soon</span>
+                        <span class="stat-value" style="color: #ffc107;" id="taskSoon">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Due Later</span>
+                        <span class="stat-value" style="color: #28a745;" id="taskLater">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">No Date</span>
+                        <span class="stat-value" style="color: #6c757d;" id="taskNoDate">--</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card stats-card todo-status-card">
+                <h3 class="card-title"><i class="fas fa-clipboard-list"></i> <a href="/index#todos" class="widget-title-link">Todo by Project</a></h3>
+                <div class="todo-total">
+                    
+                    <span class="todo-total-value" id="todoTotal">--</span>
+                </div>
+            </div>
+            
+            <!-- Planned Schedules Widget -->
+            <div class="card widget-card planned-todo-card">
+                <h3 class="card-title"><i class="fas fa-calendar-check"></i> Planned Schedules</h3>
+                <div class="widget-content todo-list-simple">
+                    {% for todo in planned_todos %}
+                    <div class="todo-item-simple">
+                        <span class="todo-date">
+                            {% if todo.is_all_day %}
+                                {{ todo.due_date.strftime('%m/%d') }}
+                            {% else %}
+                                {{ todo.due_date.strftime('%m/%d') }}
+                            {% endif %}
+                        </span>
+                        <span class="todo-content">{{ todo.content }}</span>
+                    </div>
+                    {% else %}
+                    <div class="no-data">No planned schedules</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Card Usage Widget -->
+            <div class="card widget-card card-usage-widget">
+                <h3 class="card-title">
+                    <i class="fas fa-credit-card"></i> Card Usage
+                    <a href="/card" class="widget-link-icon"><i class="fas fa-external-link-alt"></i></a>
+                </h3>
+                <div class="widget-content card-usage-content">
+                    <div class="card-total-section">
+                        <span class="card-month-label" id="cardMonthLabel">--</span>
+                        <span class="card-total-amount" id="cardTotalAmount">--</span>
+                    </div>
+                    <div class="card-chart-container">
+                        <canvas id="cardUsageChart"></canvas>
+                        <div class="card-chart-overlay">
+                            <i class="fas fa-won-sign"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Project Charts Grid -->
+        <div class="charts-grid-3">
+            <div class="card chart-card">
+                <div class="chart-header compact">
+                    <h3 style="color: #5B8FF9;">Research</h3>
+                    <span class="badge">{{ chart_data.projects.research.total }}</span>
+                </div>
+                <div class="chart-body compact">
+                    <canvas id="researchChart"></canvas>
+                </div>
+            </div>
+            <div class="card chart-card">
+                <div class="chart-header compact">
+                    <h3 style="color: #F6BD16;">Development</h3>
+                    <span class="badge">{{ chart_data.projects.development.total }}</span>
+                </div>
+                <div class="chart-body compact">
+                    <canvas id="developmentChart"></canvas>
+                </div>
+            </div>
+            <div class="card chart-card">
+                <div class="chart-header compact">
+                    <h3 style="color: #5AD8A6;">Others</h3>
+                    <span class="badge">{{ chart_data.projects.others.total }}</span>
+                </div>
+                <div class="chart-body compact">
+                    <canvas id="othersChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+
+
+        <!-- Annual Calendar Widget -->
+        <div class="card widget-card annual-calendar-widget">
+            <h3 class="card-title">
+                <i class="fas fa-calendar-alt"></i> {{ calendar_events[0].start.split('-')[0] if calendar_events else '2026' }}년 주요 일정
+                <a href="/summary" class="widget-link-icon"><i class="fas fa-external-link-alt"></i></a>
+            </h3>
+            <div class="widget-content">
+                <div class="timeline-container">
+                    <div class="timeline-wrapper">
+                        <!-- Timeline Line -->
+                        <div class="timeline-line"></div>
+                        
+                        <!-- Timeline Items -->
+                        {% for month in range(1, 13) %}
+                            {% set month_events = [] %}
+                            {% for event in calendar_events %}
+                                {% set event_month = event.start.split('-')[1]|int if '-' in event.start else 0 %}
+                                {% if event_month == month %}
+                                    {% set _ = month_events.append(event) %}
+                                {% endif %}
+                            {% endfor %}
+                            
+                            <div class="timeline-item" data-month="{{ month }}">
+                                <!-- Events Above Timeline (Even months - Top) -->
+                                <div class="timeline-events timeline-events-top">
+                                    {% if month_events and month % 2 == 0 %}
+                                        {% for event in month_events[:4] %}
+                                            {% set event_day = event.start.split('-')[2].split('T')[0]|int if 'T' in event.start else event.start.split('-')[2]|int %}
+                                            <div class="timeline-event" 
+                                                 title="{{ event.summary }}"
+                                                 onclick="showCalendarEventDetail('{{ event.summary }}', '{{ event.start }}', '{{ event.end }}', '{{ event.description|default('')|replace("'", "\\'") }}')">
+                                                <div class="event-content">
+                                                    <span class="event-date-timeline">{{ month }}/{{ event_day }}</span>
+                                                    <span class="event-title-timeline">{{ event.summary }}</span>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- Timeline Dot & Month -->
+                                <div class="timeline-dot-wrapper">
+                                    <div class="timeline-month">{{ month }}월</div>
+                                    <div class="timeline-dot {% if month_events %}has-events{% endif %}"></div>
+                                </div>
+                                
+                                <!-- Events Below Timeline (Odd months - Bottom) -->
+                                <div class="timeline-events timeline-events-bottom">
+                                    {% if month_events and month % 2 == 1 %}
+                                        {% for event in month_events[:4] %}
+                                            {% set event_day = event.start.split('-')[2].split('T')[0]|int if 'T' in event.start else event.start.split('-')[2]|int %}
+                                            <div class="timeline-event" 
+                                                 title="{{ event.summary }}"
+                                                 onclick="showCalendarEventDetail('{{ event.summary }}', '{{ event.start }}', '{{ event.end }}', '{{ event.description|default('')|replace("'", "\\'") }}')">
+                                                <div class="event-content">
+                                                    <span class="event-date-timeline">{{ month }}/{{ event_day }}</span>
+                                                    <span class="event-title-timeline">{{ event.summary }}</span>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        Chart.register(ChartDataLabels);
+
+        // Datalabels for project charts - positioned outside with connecting lines
+        // Datalabels for project charts - Split: Numbers Inside, Text Outside
+        const projectDatalabelsConfig = {
+            labels: {
+                // 1. Inner Value (Number)
+                value: {
+                    align: 'center',
+                    anchor: 'center',
+                    color: '#ffffff',
+                    font: { weight: 'bold', size: 16 },
+                    formatter: (value) => value > 0 ? value : '',
+                    display: ctx => ctx.dataset.data[ctx.dataIndex] > 0
+                },
+                // 2. Outer Title (Text)
+                title: {
+                    align: 'end',
+                    anchor: 'end',
+                    color: '#ffffff',
+                    font: { weight: 'bold', size: 16 },
+                    offset: -1,
+                    formatter: (value, ctx) => {
+                        let label = ctx.chart.data.labels[ctx.dataIndex];
+                        if (label.length > 10) label = label.substring(0, 10) + '..';
+                        return label;
+                    },
+                    display: ctx => ctx.dataset.data[ctx.dataIndex] > 0
+                }
+            }
+        };
+
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { tooltip: { enabled: false } }
+        };
+
+        const chartColors = ['#5B8FF9', '#5AD8A6', '#5D7092', '#F6BD16', '#E8684A', '#6DC8EC', '#9270CA', '#FF9D4D', '#269A99', '#FF99C3'];
+
+        // Research Chart
+        new Chart(document.getElementById('researchChart').getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: {{ chart_data.projects.research.labels | tojson }},
+                datasets: [{ data: {{ chart_data.projects.research.data | tojson }}, backgroundColor: chartColors, borderWidth: 0 }]
+            },
+            options: {
+                ...commonOptions,
+                layout: { padding: 15 },
+                plugins: { tooltip: { enabled: false }, legend: { display: false }, datalabels: projectDatalabelsConfig },
+                cutout: '55%'
+            }
+        });
+
+        // Development Chart
+        new Chart(document.getElementById('developmentChart').getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: {{ chart_data.projects.development.labels | tojson }},
+                datasets: [{ data: {{ chart_data.projects.development.data | tojson }}, backgroundColor: chartColors, borderWidth: 0 }]
+            },
+            options: {
+                ...commonOptions,
+                layout: { padding: 15 },
+                plugins: { tooltip: { enabled: false }, legend: { display: false }, datalabels: projectDatalabelsConfig },
+                cutout: '55%'
+            }
+        });
+
+        // Others Chart
+        new Chart(document.getElementById('othersChart').getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: {{ chart_data.projects.others.labels | tojson }},
+                datasets: [{ data: {{ chart_data.projects.others.data | tojson }}, backgroundColor: chartColors, borderWidth: 0 }]
+            },
+            options: {
+                ...commonOptions,
+                layout: { padding: 15 },
+                plugins: { tooltip: { enabled: false }, legend: { display: false }, datalabels: projectDatalabelsConfig },
+                cutout: '55%'
+            }
+        });
+
+        // Task Status - display as numbers
+        const taskData = {{ chart_data.tasks.data | tojson }};
+        document.getElementById('taskOverdue').textContent = taskData[0] || 0;
+        document.getElementById('taskToday').textContent = taskData[1] || 0;
+        document.getElementById('taskSoon').textContent = taskData[2] || 0;
+        document.getElementById('taskLater').textContent = taskData[3] || 0;
+        document.getElementById('taskNoDate').textContent = taskData[4] || 0;
+
+        // Todo Status - display total count only
+        const todoLabels = {{ chart_data.todos.labels | tojson }};
+        const todoData = {{ chart_data.todos.data | tojson }};
+        const todoTotal = todoData.reduce((sum, count) => sum + count, 0);
+        document.getElementById('todoTotal').textContent = todoTotal || 0;
+
+        // Mini Calendar
+        renderMiniCalendar();
+
+        // Weather Widget
+        loadWeather();
+
+
+        // Real-time Memory Chart
+        initMemoryChart();
+        
+        // Card Usage Widget
+        loadCardUsage();
+    });
+
+    // Card Usage Widget Logic
+    async function loadCardUsage() {
+        try {
+            const response = await fetch('/api/card/summary');
+            const data = await response.json();
+            
+            if (data.error) throw new Error(data.error);
+            
+            // Update total amount
+            document.getElementById('cardMonthLabel').textContent = data.year_month;
+            document.getElementById('cardTotalAmount').textContent = new Intl.NumberFormat('ko-KR').format(data.total) + '원';
+            
+            // Prepare chart data
+            const labels = Object.keys(data.breakdown);
+            const values = Object.values(data.breakdown);
+            
+            if (labels.length === 0) {
+                 // No data
+                 return;
+            }
+            
+            // Category icon mapping (using emoji)
+            const categoryIcons = {
+                '회의비(식비)': '🍴',
+                '회의비(다과)': '☕',
+                '차량유지비': '🚗',
+                '숙박비': '🛏️',
+                '수용비': '💵',
+                '교통비': '🚇',
+                '기타': '💸'
+            };
+            
+            // Start Chart.js processing
+            const ctx = document.getElementById('cardUsageChart').getContext('2d');
+            
+            // Transform data for Stacked Horizontal Bar
+            // We want one single bar composed of multiple datasets (one for each category)
+            const categories = Object.keys(data.breakdown);
+            const datasets = categories.map((cat, index) => {
+                const colors = [
+                    '#dc3545', '#ff69b4', '#5B8FF9', '#9270CA', 
+                    '#F6BD16', '#5AD8A6', '#E8684A', '#FF9D4D'
+                ];
+                return {
+                    label: cat,
+                    data: [data.breakdown[cat]], // Single value array for the single bar
+                    backgroundColor: colors[index % colors.length],
+                    borderWidth: 0,
+                    barThickness: 20, // Reduced bar height
+                    categoryPercentage: 1.0
+                };
+            });
+
+            // Custom plugin to draw icons
+            const iconPlugin = {
+                id: 'cardUsageIcons',
+                afterDatasetsDraw: function(chart) {
+                    const ctx = chart.ctx;
+                    const meta = chart.getDatasetMeta(0);
+                    
+                    if (!meta || !meta.data || meta.data.length === 0) return;
+                    
+                    const barElement = meta.data[0];
+                    const barY = barElement.y;
+                    const barHeight = barElement.height;
+                    
+                    // Calculate cumulative positions for each segment
+                    let cumulativeX = barElement.x;
+                    
+                    chart.data.datasets.forEach((dataset, index) => {
+                        const value = dataset.data[0];
+                        if (!value || value <= 0) return;
+                        
+                        const datasetMeta = chart.getDatasetMeta(index);
+                        if (!datasetMeta || !datasetMeta.data || !datasetMeta.data[0]) return;
+                        
+                        const segmentWidth = datasetMeta.data[0].width;
+                        const iconX = cumulativeX + (segmentWidth / 2);
+                        
+                        const category = dataset.label;
+                        const iconEmoji = categoryIcons[category] || '💸';
+                        
+                        // Alternate position: even index above, odd index below
+                        const offsetY = (index % 2 === 0) ? -18 : 18;
+                        const iconY = barY + offsetY;
+                        
+                        ctx.save();
+                        ctx.font = '18px Arial, sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(iconEmoji, iconX, iconY);
+                        ctx.restore();
+
+                        
+                        cumulativeX += segmentWidth;
+                    });
+                }
+            };
+
+            new Chart(ctx, {
+                type: 'bar', // Bar chart
+                data: {
+                    labels: ['Monthly Spending'], // Single label for the single bar
+                    datasets: datasets
+                },
+                options: {
+                    indexAxis: 'y', // Horizontal
+                    layout: { padding: 0 },
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { 
+                            stacked: true, 
+                            display: false, // Hide X axis
+                            grid: { display: false },
+                            min: 0,
+                            max: data.total
+                        },
+                        y: { 
+                            stacked: true, 
+                            display: false, // Hide Y axis
+                            grid: { display: false }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }, // Hide legend
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    // Show only amount in tooltip
+                                    return new Intl.NumberFormat('ko-KR').format(context.raw) + '원';
+                                },
+                                title: function(context) {
+                                    // Show category name as title
+                                    return context[0].dataset.label;
+                                }
+                            }
+                        },
+                        datalabels: { display: false }
+                    }
+                },
+                plugins: [iconPlugin]
+            });
+            
+        } catch (error) {
+            console.error('Card usage load failed:', error);
+            document.getElementById('cardTotalAmount').textContent = 'Error';
+        }
+    }
+
+    // Real-time Memory Chart
+    let memoryChart = null;
+    const maxDataPoints = 30;
+    const memoryData = {
+        labels: [],
+        ram: [],
+        swap: []
+    };
+
+    function initMemoryChart() {
+        const ctx = document.getElementById('memoryChart').getContext('2d');
+        memoryChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: memoryData.labels,
+                datasets: [
+                    {
+                        label: 'RAM %',
+                        data: memoryData.ram,
+                        borderColor: '#5B8FF9',
+                        backgroundColor: 'rgba(91, 143, 249, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'Swap %',
+                        data: memoryData.swap,
+                        borderColor: '#9270CA',
+                        backgroundColor: 'rgba(146, 112, 202, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        borderWidth: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 300 },
+                plugins: {
+                    legend: { display: false },
+                    datalabels: { display: false }
+                },
+                scales: {
+                    x: {
+                        display: false
+                    },
+                    y: {
+                        min: 0,
+                        max: 100,
+                        grid: { color: 'var(--dashboard-border)', drawBorder: false },
+                        ticks: {
+                            color: '#c0c8d8',
+                            font: { size: 9 },
+                            stepSize: 50,
+                            callback: value => value + '%'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Fetch initial data and start polling
+        fetchMemoryData();
+        setInterval(fetchMemoryData, 3000); // Update every 3 seconds
+    }
+
+    async function fetchMemoryData() {
+        try {
+            const response = await fetch('/api/memory');
+            const data = await response.json();
+
+            if (data.error) return;
+
+            // Update current value badge
+            document.getElementById('memoryCurrentValue').textContent = `RAM: ${data.percent}% | Swap: ${data.swap_percent}%`;
+
+            // Add new data point
+            memoryData.labels.push(data.timestamp);
+            memoryData.ram.push(data.percent);
+            memoryData.swap.push(data.swap_percent);
+
+            // Keep only last N data points
+            if (memoryData.labels.length > maxDataPoints) {
+                memoryData.labels.shift();
+                memoryData.ram.shift();
+                memoryData.swap.shift();
+            }
+
+            // Update chart
+            memoryChart.update('none');
+        } catch (error) {
+            console.error('Failed to fetch memory data:', error);
+        }
+    }
+
+    // Weather Widget Functions (Open-Meteo API - No API Key Required)
+    let cityData = [];
+    let isFlipped = false;
+    let currentWeatherChart = null;
+
+    function getWeatherIcon(code) {
+        const iconMap = {
+            0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️",
+            45: "🌫️", 48: "🌫️",
+            51: "🌦️", 53: "🌦️", 55: "🌦️",
+            61: "🌧️", 63: "🌧️", 65: "🌧️",
+            71: "🌨️", 73: "❄️", 75: "❄️",
+            80: "🌦️", 81: "🌧️", 82: "🌧️",
+            95: "⛈️", 96: "⛈️", 99: "⛈️"
+        };
+        return iconMap[code] || "❓";
+    }
+
+    // Flip card animation
+    function flipWeatherCard() {
+        const container = document.getElementById('flipCardContainer');
+        const flipIcon = document.getElementById('flipIcon');
+        isFlipped = !isFlipped;
+        
+        if (isFlipped) {
+            container.classList.add('flipped');
+            flipIcon.style.transform = 'rotate(180deg)';
+            loadRecentCities();
+        } else {
+            container.classList.remove('flipped');
+            flipIcon.style.transform = 'rotate(0deg)';
+        }
+    }
+
+    // Load city data
+    async function loadCityData() {
+        try {
+            const response = await fetch('/api/cities');
+            cityData = await response.json();
+        } catch (error) {
+            console.error('Failed to load city data:', error);
+        }
+    }
+
+    // Search cities
+    function searchCities(query) {
+        if (!query || query.length < 1) return [];
+        
+        const lowerQuery = query.toLowerCase();
+        return cityData.filter(city => {
+            const sidoMatch = city.sido.toLowerCase().includes(lowerQuery);
+            const sigunguMatch = city.sigungu.toLowerCase().includes(lowerQuery);
+            return sidoMatch || sigunguMatch;
+        }).slice(0, 20); // Limit to 20 results
+    }
+
+    // Display search results
+    function displaySearchResults(results) {
+        const container = document.getElementById('searchResults');
+        
+        if (results.length === 0) {
+            container.innerHTML = '<div class="no-results">검색 결과가 없습니다</div>';
+            return;
+        }
+        
+        container.innerHTML = results.map(city => {
+            const displayName = city.sigungu ? 
+                `${city.sido} ${city.sigungu}` : city.sido;
+            return `<div class="city-result-item" onclick="selectCity(${city.lat}, ${city.lon}, '${displayName}')">
+                <i class="fas fa-map-marker-alt"></i>
+                <span>${displayName}</span>
+            </div>`;
+        }).join('');
+    }
+
+    // Select city and load weather
+    async function selectCity(lat, lon, name) {
+        // Save to recent cities
+        saveRecentCity({ lat, lon, name });
+        
+        // Flip back to weather display
+        flipWeatherCard();
+        
+        // Load weather for selected city
+        await loadWeatherForCity(lat, lon, name);
+    }
+
+    // Save recent city to localStorage
+    function saveRecentCity(city) {
+        let recentCities = JSON.parse(localStorage.getItem('recentCities') || '[]');
+        
+        // Remove duplicate if exists
+        recentCities = recentCities.filter(c => c.name !== city.name);
+        
+        // Add to beginning
+        recentCities.unshift(city);
+        
+        // Keep only 5 most recent
+        recentCities = recentCities.slice(0, 5);
+        
+        localStorage.setItem('recentCities', JSON.stringify(recentCities));
+        localStorage.setItem('lastSelectedCity', JSON.stringify(city));
+    }
+
+    // Load and display recent cities
+    function loadRecentCities() {
+        const recentCities = JSON.parse(localStorage.getItem('recentCities') || '[]');
+        const container = document.getElementById('recentCitiesList');
+        
+        if (recentCities.length === 0) {
+            container.innerHTML = '<div class="no-recent">최근 검색한 도시가 없습니다</div>';
+            return;
+        }
+        
+        container.innerHTML = recentCities.map(city => 
+            `<button class="recent-city-btn" onclick="selectCity(${city.lat}, ${city.lon}, '${city.name}')">
+                <i class="fas fa-history"></i> ${city.name}
+            </button>`
+        ).join('');
+    }
+
+    // Load weather for specific city
+    async function loadWeatherForCity(lat, lon, cityName) {
+        const widget = document.getElementById('weatherWidget');
+        widget.innerHTML = `
+            <div class="weather-loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>${cityName} 날씨 로딩중...</span>
+            </div>`;
+
+        try {
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&current_weather=true&timezone=auto`;
+
+            const response = await fetch(url);
+            const data = await response.json();
+            const daily = data.daily;
+            const current = data.current_weather;
+
+            // Extract last part of city name (e.g., "서울특별시 종로구" -> "종로구")
+            const cityParts = cityName.split(' ');
+            const shortCityName = cityParts[cityParts.length - 1];
+
+            // Display city name and current weather above the chart
+            widget.innerHTML = `
+                <div class="weather-info-display">
+                    <span class="weather-display-city">${shortCityName}</span>
+                    <span class="weather-display-temp">${Math.round(current.temperature)}°</span>
+                    <span class="weather-display-icon">${getWeatherIcon(current.weathercode)}</span>
+                </div>
+                <div class="weather-chart-container">
+                    <canvas id="weatherChart"></canvas>
+                </div>`;
+
+            // 라벨에 요일 + 아이콘 포함
+            const labels = daily.time.map((t, i) => {
+                const d = new Date(t);
+                const day = d.toLocaleDateString('ko-KR', { weekday: 'short' });
+                const icon = getWeatherIcon(daily.weathercode[i]);
+                return [day, icon];  // 멀티라인 라벨
+            });
+
+            // Destroy previous chart if exists
+            if (currentWeatherChart) {
+                currentWeatherChart.destroy();
+            }
+
+            // 차트 생성
+            const ctx = document.getElementById('weatherChart').getContext('2d');
+            currentWeatherChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '최고',
+                            data: daily.temperature_2m_max,
+                            borderColor: '#ff453a',
+                            backgroundColor: 'rgba(255, 69, 58, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0,
+                            borderWidth: 2
+                        },
+                        {
+                            label: '최저',
+                            data: daily.temperature_2m_min,
+                            borderColor: '#0a84ff',
+                            backgroundColor: 'rgba(10, 132, 255, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0,
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        datalabels: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#c0c8d8', font: { size: 18 } }
+                        },
+                        y: {
+                            grid: { color: 'var(--dashboard-border)', drawBorder: false },
+                            ticks: { color: '#c0c8d8', font: { size: 12 } }
+                        }
+                    }
+                }
+            });
+
+        } catch (error) {
+            widget.innerHTML = `
+                <div class="weather-error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span>날씨 정보 로딩 실패</span>
+                </div>`;
+        }
+    }
+
+    // Initial weather load
+    async function loadWeather() {
+        // Load city data first
+        await loadCityData();
+        
+        // Check for last selected city
+        const lastCity = JSON.parse(localStorage.getItem('lastSelectedCity') || 'null');
+        
+        if (lastCity) {
+            await loadWeatherForCity(lastCity.lat, lastCity.lon, lastCity.name);
+        } else {
+            // Default to Seoul
+            await loadWeatherForCity(37.5665, 126.978, '서울특별시');
+            saveRecentCity({ lat: 37.5665, lon: 126.978, name: '서울특별시' });
+        }
+    }
+
+    // Search input handler
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('citySearchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const results = searchCities(e.target.value);
+                displaySearchResults(results);
+            });
+        }
+    });
+
+
+    // Calendar state
+    let calendarYear, calendarMonth;
+    const now = new Date();
+    calendarYear = now.getFullYear();
+    calendarMonth = now.getMonth();
+
+    let holidays = {}; // JSON 로드 전 초기화
+
+    // 공휴일 JSON 비동기 로드 (속도 최우선: 렌더링 먼저 하고 데이터 입히기)
+    // 공휴일 JSON 비동기 로드
+    fetch('/api/holidays')
+        .then(response => response.json())
+        .then(data => {
+            holidays = data;
+            renderMiniCalendar(); // 데이터 로드 후 업데이트
+        })
+        .catch(console.error);
+
+    function renderMiniCalendar() {
+        const container = document.querySelector('.mini-calendar');
+        const today = new Date();
+        const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
+        const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+        const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+
+        // Update the title in the header
+        document.getElementById('calendarTitle').textContent = `${calendarYear}년 ${monthNames[calendarMonth]}`;
+        
+        let html = '';
+        html += '<div class="cal-grid"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>';
+
+        for (let i = 0; i < firstDay; i++) html += '<span></span>';
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const holidayName = holidays[dateStr];
+            
+            let classNames = 'cal-day';
+            let titleAttr = '';
+            
+            // 오늘 날짜 체크
+            if (d === today.getDate() && calendarMonth === today.getMonth() && calendarYear === today.getFullYear()) {
+                classNames += ' today';
+            }
+            
+            // 공휴일 체크 및 클릭 이벤트 추가
+            if (holidayName) {
+                classNames += ' holiday clickable'; // clickable 클래스 추가
+                titleAttr = `title="${holidayName}"`;
+                // 클릭 시 플립 함수 호출
+                html += `<span class="${classNames}" ${titleAttr} onclick="openCalendarDetail('${dateStr}', '${holidayName}')">${d}</span>`;
+            } else {
+                html += `<span class="${classNames}">${d}</span>`;
+            }
+        }
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    // Calendar Flip Functions
+    function openCalendarDetail(dateStr, title) {
+        // 데이터 채우기
+        const [y, m, d] = dateStr.split('-');
+        document.getElementById('detailDate').textContent = `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
+        document.getElementById('detailTitle').textContent = title;
+
+        // UI 변경 (네비게이션 숨김 등)
+        document.getElementById('calNavGroup').style.visibility = 'hidden';
+        document.getElementById('calendarTitle').style.visibility = 'hidden';
+        document.getElementById('calHeaderTitle').innerHTML = '<i class="fas fa-info-circle"></i> 상세 정보';
+
+        // 플립
+        document.getElementById('calendarFlipContainer').classList.add('flipped');
+    }
+
+    function flipCalendarBack() {
+        // 플립 원복
+        document.getElementById('calendarFlipContainer').classList.remove('flipped');
+
+        // UI 복구 (애니메이션 후)
+        setTimeout(() => {
+            document.getElementById('calNavGroup').style.visibility = 'visible';
+            document.getElementById('calendarTitle').style.visibility = 'visible';
+            document.getElementById('calHeaderTitle').innerHTML = '<i class="fas fa-calendar-alt"></i> Calendar';
+        }, 300);
+    }
+
+    function changeMonth(delta) {
+        calendarMonth += delta;
+        if (calendarMonth > 11) {
+            calendarMonth = 0;
+            calendarYear++;
+        } else if (calendarMonth < 0) {
+            calendarMonth = 11;
+            calendarYear--;
+        }
+        renderMiniCalendar();
+    }
+
+    function goToToday() {
+        const now = new Date();
+        calendarYear = now.getFullYear();
+        calendarMonth = now.getMonth();
+        renderMiniCalendar();
+    }
+
+    // Bookmark Widget Logic
+    let bookmarksData = {{ bookmarks | tojson }};
+    let currentIconEditIndex = -1;
+
+    // Available FontAwesome Icons
+    const availableIcons = [
+        'fas fa-bookmark', 'fas fa-star', 'fas fa-link', 'fas fa-globe',
+        'fas fa-home', 'fas fa-folder', 'fas fa-file', 'fas fa-file-alt',
+        'fas fa-envelope', 'fas fa-inbox', 'fas fa-phone', 'fas fa-address-book',
+        'fas fa-calendar', 'fas fa-clock', 'fas fa-bell', 'fas fa-search',
+        'fas fa-user', 'fas fa-users', 'fas fa-user-circle', 'fas fa-lock',
+        'fas fa-cog', 'fas fa-wrench', 'fas fa-chart-bar', 'fas fa-chart-pie',
+        'fas fa-table', 'fas fa-list', 'fas fa-th', 'fas fa-tasks',
+        'fas fa-check', 'fas fa-check-circle', 'fas fa-clipboard-list', 'fas fa-database',
+        'fas fa-server', 'fas fa-hdd', 'fas fa-cloud', 'fas fa-download',
+        'fab fa-google', 'fab fa-github', 'fab fa-youtube', 'fab fa-facebook',
+        'fab fa-twitter', 'fab fa-instagram', 'fab fa-linkedin', 'fab fa-discord'
+    ];
+
+    function openBookmarkModal() {
+        renderBookmarkEditForm();
+        document.getElementById('bookmarkModal').style.display = 'flex';
+    }
+
+    function closeBookmarkModal() {
+        document.getElementById('bookmarkModal').style.display = 'none';
+    }
+
+    function renderBookmarkEditForm() {
+        const container = document.getElementById('bookmarkEditListModal');
+        container.innerHTML = bookmarksData.map((b, index) => `
+            <div class="bookmark-edit-row">
+                <div class="bm-icon-preview" onclick="openIconSelector(${index})">
+                    <i class="${b.icon}"></i>
+                </div>
+                <input type="text" value="${b.name}" class="bm-input bm-name" placeholder="Name" onchange="updateBookmark(${index}, 'name', this.value)">
+                <input type="text" value="${b.url}" class="bm-input bm-url" placeholder="URL" onchange="updateBookmark(${index}, 'url', this.value)">
+                <button class="btn-del-row" onclick="removeBookmark(${index})">&times;</button>
+            </div>
+        `).join('');
+    }
+
+    function updateBookmark(index, field, value) {
+        bookmarksData[index][field] = value;
+    }
+
+    function addBookmarkRow() {
+        bookmarksData.push({ name: 'New Link', url: '/', icon: 'fas fa-link' });
+        renderBookmarkEditForm();
+    }
+
+    function removeBookmark(index) {
+        bookmarksData.splice(index, 1);
+        renderBookmarkEditForm();
+    }
+
+    async function saveBookmarks() {
+        try {
+            const response = await fetch('/api/bookmarks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(bookmarksData)
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                window.location.reload(); 
+            } else {
+                alert('저장 실패: ' + result.error);
+            }
+        } catch (e) {
+            alert('저장 중 오류 발생');
+            console.error(e);
+        }
+    }
+    
+    // Icon Selection Logic
+    function openIconSelector(index) {
+        currentIconEditIndex = index;
+        const grid = document.getElementById('iconGrid');
+        grid.innerHTML = availableIcons.map(icon => `
+            <div class="icon-option" onclick="selectIcon('${icon}')">
+                <i class="${icon}"></i>
+            </div>
+        `).join('');
+        
+        document.getElementById('iconSelectorModal').style.display = 'flex';
+    }
+    
+    function closeIconSelector() {
+        document.getElementById('iconSelectorModal').style.display = 'none';
+        currentIconEditIndex = -1;
+    }
+    
+    function selectIcon(iconClass) {
+        if (currentIconEditIndex >= 0) {
+            bookmarksData[currentIconEditIndex].icon = iconClass;
+            renderBookmarkEditForm();
+            closeIconSelector();
+        }
+    }
+    
+    // Close modals on outside click
+    window.onclick = function(event) {
+        const bmModal = document.getElementById('bookmarkModal');
+        const iconModal = document.getElementById('iconSelectorModal');
+        if (event.target == bmModal) {
+            closeBookmarkModal();
+        }
+        if (event.target == iconModal) {
+            closeIconSelector();
+        }
+    }
+</script>
+
+<style>
+    /* Dashboard Styles - CSS Variables for Light/Dark Mode */
+    
+    /* Light Mode Variables (Default) */
+    .dashboard-wrapper {
+        --dashboard-bg: #f5f5f5;
+        --dashboard-card-bg: #ffffff;
+        --dashboard-text-primary: #333333;
+        --dashboard-text-secondary: #666666;
+        --dashboard-border: #dddddd;
+        --dashboard-header-bg: #f8f9fa;
+        --dashboard-hover-bg: #e9ecef;
+        --dashboard-shadow: rgba(0, 0, 0, 0.1);
+    }
+
+    /* Dark Mode Variables */
+    body.dark-mode .dashboard-wrapper {
+        --dashboard-bg: #2F343F;
+        --dashboard-card-bg: #3a4150;
+        --dashboard-text-primary: #e8e8e8;
+        --dashboard-text-secondary: #a0a8b8;
+        --dashboard-border: #454d5e;
+        --dashboard-header-bg: #353b48;
+        --dashboard-hover-bg: #454d5e;
+        --dashboard-shadow: rgba(0, 0, 0, 0.15);
+    }
+
+    /* Dashboard Layout */
+    .dashboard-wrapper {
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        gap: 16px;
+        padding: 16px;
+        max-width: 1800px;
+        margin: 0 auto;
+        align-items: start;
+        background-color: var(--dashboard-bg);
+        min-height: calc(100vh - 45px);
+    }
+
+    /* Override body background for dashboard page */
+    body:has(.dashboard-wrapper) {
+        background-color: var(--dashboard-bg) !important;
+    }
+
+    /* Cards */
+    .dashboard-wrapper .card {
+        background-color: var(--dashboard-card-bg);
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 2px 6px var(--dashboard-shadow);
+        border: 1px solid var(--dashboard-border);
+        color: var(--dashboard-text-primary);
+    }
+
+    .dashboard-wrapper .card.compact {
+        padding: 12px;
+    }
+
+    .dashboard-wrapper .card-title {
+        margin: 0 0 12px 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--dashboard-text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* Sidebar */
+    .dashboard-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    /* Stats Card */
+    .stats-card .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+    }
+
+    .stats-card .stat-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .stats-card .stat-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .dashboard-wrapper .stats-card .stat-row {
+        display: flex;
+        justify-content: space-between;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--dashboard-border);
+    }
+
+    .dashboard-wrapper .stats-card .stat-row:last-child {
+        border-bottom: none;
+    }
+
+    .dashboard-wrapper .stat-label {
+        font-size: 0.8rem;
+        color: var(--dashboard-text-secondary);
+    }
+
+    .dashboard-wrapper .stat-value {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--dashboard-text-primary);
+    }
+    
+    /* Task Status specific font size increase */
+    .task-status-card .stat-value {
+        font-size: 1.8rem;
+    }
+
+    /* Sidebar Chart */
+    .sidebar-chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .sidebar-chart-header .card-title {
+        margin: 0;
+    }
+
+    .memory-badge {
+        font-size: 0.7rem;
+        background: var(--dashboard-hover-bg);
+        padding: 2px 6px;
+        border-radius: 4px;
+        color: var(--dashboard-text-secondary);
+    }
+
+    .sidebar-chart-body {
+        height: 120px;
+        position: relative;
+    }
+
+    /* Status List */
+    .status-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .status-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .status-label {
+        flex: 1;
+        font-size: 0.9rem;
+        color: var(--dashboard-text-primary);
+    }
+
+    .status-value {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--dashboard-text-primary);
+        min-width: 30px;
+        text-align: right;
+    }
+
+    /* Disk Stats */
+    .disk-item {
+        margin-bottom: 10px;
+    }
+
+    .disk-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .disk-header {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.85rem;
+        margin-bottom: 4px;
+        color: var(--dashboard-text-primary);
+    }
+
+    .dashboard-wrapper .disk-usage-text {
+        color: var(--dashboard-text-secondary);
+        font-size: 0.75rem;
+    }
+
+    .dashboard-wrapper .progress-bar-bg {
+        height: 5px;
+        background: var(--dashboard-border);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        border-radius: 3px;
+    }
+
+    .dashboard-wrapper .disk-footer {
+        text-align: right;
+        font-size: 0.75rem;
+        color: var(--dashboard-text-secondary);
+        margin-top: 2px;
+    }
+
+    /* Main Content */
+    .dashboard-main {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding-top: 0;
+    }
+
+    /* Charts Grid */
+    .charts-grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+    }
+
+    .charts-grid-2 {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    /* Task & Todo Grid - 4 columns: Task, Todo, Planned, Card */
+    .task-todo-grid {
+        display: grid;
+        grid-template-columns: 340px 200px 1fr 1fr;
+        gap: 12px;
+    }
+
+    /* Force height for second row widgets to match first row */
+    .task-todo-grid .card {
+        height: 200px;
+        display: flex;
+        flex-direction: column;
+        min-width: 0; /* Prevent grid overflow */
+    }
+
+    .task-todo-grid .card-title {
+        flex-shrink: 0;
+    }
+
+    /* Content areas fill the remaining height */
+    .task-todo-grid .stat-grid,
+    .task-todo-grid .todo-total,
+    .task-todo-grid .widget-content {
+        flex: 1;
+        min-height: 0; /* Allow shrinking/scrolling */
+        overflow-y: auto;
+    }
+
+    /* Specific: Center Todo Total */
+    .task-todo-grid .todo-total {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    /* Todo Total Display */
+    .todo-total {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        gap: 10px;
+    }
+
+    .todo-total-label {
+        font-size: 0.9rem;
+        color: var(--dashboard-text-secondary);
+    }
+
+    .todo-total-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--dashboard-text-primary);
+    }
+
+    .dashboard-wrapper .chart-card {
+        padding: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .dashboard-wrapper .chart-header {
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--dashboard-border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: var(--dashboard-header-bg);
+    }
+
+    .dashboard-wrapper .chart-header.compact {
+        padding: 8px 12px;
+    }
+
+    .dashboard-wrapper .chart-header h3 {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+
+    .dashboard-wrapper .chart-header .badge {
+        background: var(--dashboard-hover-bg);
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.8rem;
+        font-weight: bold;
+        color: var(--dashboard-text-primary);
+    }
+
+    .dashboard-wrapper .chart-body {
+        padding: 12px;
+        height: 180px;
+        position: relative;
+        background: var(--dashboard-card-bg);
+    }
+
+    .dashboard-wrapper .chart-body.compact {
+        height: 200px;
+        padding: 10px;
+    }
+
+    .charts-grid-2 .chart-body.compact {
+        height: 180px;
+    }
+
+    /* Widgets Grid */
+    .widgets-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+    }
+
+    .widget-card {
+        min-height: 120px;
+    }
+
+    .widget-card .card-title {
+        margin-bottom: 10px;
+        font-size: 0.9rem;
+    }
+
+    .widget-title-link {
+        color: var(--dashboard-text-secondary);
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+
+    .widget-title-link:hover {
+        color: var(--dashboard-text-primary);
+        text-decoration: underline;
+    }
+
+    .widget-content {
+        flex: 1;
+    }
+
+    /* Weather Widget */
+    .weather-widget .widget-content {
+        height: 100%;
+    }
+
+    .weather-loading,
+    .weather-error {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 80px;
+        color: var(--dashboard-text-secondary);
+        gap: 8px;
+        font-size: 0.85rem;
+    }
+
+    .weather-loading i,
+    .weather-error i {
+        font-size: 1.5rem;
+    }
+
+    .weather-error i {
+        color: #ffa94d;
+    }
+
+    .weather-chart-container {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .weather-chart-container canvas {
+        flex: 1;
+        max-height: 150px;
+    }
+
+    /* Weather Header Styles */
+    .weather-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        margin-bottom: 2px !important;
+    }
+
+    .weather-title-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* Weather Info Display (above chart) */
+    .weather-info-display {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 0;
+        margin-bottom: 4px;
+        margin-top: 0;
+    }
+
+    .weather-display-city {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: var(--dashboard-text-primary);
+    }
+
+    .weather-display-temp {
+        font-weight: 700;
+        font-size: 1.2rem;
+        color: #ff453a;
+    }
+
+    .weather-display-icon {
+        font-size: 1.5rem;
+    }
+
+    /* Flip Card Styles */
+    .card-title.clickable {
+        cursor: pointer;
+        user-select: none;
+        justify-content: space-between;
+    }
+
+    .card-title.clickable:hover {
+        opacity: 0.8;
+    }
+
+    .flip-icon {
+        transition: transform 0.6s;
+        font-size: 0.8rem;
+    }
+
+    .flip-card-container {
+        position: relative;
+        width: 100%;
+        min-height: 175px;
+        perspective: 1000px;
+    }
+
+    .flip-card-front,
+    .flip-card-back {
+        width: 100%;
+        min-height: 175px;
+        backface-visibility: hidden;
+        transition: transform 0.6s;
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+
+    .flip-card-front {
+        transform: rotateY(0deg);
+    }
+
+    .flip-card-back {
+        transform: rotateY(180deg);
+    }
+
+    .flip-card-container.flipped .flip-card-front {
+        transform: rotateY(-180deg);
+    }
+
+    .flip-card-container.flipped .flip-card-back {
+        transform: rotateY(0deg);
+    }
+
+    /* City Search Styles */
+    .city-search-container {
+        padding: 10px;
+    }
+
+    /* Bookmark Edit Styles */
+    .bookmark-edit-container {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        padding: 5px;
+        background: var(--dashboard-card-bg);
+    }
+    .bookmark-edit-scroll {
+        flex: 1;
+        overflow-y: auto;
+        padding-right: 2px;
+        margin-bottom: 5px;
+        max-height: 120px;
+    }
+    .bookmark-edit-row {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 4px;
+        align-items: center;
+    }
+    .bm-input {
+        padding: 2px 4px;
+        font-size: 0.75rem;
+        border: 1px solid var(--dashboard-border);
+        border-radius: 3px;
+        background: var(--dashboard-bg);
+        color: var(--dashboard-text-primary);
+    }
+    .bm-name { width: 30%; }
+    .bm-url { flex: 1; }
+    .bm-icon { width: 25%; }
+    
+    .btn-del-row {
+        background: none; border: none; color: #ff6b6b; cursor: pointer; padding: 0 2px;
+    }
+    .bookmark-edit-actions {
+        display: flex;
+        justify-content: space-between;
+        margin-top: auto;
+        padding-top: 5px;
+        border-top: 1px solid var(--dashboard-border);
+    }
+    .btn-icon-only {
+        background: var(--dashboard-hover-bg); border: none; cursor: pointer; border-radius: 4px; padding: 4px 8px; color: var(--dashboard-text-primary);
+    }
+    .btn-save-small {
+        background: #5B8FF9; color: white; border: none; border-radius: 4px; padding: 4px 12px; font-size: 0.8rem; cursor: pointer;
+    }
+
+    #citySearchInput {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid var(--dashboard-border);
+        border-radius: 6px;
+        background: var(--dashboard-card-bg);
+        color: var(--dashboard-text-primary);
+        font-size: 0.9rem;
+        margin-bottom: 12px;
+    }
+
+    #citySearchInput:focus {
+        outline: none;
+        border-color: #5B8FF9;
+    }
+
+    .recent-cities h4 {
+        font-size: 0.85rem;
+        color: var(--dashboard-text-secondary);
+        margin: 0 0 8px 0;
+    }
+
+    #recentCitiesList {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 12px;
+    }
+
+    .recent-city-btn {
+        padding: 6px 12px;
+        background: var(--dashboard-hover-bg);
+        border: 1px solid var(--dashboard-border);
+        border-radius: 6px;
+        color: var(--dashboard-text-primary);
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .recent-city-btn:hover {
+        background: var(--dashboard-border);
+        transform: translateY(-1px);
+    }
+
+    .recent-city-btn i {
+        font-size: 0.75rem;
+    }
+
+    .search-results {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid var(--dashboard-border);
+        border-radius: 6px;
+        background: var(--dashboard-card-bg);
+    }
+
+    .city-result-item {
+        padding: 10px;
+        cursor: pointer;
+        border-bottom: 1px solid var(--dashboard-border);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: background 0.2s;
+    }
+
+    .city-result-item:last-child {
+        border-bottom: none;
+    }
+
+    .city-result-item:hover {
+        background: var(--dashboard-hover-bg);
+    }
+
+    .city-result-item i {
+        color: #5B8FF9;
+        font-size: 0.85rem;
+    }
+
+    .city-result-item span {
+        font-size: 0.85rem;
+        color: var(--dashboard-text-primary);
+    }
+
+    .no-results,
+    .no-recent {
+        padding: 20px;
+        text-align: center;
+        color: var(--dashboard-text-secondary);
+        font-size: 0.85rem;
+    }
+
+    .weather-city-name {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--dashboard-text-primary);
+        margin-bottom: 8px;
+        text-align: center;
+    }
+
+    /* Mini Calendar */
+    .mini-calendar {
+        font-size: 0.75rem;
+    }
+
+    /* Calendar Header - Title with Year/Month */
+    .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .cal-title-inline {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--dashboard-text-primary);
+    }
+
+    .cal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .cal-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--dashboard-text-primary);
+    }
+
+    .cal-nav-group {
+        display: flex;
+        gap: 4px;
+    }
+
+    .cal-nav {
+        background: var(--dashboard-hover-bg);
+        border: none;
+        border-radius: 4px;
+        width: 22px;
+        height: 22px;
+        cursor: pointer;
+        color: var(--dashboard-text-primary);
+        font-size: 0.8rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+    }
+
+    .cal-nav:hover {
+        background: var(--dashboard-border);
+    }
+
+    .cal-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 2px;
+        text-align: center;
+    }
+
+    .cal-grid > span:first-child {
+        color: #dc3545;
+    }
+
+    .cal-grid > span:nth-child(7) {
+        color: #5B8FF9;
+    }
+
+    .cal-day {
+        padding: 2px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    .cal-day:hover {
+        background: var(--dashboard-hover-bg);
+    }
+
+    .cal-day.today {
+        background: #5B8FF9;
+        color: #fff;
+        font-weight: bold;
+    }
+
+    .cal-day.holiday {
+        color: #ff453a;
+        font-weight: bold;
+        position: relative;
+        cursor: pointer; /* 클릭 가능 표시 */
+    }
+
+    .cal-day.holiday:hover {
+        background-color: var(--dashboard-hover-bg);
+        transform: scale(1.1);
+        transition: transform 0.2s;
+        z-index: 10;
+    }
+
+
+
+    .cal-day.today.holiday {
+        color: #fff;
+    }
+
+
+
+    /* Calendar Detail Back Styles */
+    .calendar-detail-container {
+        padding: 10px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: var(--dashboard-text-primary);
+    }
+
+    .detail-header {
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    .detail-date {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: var(--dashboard-text-primary);
+    }
+
+    .detail-body {
+        margin-bottom: 30px;
+        width: 100%;
+        text-align: center;
+    }
+
+    .event-item {
+        background: var(--dashboard-hover-bg);
+        padding: 12px 20px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .event-marker {
+        width: 10px;
+        height: 10px;
+        background-color: #ff453a;
+        border-radius: 50%;
+        display: inline-block;
+    }
+
+    .event-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+
+    .btn-calendar-back {
+        padding: 8px 20px;
+        background: transparent;
+        border: 1px solid var(--dashboard-border);
+        border-radius: 20px;
+        color: var(--dashboard-text-secondary);
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .btn-calendar-back:hover {
+        background: var(--dashboard-hover-bg);
+        color: var(--dashboard-text-primary);
+        border-color: var(--dashboard-text-primary);
+    }
+
+    /* Bookmarks */
+    .bookmark-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .bookmark-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        background: var(--dashboard-hover-bg);
+        border-radius: 6px;
+        color: var(--dashboard-text-primary);
+        text-decoration: none;
+        font-size: 0.85rem;
+        transition: background 0.2s;
+    }
+
+    .bookmark-item:hover {
+        background: var(--dashboard-border);
+    }
+
+    .bookmark-item i {
+        width: 16px;
+        color: var(--dashboard-text-secondary);
+    }
+
+    /* Bookmarks Bottom Row */
+    .bookmarks-bottom {
+        width: 100%;
+    }
+
+    .bookmark-list-horizontal {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .bookmark-list-horizontal .bookmark-item {
+        flex: 1;
+        min-width: 120px;
+        justify-content: center;
+    }
+
+    /* Bookmarks Sidebar */
+    .bookmark-list-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .bookmark-item-sidebar {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        background: transparent;
+        border-radius: 6px;
+        color: var(--dashboard-text-primary);
+        text-decoration: none;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+    }
+
+    .bookmark-item-sidebar:hover {
+        background: var(--dashboard-border);
+        transform: translateX(3px);
+    }
+
+    .bookmark-item-sidebar i {
+        width: 16px;
+        text-align: center;
+        color: #5B8FF9;
+    }
+
+    /* Contact List */
+    .contact-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    /* Contact List Grid (2-column layout for Favorites) */
+    .contact-list-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+    }
+
+    .contact-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 10px;
+        background: var(--dashboard-hover-bg);
+        border-radius: 6px;
+        color: var(--dashboard-text-primary);
+        text-decoration: none;
+        font-size: 0.85rem;
+        transition: background 0.2s;
+    }
+
+    .contact-item:hover {
+        background: var(--dashboard-border);
+    }
+
+    .contact-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .contact-name {
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .contact-meta {
+        font-size: 0.75rem;
+        color: var(--dashboard-text-secondary);
+    }
+
+    /* Contact Item Simple (Name + Extension only) */
+    .contact-item-simple {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 5px 10px;
+        background: var(--dashboard-hover-bg);
+        border-radius: 6px;
+        color: var(--dashboard-text-primary);
+        text-decoration: none;
+        font-size: 0.85rem;
+        transition: background 0.2s;
+    }
+
+    .contact-item-simple:hover {
+        background: var(--dashboard-border);
+    }
+
+    .contact-item-simple .contact-name {
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .contact-item-simple .contact-extension {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #5B8FF9;
+    }
+
+    .no-data {
+        color: var(--dashboard-text-secondary);
+        font-size: 0.85rem;
+        text-align: center;
+        padding: 10px;
+    }
+
+    /* Simple Todo List Styles */
+    .todo-list-simple {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        /* max-height removed to fill parent */
+        padding-right: 4px; /* Space for scrollbar */
+    }
+
+    .todo-item-simple {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 10px;
+        background: var(--dashboard-hover-bg);
+        border-radius: 6px;
+        font-size: 0.85rem;
+    }
+    
+    .todo-date {
+        font-size: 0.75rem;
+        color: var(--dashboard-text-secondary);
+        white-space: nowrap;
+        min-width: 40px;
+    }
+
+    .todo-content {
+        color: var(--dashboard-text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Card Usage Widget Styles */
+    .card-usage-widget .widget-content {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding-top: 5px;
+        justify-content: center; /* Center content vertically */
+    }
+
+    .card-total-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .card-month-label {
+        font-size: 0.8rem;
+        color: var(--dashboard-text-secondary);
+    }
+
+    .card-total-amount {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--dashboard-text-primary);
+    }
+
+    .card-chart-container {
+        /* flex: 1 removed to prevent stretching */
+        position: relative;
+        height: 50px; /* Specific height for the bar area */
+        width: 100%;
+        margin-top: 15px;
+        padding: 0 5px; /* Equal left/right margins 15px */
+        box-sizing: border-box;
+    }
+    
+    .card-chart-overlay {
+        display: none; /* Remove overlay icon */
+    }
+    
+    .widget-link-icon {
+        color: var(--dashboard-text-secondary);
+        font-size: 0.8rem;
+        transition: color 0.2s;
+    }
+    
+    .widget-link-icon:hover {
+        color: #5B8FF9;
+    }
+
+    /* Annual Calendar Widget Styles - Timeline Design */
+
+
+    .annual-calendar-widget .widget-content {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow: hidden !important; /* 이 범위를 넘어서는 건 안 보이게 자름 */
+        padding: 0 !important;
+    }
+
+    /* 타임라인 상위 컨테이너 */
+    .timeline-container {
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden; /* 영역 밖으로 나가는 것 방지 */
+        padding: 10px 0;
+    }
+
+    /* 실제 타임라인 선과 아이템이 배치되는 곳 */
+    .timeline-wrapper {
+        position: relative;
+        display: flex !important;
+        flex-wrap: nowrap !important; /* 줄바꿈 방지 */
+        justify-content: space-between;
+        align-items: center;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        /* 좌우 패딩을 주어 1월과 12월이 벽에 붙지 않게 여유 공간 확보 */
+        padding: 70px 10px !important; 
+        margin: 0 auto !important;
+    }
+
+    /* Timeline Horizontal Line */
+    .timeline-line {
+        position: absolute;
+        top: 50%;
+        left: 40px; /* .timeline-wrapper의 좌측 패딩값과 일치 */
+        right: 40px; /* .timeline-wrapper의 우측 패딩값과 일치 */
+        height: 2px;
+        background: rgba(255, 255, 255, 0.4) !important;
+        transform: translateY(-50%);
+        z-index: 1;
+    }
+
+    /* Timeline Item (Month) */
+    .timeline-item {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        /* flex-grow, flex-shrink, flex-basis 순서 */
+        flex: 1 1 0% !important; 
+        min-width: 0 !important; /* 내부 콘텐츠가 길어도 너비를 고정함 */
+        z-index: 2;
+    }
+
+    /* Timeline Dot Wrapper */
+    .timeline-dot-wrapper {
+        position: relative;
+        width: 12px;
+        height: 12px;
+        z-index: 3;
+        margin-bottom: 15px; /* Shift dot above the line */
+    }
+
+    /* Timeline Dot */
+    .timeline-dot {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: var(--dashboard-card-bg);
+        border: 3px solid var(--dashboard-border);
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .timeline-dot.has-events {
+        background: linear-gradient(135deg, #5B8FF9, #7BA8FF);
+        border-color: #5B8FF9;
+        box-shadow: 0 0 15px rgba(91, 143, 249, 0.5);
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            box-shadow: 0 0 15px rgba(91, 143, 249, 0.5);
+        }
+        50% {
+            box-shadow: 0 0 25px rgba(91, 143, 249, 0.8);
+        }
+    }
+
+    .timeline-dot:hover {
+        transform: scale(1.2);
+        border-width: 4px;
+    }
+
+    /* Timeline Month Label */
+    .timeline-month {
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 0.68rem;
+        font-weight: 600;
+        color: var(--dashboard-text-primary);
+        white-space: nowrap;
+        margin-top: 8px;
+    }
+
+    /* Timeline Events Container */
+    .timeline-events {
+        position: absolute;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: max-content;
+        max-width: 180px !important;
+    }
+
+    .timeline-events-top {
+        bottom: 100%;
+        margin-bottom: 20px;
+        justify-content: flex-end;
+    }
+
+    .timeline-events-bottom {
+        position: absolute; /* Ensure absolute positioning is explicit */
+        top: 100%;
+        margin-top: 25px; /* Reduced margin to save space */
+        justify-content: flex-start;
+    }
+
+    /* Timeline Event Item */
+    .timeline-event {
+        position: relative;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        justify-content: center;
+    }
+
+    .timeline-event .event-content {
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        padding: 1px 2px;
+        min-width: 0; 
+        max-width: 120px; /* Increased from 75px due to alternating layout */
+        box-shadow: none;
+        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .timeline-event:hover .event-content {
+        background: transparent;
+        transform: none;
+        box-shadow: none;
+    }
+
+    /* Connecting Line from Event to Dot */
+    .timeline-event::before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        width: 1px;
+        background: rgba(255, 255, 255, 0.3);
+        transform: translateX(-50%);
+    }
+
+    .timeline-events-top .timeline-event::before {
+        top: 100%;
+        height: 10px;
+    }
+
+    .timeline-events-bottom .timeline-event::before {
+        bottom: 100%;
+        height: 10px;
+    }
+
+    /* Event Title */
+    .event-title-timeline {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: #cbd5e0;
+        margin-bottom: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.2;
+        min-width: 140px !important;
+    }
+
+    /* Event Date */
+    .event-date-timeline {
+        font-size: 0.68rem;
+        color: #cbd5e0;
+        font-weight: 400;
+        line-height: 1.2;
+        flex-shrink: 0;
+    }
+
+    /* More Events Indicator */
+    .timeline-event.more-events .event-content {
+        background: transparent;
+        border: none;
+    }
+
+    .timeline-event.more-events .event-title-timeline {
+        color: #cbd5e0;
+        font-size: 0.65rem;
+        font-style: italic;
+    }
+
+    .timeline-event.more-events:hover .event-content {
+        background: transparent;
+    }
+
+    /* Color Variations for Different Events - Removed, all text in light gray */
+    .timeline-item .timeline-event .event-content {
+        background: transparent;
+        border: none;
+    }
+
+    .timeline-item .timeline-event .event-title-timeline {
+        color: #cbd5e0;
+    }
+
+    .timeline-item .timeline-event .event-date-timeline {
+        color: #cbd5e0;
+    }
+
+
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+        .dashboard-wrapper {
+            grid-template-columns: 1fr;
+        }
+
+        .dashboard-sidebar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        }
+
+        .charts-grid-3 {
+            grid-template-columns: 1fr;
+        }
+
+        .charts-grid-2 {
+            grid-template-columns: 1fr;
+        }
+
+        .task-todo-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .widgets-grid {
+            grid-template-columns: 1fr;
+        }
+
+        /* Timeline responsive adjustments */
+        .timeline-wrapper {
+            width: 90%;
+            max-width: 90%;
+        }
+
+        .timeline-item {
+            width: 6.5%;
+        }
+
+        .timeline-event .event-content {
+            min-width: 0;
+            max-width: 90px;
+            padding: 1px 2px;
+        }
+
+        .event-title-timeline {
+            font-size: 0.65rem;
+        }
+
+        .event-date-timeline {
+            font-size: 0.6rem;
+        }
+
+        .timeline-month {
+            font-size: 0.6rem;
+        }
+
+        .timeline-dot {
+            width: 10px;
+            height: 10px;
+            border: 2px solid var(--dashboard-border);
+        }
+    }
+</style>
+
+<!-- Bookmark Modal -->
+<div id="bookmarkModal" class="dashboard-modal-overlay" style="display: none;">
+    <div class="dashboard-modal-container">
+        <div class="dashboard-modal-header">
+            <h3>Edit Bookmarks</h3>
+            <span class="dashboard-modal-close" onclick="closeBookmarkModal()">&times;</span>
+        </div>
+        <div class="dashboard-modal-body">
+            <div id="bookmarkEditListModal" class="bookmark-edit-list-modal">
+                <!-- Items injected by JS -->
+            </div>
+            <button class="btn-add-bookmark" onclick="addBookmarkRow()">
+                <i class="fas fa-plus"></i> Add Bookmark
+            </button>
+        </div>
+        <div class="dashboard-modal-footer">
+            <button class="btn-secondary" onclick="closeBookmarkModal()">Cancel</button>
+            <button class="btn-primary" onclick="saveBookmarks()">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+<!-- Icon Selection Modal -->
+<div id="iconSelectorModal" class="dashboard-modal-overlay" style="display: none; z-index: 2000;">
+    <div class="dashboard-modal-container icon-selector-mode">
+        <div class="dashboard-modal-header">
+            <h3>Select Icon</h3>
+            <span class="dashboard-modal-close" onclick="closeIconSelector()">&times;</span>
+        </div>
+        <div class="dashboard-modal-body">
+            <div class="icon-grid" id="iconGrid">
+                <!-- Icons injected by JS -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Modal Styles */
+    .dashboard-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(4px);
+    }
+
+    .dashboard-modal-container {
+        background: var(--dashboard-card-bg);
+        color: var(--dashboard-text-primary);
+        width: 500px;
+        max-width: 90%;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        display: flex;
+        flex-direction: column;
+        max-height: 85vh;
+        border: 1px solid var(--dashboard-border);
+    }
+
+    .dashboard-modal-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--dashboard-border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .dashboard-modal-header h3 {
+        margin: 0;
+        font-size: 1.1rem;
+    }
+
+    .dashboard-modal-close {
+        cursor: pointer;
+        font-size: 1.5rem;
+        color: var(--dashboard-text-secondary);
+    }
+
+    .dashboard-modal-body {
+        padding: 20px;
+        overflow-y: auto;
+        flex: 1;
+    }
+
+    .dashboard-modal-footer {
+        padding: 16px 20px;
+        border-top: 1px solid var(--dashboard-border);
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        background: var(--dashboard-header-bg);
+        border-radius: 0 0 12px 12px;
+    }
+
+    .bookmark-edit-list-modal {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+
+    .bookmark-edit-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        background: var(--dashboard-bg);
+        padding: 8px;
+        border-radius: 8px;
+    }
+
+    .bm-input {
+        background: var(--dashboard-card-bg);
+        border: 1px solid var(--dashboard-border);
+        color: var(--dashboard-text-primary);
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 0.9rem;
+    }
+
+    .bm-input:focus {
+        outline: none;
+        border-color: #5B8FF9;
+    }
+
+    .bm-name { flex: 1; }
+    .bm-url { flex: 2; }
+    .bm-icon-preview { 
+        width: 32px; 
+        height: 32px; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center;
+        background: var(--dashboard-card-bg);
+        border: 1px solid var(--dashboard-border);
+        border-radius: 6px;
+        cursor: pointer;
+    }
+    .bm-icon-preview:hover {
+        border-color: #5B8FF9;
+    }
+
+    .btn-add-bookmark {
+        width: 100%;
+        padding: 10px;
+        border: 1px dashed var(--dashboard-border);
+        background: transparent;
+        color: var(--dashboard-text-secondary);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-add-bookmark:hover {
+        background: var(--dashboard-hover-bg);
+        color: var(--dashboard-text-primary);
+        border-color: var(--dashboard-text-secondary);
+    }
+
+    .btn-primary {
+        background: #5B8FF9;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+    .btn-primary:hover { background: #4D7FE6; }
+
+    .btn-secondary {
+        background: transparent;
+        color: var(--dashboard-text-secondary);
+        border: 1px solid var(--dashboard-border);
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+    .btn-secondary:hover { background: var(--dashboard-hover-bg); }
+
+    .btn-del-row {
+        background: transparent;
+        border: none;
+        color: #ff6b6b;
+        cursor: pointer;
+        padding: 4px;
+        font-size: 1.1rem;
+    }
+
+    /* Icon Grid */
+    .icon-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+        gap: 10px;
+    }
+
+    .icon-option {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        border: 1px solid var(--dashboard-border);
+        cursor: pointer;
+        font-size: 1.2rem;
+        transition: all 0.2s;
+    }
+
+    .icon-option:hover {
+        background: var(--dashboard-hover-bg);
+        border-color: #5B8FF9;
+    }
+
+    .icon-selector-mode {
+        width: 400px;
+    }
+</style>
+{% endblock %}

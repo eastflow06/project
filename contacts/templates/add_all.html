@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}연락처 목록{% endblock %}
+{% block content %}
+
+<style>
+    /* 로컬 스타일: 이 페이지에서만 쓰이는 특정 스타일 정의 */
+    
+    /* 테이블 래퍼 (스크롤 지원) */
+    .table-responsive {
+        overflow-x: auto;
+        border-radius: 8px;
+        /* 그림자 제거 (form-card가 이미 가지고 있음) or 유지 */
+    }
+
+    /* 테이블 커스텀 */
+    .contacts-table {
+        width: 100%;
+        border-collapse: collapse;
+        white-space: nowrap;
+    }
+
+    .contacts-table th {
+        background-color: var(--th-bg);
+        color: var(--text-color);
+        font-weight: 600;
+        padding: 15px;
+        border-bottom: 2px solid var(--border-color);
+        text-align: left;
+    }
+
+    .contacts-table td {
+        padding: 15px;
+        border-bottom: 1px solid var(--border-color);
+        color: var(--text-color);
+        vertical-align: middle;
+    }
+
+    /* 짝수 행 배경색 (스트라이프) */
+    .contacts-table tbody tr:nth-child(even) {
+        background-color: var(--stripe-bg);
+    }
+
+    /* 호버 효과 */
+    .contacts-table tbody tr:hover {
+        background-color: var(--dropdown-hover-bg);
+    }
+
+    /* 텍스트 강조 색상 */
+    .text-highlight {
+        color: var(--highlight, #e64980); /* 변수 없으면 기본 핑크 */
+        font-weight: 500;
+    }
+    
+    /* 우선순위 점수 */
+    .priority-score {
+        font-weight: 600;
+        color: var(--text-secondary);
+    }
+
+    /* 액션 아이콘 링크 */
+    .action-icon {
+        color: var(--link-color);
+        font-size: 16px;
+        text-decoration: none;
+        transition: transform 0.2s;
+        display: inline-block;
+    }
+    .action-icon:hover {
+        transform: scale(1.2);
+        color: var(--link-hover);
+    }
+
+    /* 상단 버튼 커스텀 색상 */
+    .btn-pink { background-color: #e64980; color: white; border: none; }
+    .btn-yellow { background-color: #f8c200; color: white; border: none; }
+    
+    /* 다크모드에서 버튼 테두리 추가 (가시성 확보) */
+    body.dark-mode .btn-pink, 
+    body.dark-mode .btn-yellow {
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+</style>
+
+<div class="modern-container">
+    
+    <div class="form-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h1 class="title" style="font-size: 1.5rem;">전체 연락처 목록 <span style="font-size:0.8em; font-weight:normal; color:var(--text-secondary);">(우선순위 정렬)</span></h1>
+            
+            <div style="display: flex; gap: 10px;">
+                <a href="{{ url_for('contact.add_contact') }}" class="circle-btn btn-pink" title="연락처 추가">
+                    <span style="font-size: 24px; line-height: 1;">+</span>
+                </a>
+                <a href="{{ url_for('contact.index') }}" class="circle-btn btn-yellow" title="즐겨찾기 목록">
+                    <span style="font-size: 18px; line-height: 1;">★</span>
+                </a>
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="contacts-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">번호</th>
+                        <th style="width: 50px; text-align: center;">⭐</th>
+                        <th>가중치</th>
+                        <th>이름</th>
+                        <th>직급</th>
+                        <th>부서</th>
+                        <th>연락처</th>
+                        <th>내선</th>
+                        <th>액션</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for contact in contacts %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td style="text-align: center;">
+                            <a href="javascript:void(0);" onclick="toggleStar({{ contact.id }}, '{{ url_for('contact.toggle_favorite', contact_id=contact.id) }}')" style="text-decoration: none; cursor: pointer;">
+                                {% if contact.is_favorite %}
+                                <span id="star-{{ contact.id }}" style="color: gold; font-size: 18px;">★</span>
+                                {% else %}
+                                <span id="star-{{ contact.id }}" style="color: var(--border-color); font-size: 18px;">☆</span>
+                                {% endif %}
+                            </a>
+                        </td>
+                        <td>
+                            <span class="priority-score">
+                                {{ contact.priority_score | default(0) }}
+                            </span>
+                        </td>
+                        <td class="text-highlight">{{ contact.name }}</td>
+                        <td>{{ contact.position }}</td>
+                        <td>{{ contact.department }}</td>
+                        <td>
+                            <span style="display: inline-flex; align-items: center; gap: 5px;">
+                                <span>📱</span> {{ contact.phone }}
+                            </span>
+                        </td>
+                        <td>
+                            <span style="display: inline-flex; align-items: center; gap: 5px;">
+                                <span>📞</span> {{ contact.extension }}
+                            </span>
+                        </td>
+                        <td>
+                            <div style="display: flex; gap: 15px;">
+                                <a href="sms:{{ contact.phone }}" class="action-icon" title="문자 보내기">💬</a>
+                                <a href="tel:{{ contact.phone }}" class="action-icon" title="통화">📞</a>
+                                <a href="{{ url_for('contact.edit_contact', contact_id=contact.id) }}" class="action-icon" title="편집">✏️</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% if not contacts %}
+        <div style="text-align: center; margin-top: 40px; color: var(--text-secondary);">
+            <p>등록된 연락처가 없습니다.</p>
+            <p>오른쪽 상단의 + 버튼을 클릭하여 연락처를 추가하세요.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// 즐겨찾기 토글 후 새로고침 (정렬 반영)
+function toggleStar(contactId, toggleUrl) {
+    fetch(toggleUrl, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 정렬이 바뀌어야 하므로 새로고침
+            window.location.reload(); 
+        } else {
+            console.error('즐겨찾기 토글 실패');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+    
+    return false;
+}
+</script>
+{% endblock %}

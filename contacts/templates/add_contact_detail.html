@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ contact.name }} 상세 정보</title>
+</head>
+<body>
+    <h1>{{ contact.name }}</h1>
+    <p>직급: {{ contact.position }}</p>
+    <p>부서: {{ contact.department }}</p>
+    <p>연락처: {{ contact.phone }}</p>
+    <p>내선: {{ contact.extension }}</p>
+    {% if contact.email %}
+    <p>이메일: <a href="mailto:{{ contact.email }}">{{ contact.email }}</a></p>
+    {% endif %}
+    <a href="{{ url_for('contact.index') }}">뒤로 가기</a>
+</body>
+</html>

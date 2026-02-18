@@ -1,0 +1,817 @@
+{% extends "base.html" %}
+{% block title %}
+InfoLinks
+{% endblock %}
+{% block content %}
+
+<div class="split-container">
+    <div class="left-panel">
+        <div style="margin-bottom: 15px;">
+            <a href="{{ url_for('create_infolink') }}" class="btn btn-primary"
+                style="width: 100%; box-sizing: border-box; display: block; text-align: center;">New Link</a>
+        </div>
+
+        <div class="filter-header-group">
+            <h2 id="filter-reset" title="Click to reset filters">Filter <i class="fas fa-undo-alt"
+                    style="font-size: 0.8em; margin-left: 5px;"></i></h2>
+        </div>
+
+        <div id="infolink-category-buttons" class="filter-section">
+            <div class="button-grid">
+                {% for category in categories %}
+                <button class="infolink-category-button" data-category="{{ category }}">{{ category }}</button>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div id="infolink-subcategory-buttons" class="filter-section">
+            <div class="button-grid">
+                {% for subcategory in subcategories %}
+                <button class="infolink-subcategory-button" data-subcategory="{{ subcategory }}">{{ subcategory
+                    }}</button>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div id="search-form" class="search-box-area">
+            <input type="text" id="search-input" placeholder="Search keyword...">
+            <div class="search-buttons">
+                <button id="cancel-button" class="btn-reset">Cancel</button>
+                <button id="search-button" class="btn-search">Search</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="right-panel">
+        <div id="infolink-details-container" class="details-panel" style="display: none;">
+            <div id="infolink-details" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="flex: 1; line-height: 1.4em;">
+                    <p><strong>Name :</strong> <span id="infolink-name" class="highlight-text">Click a link to see
+                            details here</span></p>
+                    <p><strong>Detail :</strong> <span id="infolink-detail"></span></p>
+                    <p id="infolink-url-section" style="display: none;">
+                        <strong>URL :</strong> <a id="infolink-url" href="#" target="_blank"></a>
+                    </p>
+                    <p id="file-section" style="display: none;">
+                        <strong>File :</strong> <a id="infolink-file" href="#" target="_blank">Open</a>
+                    </p>
+                    <p><strong>Category :</strong> <span id="infolink-category" class="badge"></span></p>
+
+                    <div class="action-buttons-area">
+                        <a href="#" id="edit-infolink" class="btn-edit-link" style="display: none;">EDIT</a>
+                    </div>
+                </div>
+                <div id="image-preview" style="flex: 0 0 30%; margin-left: 20px; text-align: center;">
+                    <img id="infolink-image-preview" src="" alt="Image Preview"
+                        style="width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--border-color); display: none;">
+                </div>
+            </div>
+        </div>
+
+        <table id="infolinks-table" style="display: none;">
+            <tbody>
+                {% for infolink in infolinks %}
+                <tr data-id="{{ infolink.id }}" data-name="{{ infolink.name }}" data-url="{{ infolink.url }}"
+                    data-detail="{{ infolink.detail }}" data-category="{{ infolink.category }}"
+                    data-subcategory="{{ infolink.subcategory }}" data-file="{{ infolink.attachment_filename }}"
+                    data-image="{{ infolink.image_filename }}">
+                    <td>{{ infolink.id }}</td>
+                    <td>{{ infolink.name }}</td>
+                    <td>{{ infolink.url }}</td>
+                    <td>{{ infolink.detail }}</td>
+                    <td>{{ infolink.category }}</td>
+                    <td>{{ infolink.subcategory }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <table id="grouped-infolinks-table" class="grouped-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px; text-align: center;">ID</th>
+                    <th style="width: 25%;">Name</th>
+                    <th style="width: 55%;">Detail</th>
+                    <th style="width: 30px; text-align: center;"><i class="fas fa-file"></i></th>
+                    <th style="width: 30px; text-align: center;"><i class="fas fa-link"></i></th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="imageModal" class="modal">
+    <span class="close">&times;</span>
+    <img id="modalImage" class="modal-content" alt="Preview">
+    <div id="caption"></div>
+</div>
+
+<style>
+    /* [수정 포인트 1] 레이아웃 및 컨테이너 */
+    .split-container {
+        display: flex;
+        width: 100%;
+        max-width: 100%;
+        margin: 0 auto;
+        gap: 20px;
+        padding: 10px;
+        box-sizing: border-box;
+        align-items: stretch;
+    }
+
+    .left-panel {
+        width: 350px;
+        flex-shrink: 0;
+        padding: 15px;
+        background-color: var(--stripe-bg);
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+    }
+
+    .right-panel {
+        flex-grow: 1;
+        min-width: 0;
+    }
+
+    /* [수정 포인트 2] 버튼 그리드 및 색상 */
+    .filter-section {
+        margin-bottom: 20px;
+    }
+
+    .button-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+    }
+
+    .infolink-category-button,
+    .infolink-subcategory-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 5px;
+        font-size: 14px;
+        font-weight: 500;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: center;
+        word-break: break-word;
+        background-color: var(--input-bg);
+        color: var(--text-color);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+
+    .infolink-category-button:hover,
+    .infolink-subcategory-button:hover {
+        background-color: var(--dropdown-hover-bg);
+        transform: translateY(-1px);
+    }
+
+    .infolink-selected {
+        background-color: var(--link-color) !important;
+        color: #fff !important;
+        border-color: var(--link-color) !important;
+        font-weight: bold;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+
+    .filter-header-group h2 {
+        font-size: 1.2rem;
+        margin-bottom: 10px;
+        color: var(--text-color);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    #filter-reset:hover {
+        color: var(--danger-color);
+        cursor: pointer;
+    }
+
+    /* [수정 포인트 3] 검색 영역 */
+    /* [수정 포인트 3] 검색 영역 */
+    .search-box-area {
+        margin-top: 30px;
+        border-top: 1px solid var(--border-color);
+        padding-top: 20px;
+    }
+
+    #search-input {
+        width: 100%;
+        margin-bottom: 10px;
+        /* 입력창 높이와 여백 추가 */
+        height: 40px;
+        padding: 0 10px;
+        box-sizing: border-box;
+        font-size: 15px;
+    }
+
+    .search-buttons {
+        display: flex;
+        gap: 8px;
+        /* 버튼 사이 간격 약간 넓힘 */
+    }
+
+    .search-buttons button {
+        flex: 1;
+        /* 버튼 높이 명시적 지정 */
+        height: 40px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        /* 텍스트 수직 중앙 정렬 */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* [수정 포인트 4] 테이블 스타일링 */
+    .grouped-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        border: none;
+    }
+
+    .grouped-table th,
+    .grouped-table td {
+        padding: 8px 10px;
+        text-align: left;
+        border-bottom: 1px solid var(--border-color);
+        color: var(--text-color);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 16px;
+    }
+
+    .grouped-table th {
+        background-color: var(--th-bg);
+        font-weight: 600;
+        border-top: 2px solid var(--border-color);
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .grouped-table tr.category-header td {
+        background-color: var(--stripe-bg);
+        font-weight: bold;
+        color: var(--link-color);
+        padding: 10px 15px;
+        border-top: 2px solid var(--border-color);
+    }
+
+    .grouped-table tr:not(.category-header):hover {
+        background-color: var(--dropdown-hover-bg);
+    }
+
+    .grouped-table tr.selected {
+        background-color: rgba(0, 123, 255, 0.1) !important;
+        border-left: 3px solid var(--link-color);
+    }
+
+    body.dark-mode .grouped-table tr.selected {
+        background-color: rgba(122, 165, 217, 0.2) !important;
+    }
+
+    /* [수정 포인트 5] 상세 패널 스타일링 */
+    .details-panel {
+        background-color: var(--input-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .highlight-text {
+        font-weight: bold;
+        color: var(--link-color);
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 3px 8px;
+        background-color: var(--stripe-bg);
+        border-radius: 4px;
+        font-size: 0.9em;
+        color: var(--text-color);
+        border: 1px solid var(--border-color);
+    }
+
+    .btn-edit-link {
+        display: inline-block;
+        padding: 5px 15px;
+        background-color: var(--link-color);
+        color: white;
+        border-radius: 4px;
+        text-decoration: none;
+        font-size: 0.9em;
+        margin-top: 10px;
+    }
+
+    .btn-edit-link:hover {
+        opacity: 0.9;
+        color: white;
+    }
+
+    .details-row {
+        background-color: var(--input-bg);
+    }
+
+    .details-content {
+        background-color: var(--input-bg);
+        padding: 15px;
+        border-bottom: 1px solid var(--border-color);
+        color: var(--text-color);
+    }
+
+    .details-info p {
+        margin: 5px 0;
+        color: var(--text-color);
+    }
+
+    .file-link,
+    .url-link {
+        color: var(--link-color);
+        text-decoration: none;
+        word-break: break-all;
+        overflow-wrap: break-word;
+    }
+
+    .file-link:hover,
+    .url-link:hover {
+        text-decoration: underline;
+    }
+
+    /* [누락되었던 부분] 모달(이미지 확대) 스타일 추가 */
+    .modal {
+        display: none;
+        /* 기본적으로 숨김 */
+        position: fixed;
+        z-index: 2000;
+        padding-top: 50px;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.9);
+    }
+
+    .modal-content {
+        margin: auto;
+        display: block;
+        width: 80%;
+        max-width: 800px;
+        max-height: 80vh;
+        /* 화면 높이를 넘지 않도록 */
+        object-fit: contain;
+    }
+
+    .close {
+        position: absolute;
+        top: 15px;
+        right: 35px;
+        color: #f1f1f1;
+        font-size: 40px;
+        font-weight: bold;
+        transition: 0.3s;
+        cursor: pointer;
+    }
+
+    .close:hover,
+    .close:focus {
+        color: #bbb;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    @media only screen and (max-width: 700px) {
+        .modal-content {
+            width: 100%;
+        }
+    }
+
+    /* =========================================
+[모바일/태블릿 최적화 CSS - 최종 수정]
+ID, Name, Detail 모두 표시
+========================================= */
+    @media screen and (max-width: 1024px) {
+
+        /* 1. 레이아웃: 상하 배치 */
+        .split-container {
+            flex-direction: column;
+        }
+
+        .left-panel {
+            width: 98%;
+            margin-bottom: 15px;
+        }
+
+        .button-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        /* 2. 테이블 컬럼 최적화 */
+
+        /* (1) ID 컬럼: 고정 너비로 표시 */
+        #grouped-infolinks-table th:nth-child(1),
+        #grouped-infolinks-table tr.data-row td:nth-child(1) {
+            display: table-cell !important;
+            width: 35px !important;
+            /* 좁게 고정 */
+            text-align: center;
+            padding: 8px 2px;
+        }
+
+        /* (2) Name(이름) 컬럼: 표시 (너비 30%) */
+        #grouped-infolinks-table th:nth-child(2),
+        #grouped-infolinks-table tr.data-row td:nth-child(2) {
+            display: table-cell !important;
+            width: 40% !important;
+            white-space: normal !important;
+            /* 줄바꿈 허용 */
+            font-weight: bold;
+            color: var(--link-color);
+            font-size: 1.02rem;
+            vertical-align: top;
+        }
+
+        /* (3) Detail(설명) 컬럼: 표시 (나머지 공간) */
+        #grouped-infolinks-table th:nth-child(3),
+        #grouped-infolinks-table tr.data-row td:nth-child(3) {
+            display: table-cell !important;
+            width: auto !important;
+            color: var(--text-color);
+            font-size: 1.02rem;
+            padding: 8px 10px;
+            vertical-align: top;
+        }
+        
+        /* Detail 텍스트 2줄 제한 */
+        #grouped-infolinks-table tr.data-row td:nth-child(3) .detail-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            line-height: 1.4em;
+            max-height: 2.8em;
+        }
+
+        /* (4) 파일/링크 아이콘: 최소 공간 */
+        #grouped-infolinks-table th:nth-child(4),
+        #grouped-infolinks-table tr.data-row td:nth-child(4),
+        #grouped-infolinks-table th:nth-child(5),
+        #grouped-infolinks-table tr.data-row td:nth-child(5) {
+            width: 30px !important;
+            padding: 8px 0 !important;
+            text-align: center;
+        }
+
+        /* 3. 터치 편의성 */
+        .infolink-category-button,
+        .infolink-subcategory-button,
+        #search-input,
+        .search-buttons button,
+        .btn-primary {
+            height: 48px !important;
+            font-size: 16px !important;
+        }
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var categoryButtons = document.querySelectorAll('.infolink-category-button');
+        var subcategoryButtons = document.querySelectorAll('.infolink-subcategory-button');
+        var searchInput = document.getElementById('search-input');
+        var searchButton = document.getElementById('search-button');
+        var cancelButton = document.getElementById('cancel-button');
+        var filterResetButton = document.getElementById('filter-reset');
+
+        var infolinkName = document.getElementById('infolink-name');
+        var infolinkDetail = document.getElementById('infolink-detail');
+        var infolinkFileSection = document.getElementById('file-section');
+        var infolinkFile = document.getElementById('infolink-file');
+        var infolinkImagePreview = document.getElementById('infolink-image-preview');
+        var editInfolinkLink = document.getElementById('edit-infolink');
+        var infolinkCategory = document.getElementById('infolink-category');
+
+        var selectedCategories = new Set(JSON.parse('{{ selected_categories | tojson | safe }}'));
+        var selectedSubcategories = new Set(JSON.parse('{{ selected_subcategories | tojson | safe }}'));
+        var searchKeyword = '{{ search_keyword }}';
+
+        // 모달 관련 요소
+        var modal = document.getElementById("imageModal");
+        var modalImg = document.getElementById("modalImage");
+        var span = document.getElementsByClassName("close")[0];
+
+        // 모달 닫기 기능
+        if (span) {
+            span.onclick = function () {
+                modal.style.display = "none";
+            }
+        }
+        // 배경 클릭 시 닫기
+        window.onclick = function (event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        const fileIcons = {
+            'png': 'static/icons/png.png',
+            'jpg': 'static/icons/jpg.png',
+            'jpeg': 'static/icons/jpeg.png',
+            'gif': 'static/icons/gif.png',
+            'pdf': 'static/icons/pdf.png',
+            'docx': 'static/icons/docx.png',
+            'xls': 'static/icons/xls.png',
+            'xlsx': 'static/icons/xlsx.png',
+            'ppt': 'static/icons/ppt.png',
+            'pptx': 'static/icons/pptx.png',
+            'md': 'static/icons/md.png',
+            'html': 'static/icons/icon-html.png',
+            'default': '📎'
+        };
+
+        function getFileIcon(filename) {
+            if (!filename || filename === 'None') return '';
+            if (filename.startsWith('http')) {
+                const urlLower = filename.toLowerCase();
+                // Google Sheets
+                if (urlLower.includes('docs.google.com/spreadsheets')) {
+                    return `<img src="/static/icons/gsheet.png" alt="Google Sheets" style="width: 18px; height: 18px; vertical-align: middle;">`;
+                }
+                // Google Slides
+                if (urlLower.includes('docs.google.com/presentation')) {
+                    return `<img src="/static/icons/gslide.png" alt="Google Slides" style="width: 18px; height: 18px; vertical-align: middle;">`;
+                }
+                // Google Docs
+                if (urlLower.includes('docs.google.com/document')) {
+                    return `<img src="/static/icons/google-docs.png" alt="Google Docs" style="width: 18px; height: 18px; vertical-align: middle;">`;
+                }
+                // 기타 URL
+                return `<i class="fas fa-link" style="color: var(--link-color);"></i>`;
+            }
+            const ext = filename.split('.').pop().toLowerCase();
+            if (['png', 'jpg', 'jpeg', 'gif'].includes(ext)) return `<i class="fas fa-image" style="color: var(--secondary-text);"></i>`;
+            if (ext === 'pdf') return `<i class="fas fa-file-pdf" style="color: var(--danger-color);"></i>`;
+            if (ext === 'xlsx' || ext === 'xls') return `<i class="fas fa-file-excel" style="color: green;"></i>`;
+            return `<i class="fas fa-file" style="color: var(--text-color);"></i>`;
+        }
+
+        function clearDetailView() {
+            var infolinkDetailsContainer = document.getElementById('infolink-details-container');
+            infolinkDetailsContainer.style.display = 'none';
+            document.querySelectorAll('.details-row').forEach(r => r.remove());
+            document.querySelectorAll('.selected').forEach(r => r.classList.remove('selected'));
+        }
+
+        function createGroupedTable() {
+            const tableBody = document.querySelector('#grouped-infolinks-table tbody');
+            const rows = Array.from(document.querySelectorAll('#infolinks-table tbody tr'));
+            const CATEGORIES = ['개발', '인허가', '학술', 'MEA'];
+
+            const groupedRows = rows.reduce((groups, row) => {
+                const category = row.getAttribute('data-category');
+                if (!groups[category]) groups[category] = [];
+                groups[category].push(row);
+                return groups;
+            }, {});
+
+            let tableHTML = '';
+            CATEGORIES.forEach(category => {
+                if (groupedRows[category]) appendCategoryRows(category, groupedRows[category]);
+            });
+            Object.keys(groupedRows).forEach(category => {
+                if (!CATEGORIES.includes(category)) appendCategoryRows(category, groupedRows[category]);
+            });
+
+            function appendCategoryRows(category, rows) {
+                tableHTML += `
+                <tr class="category-header" data-category="${category}">
+                    <td colspan="5">${category}</td>
+                </tr>
+                ${rows.map(row => {
+                    const id = row.getAttribute('data-id');
+                    const name = row.getAttribute('data-name');
+                    const detail = row.getAttribute('data-detail');
+                    const file = row.getAttribute('data-file');
+                    const image = row.getAttribute('data-image');
+                    const url = row.getAttribute('data-url');
+
+                    return `
+                    <tr data-id="${id}"
+                        data-name="${name}"
+                        data-detail="${detail}"
+                        data-category="${category}"
+                        data-subcategory="${row.getAttribute('data-subcategory')}"
+                        data-file="${file || ''}"
+                        data-image="${image || ''}"
+                        data-url="${url || ''}"
+                        class="data-row">
+                        <td style="text-align: center;">${id}</td>
+                        <td style="cursor: pointer;">${name}</td>
+                        <td style="cursor: pointer;"><div class="detail-text">${detail}</div></td>
+                        <td style="text-align: center;">
+                            ${file ? `<a href="/infolink_uploads/${file}" target="_blank" class="file-link">${getFileIcon(file)}</a>` : ''}
+                        </td>
+                        <td style="text-align: center;">
+                            ${url ? `<a href="${url.startsWith('http') ? url : 'http://' + url}" target="_blank">${getFileIcon(url)}</a>` : ''}
+                        </td>
+                    </tr>
+                `}).join('')}
+            `;
+            }
+
+            tableBody.innerHTML = tableHTML;
+
+            // 행 전체를 클릭 가능하게 만들기
+            document.querySelectorAll('.data-row').forEach(row => {
+                row.style.cursor = 'pointer';
+                row.addEventListener('click', function (e) {
+                    // 파일이나 URL 링크를 클릭한 경우는 무시
+                    if (e.target.tagName === 'A' || e.target.closest('a')) {
+                        return;
+                    }
+                    handleViewLinkClick.call(this, e);
+                });
+            });
+        }
+
+        function handleViewLinkClick(e) {
+            e.preventDefault();
+            var row = this.closest('tr');
+
+            if (row.nextElementSibling?.classList.contains('details-row')) {
+                row.nextElementSibling.remove();
+                row.classList.remove('selected');
+                return;
+            }
+
+            document.querySelectorAll('.details-row').forEach(row => row.remove());
+            document.querySelectorAll('tr.selected').forEach(row => row.classList.remove('selected'));
+
+            row.classList.add('selected');
+
+            const detailsRow = document.createElement('tr');
+            detailsRow.className = 'details-row';
+
+            const name = row.getAttribute('data-name');
+            const detail = row.getAttribute('data-detail');
+            const url = row.getAttribute('data-url');
+            const file = row.getAttribute('data-file');
+            const image = row.getAttribute('data-image');
+            const id = row.getAttribute('data-id');
+
+            let imageHtml = '';
+            if (image && image !== 'None') {
+                const imageSrc = image.startsWith('http') ? image : `/infolink_uploads/${image}`;
+                // 이미지 클릭 시 모달 오픈
+                imageHtml = `<div class="details-image" style="flex: 0 0 200px; text-align: right;">
+                            <img src="${imageSrc}" class="zoomable-image" style="max-width: 100%; border-radius: 4px; cursor: pointer;">
+                         </div>`;
+            }
+
+            const category = row.getAttribute('data-category');
+            const subcategory = row.getAttribute('data-subcategory');
+
+            detailsRow.innerHTML = `
+            <td colspan="5" style="padding: 0; border: none;">
+                <div class="details-content">
+                    <div style="display: grid; grid-template-columns: ${image && image !== 'None' ? '1fr 200px' : '1fr'}; gap: 20px; align-items: start;">
+                        <div style="min-width: 0; word-wrap: break-word; overflow-wrap: break-word;">
+                            <p style="word-wrap: break-word; overflow-wrap: break-word;"><i class="fas fa-folder" style="color: var(--link-color); margin-right: 8px;"></i>${category}${subcategory && subcategory !== 'None' ? ' > ' + subcategory : ''}</p>
+                            ${detail && detail !== 'None' ? `<p style="word-wrap: break-word; overflow-wrap: break-word; white-space: normal;"><i class="fas fa-info-circle" style="color: var(--link-color); margin-right: 8px;"></i>${detail}</p>` : ''}
+                            ${url && url !== 'None' ? `<p style="word-wrap: break-word; overflow-wrap: break-word; white-space: normal;"><i class="fas fa-link" style="color: var(--link-color); margin-right: 8px;"></i><a href="${url.startsWith('http') ? url : 'http://' + url}" target="_blank" class="url-link" style="word-break: break-all; overflow-wrap: break-word;">${url}</a></p>` : ''}
+                            ${file && file !== 'None' ? `<p style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><i class="fas fa-paperclip" style="color: var(--link-color); margin-right: 8px;"></i><a href="/infolink_uploads/${file}" target="_blank" class="file-link">${file}</a></p>` : ''}
+                            
+                            <div style="margin-top: 15px;">
+                                <a href="/infolink/${id}/edit" class="btn-edit-link">Edit</a>
+                                <a href="/infolink/${id}" class="btn-edit-link" style="background-color: var(--secondary-text);">View Page</a>
+                            </div>
+                        </div>
+                        ${image && image !== 'None' ? `<div style="text-align: right;">${imageHtml.replace('<div class="details-image" style="flex: 0 0 200px; min-width: 200px; text-align: right;">', '').replace('</div>', '')}</div>` : ''}
+                    </div>
+                </div>
+            </td>
+        `;
+
+            row.parentNode.insertBefore(detailsRow, row.nextSibling);
+
+            // 동적으로 생성된 이미지에 클릭 이벤트 추가
+            const newImg = detailsRow.querySelector('.zoomable-image');
+            if (newImg) {
+                newImg.onclick = function () {
+                    modal.style.display = "block";
+                    modalImg.src = this.src;
+                }
+            }
+        }
+
+        function normalizeString(str) {
+            if (!str) return '';
+            return str.normalize("NFC").toLowerCase();
+        }
+
+        function updateTable() {
+            const rows = document.querySelectorAll('#grouped-infolinks-table tbody tr.data-row');
+            const categoryHeaders = document.querySelectorAll('#grouped-infolinks-table tbody tr.category-header');
+
+            rows.forEach(function (row) {
+                var rowCategory = row.getAttribute('data-category');
+                var rowSubcategory = row.getAttribute('data-subcategory');
+                var rowName = normalizeString(row.getAttribute('data-name'));
+
+                var categoryMatch = selectedCategories.size === 0 || selectedCategories.has(rowCategory);
+                var subcategoryMatch = selectedSubcategories.size === 0 || selectedSubcategories.has(rowSubcategory);
+                var searchMatch = normalizeString(searchKeyword) === '' || rowName.includes(normalizeString(searchKeyword));
+
+                if (categoryMatch && subcategoryMatch && searchMatch) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            categoryHeaders.forEach(function (header) {
+                var category = header.getAttribute('data-category');
+                var visibleRows = document.querySelectorAll(`tr.data-row[data-category="${category}"]:not([style*="display: none"])`);
+                header.style.display = visibleRows.length > 0 ? '' : 'none';
+            });
+        }
+
+        function saveSearchState() {
+            fetch('/save_search_state', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    selectedCategories: Array.from(selectedCategories),
+                    selectedSubcategories: Array.from(selectedSubcategories),
+                    searchKeyword: searchKeyword
+                }),
+            });
+        }
+
+        categoryButtons.forEach(btn => {
+            btn.addEventListener('click', function () {
+                var cat = this.getAttribute('data-category');
+                this.classList.toggle('infolink-selected');
+                if (this.classList.contains('infolink-selected')) selectedCategories.add(cat);
+                else selectedCategories.delete(cat);
+                clearDetailView(); updateTable(); saveSearchState();
+            });
+        });
+
+        subcategoryButtons.forEach(btn => {
+            btn.addEventListener('click', function () {
+                var sub = this.getAttribute('data-subcategory');
+                this.classList.toggle('infolink-selected');
+                if (this.classList.contains('infolink-selected')) selectedSubcategories.add(sub);
+                else selectedSubcategories.delete(sub);
+                clearDetailView(); updateTable(); saveSearchState();
+            });
+        });
+
+        searchButton.addEventListener('click', function () {
+            searchKeyword = searchInput.value.toLowerCase();
+            clearDetailView(); updateTable(); saveSearchState();
+        });
+
+        searchInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') searchButton.click();
+        });
+
+        filterResetButton.addEventListener('click', function () {
+            document.querySelectorAll('.infolink-selected').forEach(b => b.classList.remove('infolink-selected'));
+            selectedCategories.clear(); selectedSubcategories.clear();
+            searchKeyword = ''; searchInput.value = '';
+            clearDetailView(); updateTable(); saveSearchState();
+        });
+
+        cancelButton.addEventListener('click', function () {
+            searchKeyword = ''; searchInput.value = '';
+            clearDetailView(); updateTable(); saveSearchState();
+        });
+
+        createGroupedTable();
+
+        categoryButtons.forEach(btn => {
+            if (selectedCategories.has(btn.getAttribute('data-category'))) btn.classList.add('infolink-selected');
+        });
+        subcategoryButtons.forEach(btn => {
+            if (selectedSubcategories.has(btn.getAttribute('data-subcategory'))) btn.classList.add('infolink-selected');
+        });
+
+        searchInput.value = searchKeyword;
+        updateTable();
+    }); 
+</script>
+{% endblock %}

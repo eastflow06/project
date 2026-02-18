@@ -1,0 +1,726 @@
+{% extends "base.html" %}
+{% block title %}
+Edit InfoLink
+{% endblock %}
+{% block content %}
+<div class="modern-container">
+    <div class="header-section">
+        <div class="breadcrumb">
+            <a href="{{ url_for('infolinks') }}">InfoLinks</a>
+            <span class="separator">›</span>
+            <a href="{{ url_for('view_infolink', infolink_id=infolink.id) }}">{{ infolink.name }}</a>
+            <span class="separator">›</span>
+            <span>편집</span>
+        </div>
+        <h1 class="title">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+            Edit InfoLink
+        </h1>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" class="modern-form">
+        <div class="form-card">
+            <h3 class="card-title">기본 정보</h3>
+            
+            <div class="form-group">
+                <label for="name" class="form-label">
+                    <span class="label-text">Name</span>
+                    <span class="required">*</span>
+                </label>
+                <input type="text" name="name" id="name" value="{{ infolink.name }}" 
+                       class="form-input" required placeholder="InfoLink 이름을 입력하세요">
+            </div>
+
+            <div class="form-group">
+                <label for="url" class="form-label">
+                    <span class="label-text">URL</span>
+                </label>
+                <input type="text" name="url" id="url" value="{{ infolink.url }}" 
+                       class="form-input" placeholder="https://example.com">
+            </div>
+
+            <div class="form-group">
+                <label for="detail" class="form-label">
+                    <span class="label-text">Detail</span>
+                </label>
+                <textarea name="detail" id="detail" rows="4" class="form-textarea" 
+                          placeholder="상세 설명을 입력하세요">{{ infolink.detail }}</textarea>
+            </div>
+        </div>
+
+        <div class="form-card">
+            <h3 class="card-title">카테고리</h3>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="selected_categories" class="form-label">
+                        <span class="label-text">Category</span>
+                        <span class="required">*</span>
+                    </label>
+                    <select name="selected_categories" id="selected_categories" class="form-select" required>
+                        {% for category in categories %}
+                            <option value="{{ category }}" {% if infolink.category == category %} selected {% endif %}>
+                                {{ category }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="selected_subcategories" class="form-label">
+                        <span class="label-text">Subcategory</span>
+                    </label>
+                    <select name="selected_subcategories" id="selected_subcategories" class="form-select">
+                        {% for subcategory in subcategories %}
+                            <option value="{{ subcategory }}" {% if infolink.subcategory == subcategory %} selected {% endif %}>
+                                {{ subcategory }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-card">
+            <h3 class="card-title">이미지</h3>
+            
+            {% if infolink.image_filename %}
+            <div class="current-file-section">
+                <div class="current-file-header">
+                    <span class="current-label">현재 이미지</span>
+                    <label class="delete-checkbox">
+                        <input type="checkbox" name="delete_image" id="delete_image">
+                        <span>삭제</span>
+                    </label>
+                </div>
+                <div class="image-preview-box">
+                    {% if infolink.image_filename.startswith('http://') or infolink.image_filename.startswith('https://') %}
+                        <img src="{{ infolink.image_filename }}" alt="{{ infolink.name }}">
+                    {% else %}
+                        <img src="{{ url_for('infolink_uploads', filename=infolink.image_filename) }}" alt="{{ infolink.name }}">
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label for="image_upload_method" class="form-label">
+                    <span class="label-text">이미지 업로드 방법</span>
+                </label>
+                <select id="image_upload_method" name="image_upload_method" class="form-select" 
+                        onchange="toggleImageInput(this.value)">
+                    <option value="none">선택하세요</option>
+                    <option value="file">파일 업로드</option>
+                    <option value="paste">붙여넣기 / 드래그</option>
+                    <option value="url">이미지 URL</option>
+                </select>
+            </div>
+
+            <div id="image-file" class="image-input-section" style="display: none;">
+                <label class="file-upload-label">
+                    <input type="file" id="images" name="images" accept="image/*" class="file-input">
+                    <div class="file-upload-box">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <p class="upload-text">클릭하여 파일 선택</p>
+                        <p class="upload-hint">또는 파일을 드래그하세요</p>
+                    </div>
+                </label>
+            </div>
+
+            <div id="image-paste" class="image-input-section" style="display: none;">
+                <div id="paste-area" class="paste-area">
+                    <span id="paste-text" class="paste-text">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                        </svg>
+                        <p>이미지 붙여넣기 또는 드래그</p>
+                        <p class="paste-hint">Ctrl+V 또는 파일을 여기에 놓으세요</p>
+                    </span>
+                    <img id="pasted-image" alt="Pasted image" style="display: none;">
+                </div>
+                <input type="hidden" id="pasted_image_data" name="pasted_image_data">
+            </div>
+
+            <div id="image-url" class="image-input-section" style="display: none;">
+                <div class="form-group">
+                    <input type="text" id="image_url" name="image_url" class="form-input" 
+                           placeholder="https://example.com/image.jpg">
+                </div>
+                <div id="url-preview-container" style="display: none;">
+                    <img id="url-image-preview" alt="Image preview" class="url-preview-image">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-card">
+            <h3 class="card-title">첨부 파일</h3>
+            
+            {% if infolink.attachment_filename %}
+            <div class="current-file-section">
+                <div class="file-info-box">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                        <polyline points="13 2 13 9 20 9"></polyline>
+                    </svg>
+                    <span class="file-name">{{ infolink.attachment_filename }}</span>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label for="attachment_file" class="form-label">
+                    <span class="label-text">새 첨부 파일</span>
+                </label>
+                <label class="file-upload-label">
+                    <input type="file" name="attachment_file" id="attachment_file" class="file-input">
+                    <div class="file-upload-box small">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <span>파일 선택</span>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                업데이트
+            </button>
+            <a href="{{ url_for('view_infolink', infolink_id=infolink.id) }}" class="btn btn-secondary">
+                취소
+            </a>
+        </div>
+    </form>
+</div>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+.modern-container {
+    width: 75%;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    font-family: 'Noto Sans KR', sans-serif;
+    color: var(--text-color);
+}
+
+/* Header Section */
+.header-section {
+    margin-bottom: 32px;
+}
+
+.breadcrumb {
+    font-size: 14px;
+    color: var(--secondary-text);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.breadcrumb a {
+    color: var(--link-color);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.breadcrumb a:hover {
+    color: var(--link-hover);
+    text-decoration: underline;
+}
+
+.breadcrumb .separator {
+    color: var(--border-color);
+}
+
+.title {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-color);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.title svg {
+    color: var(--link-color);
+}
+
+/* Form Styles */
+.modern-form {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.form-card {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 28px;
+    transition: box-shadow 0.2s;
+}
+
+.form-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.card-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-color);
+    margin: 0 0 24px 0;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.label-text {
+    font-size: 14px;
+}
+
+.required {
+    color: var(--danger-color);
+    margin-left: 4px;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+    width: 100%;
+    padding: 12px 16px;
+    /* 입력창 배경은 카드 배경과 구분되게 페이지 배경색 또는 별도 색상 사용 가능 
+       여기서는 카드가 input-bg이므로, input은 그대로 두거나 약간 변화 */
+    background-color: var(--bg-color); /* 움푹 들어간 느낌 */
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1em;
+    color: var(--text-color);
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+    outline: none;
+    border-color: var(--link-color);
+    box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+}
+
+.form-textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.form-select {
+    cursor: pointer;
+    /* 기본 화살표 제거하고 커스텀 화살표는 CSS 변수 적용이 까다로워 기본 스타일 유지하되 색상 조정 */
+    /* appearance: none; */
+}
+
+/* Current File Section */
+.current-file-section {
+    margin-bottom: 20px;
+    padding: 16px;
+    background: var(--stripe-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.current-file-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.current-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--secondary-text);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.delete-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--danger-color);
+}
+
+.delete-checkbox input {
+    cursor: pointer;
+}
+
+.image-preview-box {
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--input-bg);
+    padding: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.image-preview-box img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 4px;
+}
+
+.file-info-box {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--input-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.file-info-box svg {
+    color: var(--secondary-text);
+    flex-shrink: 0;
+}
+
+.file-name {
+    font-size: 14px;
+    color: var(--text-color);
+    font-weight: 500;
+}
+
+/* Image Input Sections */
+.image-input-section {
+    margin-top: 16px;
+}
+
+.file-upload-label {
+    display: block;
+    cursor: pointer;
+}
+
+.file-input {
+    display: none;
+}
+
+.file-upload-box {
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    transition: all 0.2s;
+    background: var(--stripe-bg);
+}
+
+.file-upload-box:hover {
+    border-color: var(--link-color);
+    background: var(--dropdown-hover-bg);
+}
+
+.file-upload-box.small {
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.file-upload-box svg {
+    color: var(--secondary-text);
+    margin: 0 auto;
+}
+
+.upload-text {
+    margin: 12px 0 4px 0;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.upload-hint {
+    margin: 0;
+    font-size: 13px;
+    color: var(--secondary-text);
+}
+
+.paste-area {
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    min-height: 250px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--stripe-bg);
+    position: relative;
+}
+
+.paste-area:hover,
+.paste-area.dragover {
+    border-color: var(--link-color);
+    background: var(--dropdown-hover-bg);
+}
+
+.paste-text {
+    text-align: center;
+}
+
+.paste-text svg {
+    color: var(--secondary-text);
+    margin-bottom: 12px;
+}
+
+.paste-text p {
+    margin: 0;
+    font-size: 15px;
+    color: var(--text-color);
+}
+
+.paste-hint {
+    margin-top: 8px !important;
+    font-size: 13px !important;
+    color: var(--secondary-text) !important;
+}
+
+#pasted-image {
+    max-width: 100%;
+    max-height: 250px;
+    border-radius: 4px;
+}
+
+#url-preview-container {
+    margin-top: 16px;
+    padding: 16px;
+    background: var(--stripe-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.url-preview-image {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    display: block;
+}
+
+/* Action Buttons */
+.form-actions {
+    display: flex;
+    gap: 12px;
+    padding-top: 8px;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    justify-content: center;
+    height: 48px;
+}
+
+.btn-primary {
+    background: var(--link-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--link-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.btn-secondary {
+    background: var(--stripe-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background: var(--dropdown-hover-bg);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .modern-container {
+        width: 95%;
+        padding: 20px 16px;
+    }
+
+    .title {
+        font-size: 24px;
+    }
+
+    .form-card {
+        padding: 20px;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .btn {
+        width: 100%;
+    }
+}
+</style>
+
+<script>
+function toggleImageInput(option) {
+    document.getElementById('image-file').style.display = (option === 'file') ? 'block' : 'none';
+    document.getElementById('image-paste').style.display = (option === 'paste') ? 'block' : 'none';
+    document.getElementById('image-url').style.display = (option === 'url') ? 'block' : 'none';
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const pasteArea = document.getElementById('paste-area');
+    const pastedImage = document.getElementById('pasted-image');
+    const pastedImageData = document.getElementById('pasted_image_data');
+    const pasteText = document.getElementById('paste-text');
+    const imageUrlInput = document.getElementById('image_url');
+    const urlImagePreview = document.getElementById('url-image-preview');
+    const urlPreviewContainer = document.getElementById('url-preview-container');
+
+    // File input preview
+    const fileInput = document.getElementById('images');
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    // You can add preview here if needed
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    // Handle paste event
+    if (pasteArea) {
+        pasteArea.addEventListener('paste', handlePasteEvent);
+        pasteArea.addEventListener('dragover', handleDragOver);
+        pasteArea.addEventListener('dragleave', handleDragLeave);
+        pasteArea.addEventListener('drop', handleDrop);
+    }
+
+    // Handle URL input
+    if (imageUrlInput) {
+        imageUrlInput.addEventListener('input', handleUrlInput);
+    }
+    
+    if (urlImagePreview) {
+        urlImagePreview.addEventListener('error', handleImageError);
+        urlImagePreview.addEventListener('load', function() {
+            urlPreviewContainer.style.display = 'block';
+        });
+    }
+
+    function handlePasteEvent(event) {
+        const items = event.clipboardData.items;
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                const blob = items[i].getAsFile();
+                handleImageFile(blob);
+            }
+        }
+    }
+
+    function handleDragOver(event) {
+        event.preventDefault();
+        pasteArea.classList.add('dragover');
+    }
+
+    function handleDragLeave() {
+        pasteArea.classList.remove('dragover');
+    }
+
+    function handleDrop(event) {
+        event.preventDefault();
+        pasteArea.classList.remove('dragover');
+        const files = event.dataTransfer.files;
+        if (files.length > 0 && files[0].type.indexOf('image') !== -1) {
+            handleImageFile(files[0]);
+        }
+    }
+
+    function handleImageFile(file) {
+        const reader = new FileReader();
+        reader.onload = function (event) {
+            pastedImage.src = event.target.result;
+            pastedImage.style.display = 'block';
+            pastedImageData.value = event.target.result;
+            pasteText.style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function handleUrlInput() {
+        const url = imageUrlInput.value.trim();
+        if (url) {
+            urlImagePreview.src = url;
+        } else {
+            urlPreviewContainer.style.display = 'none';
+        }
+    }
+
+    function handleImageError() {
+        urlPreviewContainer.style.display = 'none';
+        // alert('이미지를 불러올 수 없습니다. URL을 확인해주세요.'); // UX 방해 방지 위해 주석처리
+    }
+});
+</script>
+{% endblock %}

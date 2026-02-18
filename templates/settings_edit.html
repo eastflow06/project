@@ -1,0 +1,1070 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Settings{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="tabs-sidebar">
+        <button class="tab-button active" onclick="showTab('index')">Index</button>
+        <button class="tab-button" onclick="showTab('panels')">Panels</button>
+        <button class="tab-button" onclick="showTab('project')">Project</button>
+        <button class="tab-button" onclick="showTab('status')">Status</button>
+        <button class="tab-button" onclick="showTab('contacts')">Contacts</button>
+        <button class="tab-button" onclick="showTab('summary')">Summary</button>
+        <button class="tab-button" onclick="showTab('login')">Login</button>
+        <button class="tab-button" onclick="showTab('images')">Images</button>
+    </div>
+
+    <div class="content-area">
+
+        <div id="tab-index" class="tab-content active">
+            <h2 class="section-title">Index 설정</h2>
+
+            <div class="form-group">
+                <label class="form-label">배경 이미지 URL</label>
+                <div class="input-with-button">
+                    <input type="text" id="index_bg_url" class="form-input image-input" 
+                           value="{{ settings.Index.bg_url }}" 
+                           oninput="updateImageInput(this.id, this.value)">
+                    <button type="button" class="btn btn-primary" onclick="openImageBrowser('index_bg_url')">선택</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">배경 색상</label>
+                <div class="color-display-group">
+                    <input type="color" id="index_bg_color" 
+                        value="{{ settings.Index.bg_color }}" 
+                        oninput="updateColorDisplay('index_bg_color_hex', this.value)">
+                    <div id="index_bg_color_hex_container" class="color-hex-container">
+                        <span id="index_bg_color_hex" class="color-hex-display"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">투명도</label>
+                <input type="number" id="index_opacity" class="form-input" value="{{ settings.Index.opacity }}" min="0" max="1" step="0.1">
+            </div>
+        </div>
+
+        <div id="tab-panels" class="tab-content">
+            <h2 class="section-title">Panels 설정</h2>
+
+            {% for panel_name in ["panel1", "panel2", "panel3"] %}
+            <div class="status-section">
+                <h3>{{ panel_name|capitalize }}</h3>
+
+                <label class="form-label">배경 이미지 URL</label>
+                <div class="input-with-button">
+                    <input type="text" id="{{ panel_name }}_bg_url" class="form-input image-input" 
+                           value="{{ settings.Panels[panel_name].bg_url }}"
+                           oninput="updateImageInput(this.id, this.value)">
+                    <button type="button" class="btn btn-primary" onclick="openImageBrowser('{{ panel_name }}_bg_url')">선택</button>
+                </div>
+
+                <label class="form-label">배경 색상</label>
+                <div class="color-display-group">
+                    <input type="color" id="{{ panel_name }}_bg_color" 
+                        value="{{ settings.Panels[panel_name].bg_color }}" 
+                        oninput="updateColorDisplay('{{ panel_name }}_bg_color_hex', this.value)">
+                    <div id="{{ panel_name }}_bg_color_hex_container" class="color-hex-container">
+                        <span id="{{ panel_name }}_bg_color_hex" class="color-hex-display"></span>
+                    </div>
+                </div>
+
+                <label class="form-label">투명도</label>
+                <input type="number" id="{{ panel_name }}_opacity" class="form-input" value="{{ settings.Panels[panel_name].opacity }}" min="0" max="1" step="0.1">
+            </div>
+            {% endfor %}
+        </div>
+
+        <div id="tab-project" class="tab-content">
+            <h2 class="section-title">Project 상태 목록 (전체)</h2>
+            
+            <div class="status-input-group">
+                <input type="text" id="new_project_status" class="form-input" placeholder="새 상태 이름 입력 (예: Waiting, On Hold)">
+                <button class="btn btn-primary" onclick="addProjectStatus()" style="flex-shrink: 0;">추가</button>
+            </div>
+            
+            <div id="project-status-list">
+                {% for status in settings.Project.statuses %}
+                <span class="status-tag">{{ status }}<span class="remove-btn" onclick="this.parentNode.remove()">×</span></span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div id="tab-status" class="tab-content">
+            <h2 class="section-title">Status 카테고리 설정</h2>
+
+            {% for category_key in ["Research","Development","Others"] %}
+            <div class="status-section">
+                <h3>{{ category_key }}</h3>
+
+                <div class="status-input-group">
+                    <select id="{{ category_key|lower }}_status_select" class="form-input">
+                        {% for s in settings.Project.statuses %}
+                        <option value="{{ s }}">{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                    <button class="btn btn-success" onclick="addStatusFromSelect('{{ category_key|lower }}')" style="flex-shrink: 0;">추가</button>
+                </div>
+
+                <div id="{{ category_key|lower }}-status-list">
+                    {% for s in settings.Status[category_key] %}
+                    <span class="status-tag">{{ s }}<span class="remove-btn" onclick="this.parentNode.remove()">×</span></span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div id="tab-contacts" class="tab-content">
+            <h2 class="section-title">Contacts 설정</h2>
+
+            <label class="form-label">배경 이미지 URL</label>
+            <div class="input-with-button">
+                <input type="text" id="contacts_bg_url" class="form-input image-input" 
+                       value="{{ settings.Contacts.bg_url }}"
+                       oninput="updateImageInput(this.id, this.value)">
+                <button type="button" class="btn btn-primary" onclick="openImageBrowser('contacts_bg_url')">선택</button>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">배경 색상</label>
+                <div class="color-display-group">
+                    <input type="color" id="contacts_bg_color" 
+                        value="{{ settings.Contacts.bg_color }}" 
+                        oninput="updateColorDisplay('contacts_bg_color_hex', this.value)">
+                    <div id="contacts_bg_color_hex_container" class="color-hex-container">
+                        <span id="contacts_bg_color_hex" class="color-hex-display"></span>
+                    </div>
+                </div>
+            </div>
+
+            <label class="form-label">투명도</label>
+            <input type="number" id="contacts_bg_opacity" class="form-input" value="{{ settings.Contacts.opacity }}" min="0" max="1" step="0.1">
+        </div>
+
+        <div id="tab-summary" class="tab-content">
+            <h2 class="section-title">Summary 설정</h2>
+
+            <label class="form-label">배경 이미지 URL</label>
+            <div class="input-with-button">
+                <input type="text" id="summary_bg_url" class="form-input image-input" 
+                       value="{{ settings.Summary.bg_url }}"
+                       oninput="updateImageInput(this.id, this.value)">
+                <button type="button" class="btn btn-primary" onclick="openImageBrowser('summary_bg_url')">선택</button>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">배경 색상</label>
+                <div class="color-display-group">
+                    <input type="color" id="summary_bg_color" 
+                        value="{{ settings.Summary.bg_color }}" 
+                        oninput="updateColorDisplay('summary_bg_color_hex', this.value)">
+                    <div id="summary_bg_color_hex_container" class="color-hex-container">
+                        <span id="summary_bg_color_hex" class="color-hex-display"></span>
+                    </div>
+                </div>
+            </div>
+
+            <label class="form-label">투명도</label>
+            <input type="number" id="summary_bg_opacity" class="form-input" value="{{ settings.Summary.opacity }}" min="0" max="1" step="0.1">
+        </div>
+
+        <div id="tab-login" class="tab-content">
+            <h2 class="section-title">Login 페이지 설정</h2>
+
+            <div class="form-group">
+                <label class="form-label">배경 이미지 URL</label>
+                <div class="input-with-button">
+                    <input type="text" id="login_bg_url" class="form-input image-input"
+                           value="{{ settings.Login.bg_url if settings.Login else '/static/images/background.jpg' }}"
+                           oninput="updateImageInput(this.id, this.value)">
+                    <button type="button" class="btn btn-primary" onclick="openImageBrowser('login_bg_url')">선택</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">터미널 사용자명</label>
+                <input type="text" id="login_terminal_user" class="form-input"
+                       value="{{ settings.Login.terminal_user if settings.Login else 'six' }}"
+                       placeholder="six">
+                <small style="color: #888; margin-top: 5px; display: block;">로그인 화면에 표시될 사용자명 (예: six@redapril:~)</small>
+            </div>
+
+            <div class="form-group login-preview-box">
+                <strong>📌 로그인 페이지 미리보기</strong>
+                <p style="margin: 10px 0 0 0;">
+                    터미널 스타일: <code id="login-preview-user">{{ settings.Login.terminal_user if settings.Login else 'six' }}</code>@redapril:~<br>
+                    비밀번호: KST 기준 오늘 날짜 (MMDD/) 형식
+                </p>
+            </div>
+        </div>
+
+        <div id="tab-images" class="tab-content">
+            <h2 class="section-title">Images 관리</h2>
+
+            <form id="image-upload-form" action="/admin/settings" enctype="multipart/form-data" method="POST">
+                <input type="file" name="upload_files" multiple accept="image/*">
+                <button type="submit" class="btn btn-primary">이미지 업로드</button>
+            </form>
+
+            <div class="image-selector" id="image-gallery-content">
+                {% for photo_url in photo_urls %}
+                <div class="image-option" data-url="{{ photo_url }}">
+                    <img src="{{ photo_url }}">
+                    <button class="delete-image-btn-overlay" data-url="{{ photo_url }}" onclick="deleteImage('{{ photo_url }}', this.parentNode)">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                    <button class="btn btn-primary btn-apply apply-image-btn" data-url="{{ photo_url }}">적용 대상 선택</button> 
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div id="apply-popup">
+    <h3>이미지를 어디에 적용할까요?</h3>
+    <p id="selected-image-url"></p>
+    <button class="btn btn-primary" onclick="applyTo('index_bg_url')">Index</button>
+    <button class="btn btn-primary" onclick="applyTo('panel1_bg_url')">Panel 1</button>
+    <button class="btn btn-primary" onclick="applyTo('panel2_bg_url')">Panel 2</button>
+    <button class="btn btn-primary" onclick="applyTo('panel3_bg_url')">Panel 3</button>
+    <button class="btn btn-primary" onclick="applyTo('contacts_bg_url')">Contacts</button>
+    <button class="btn btn-primary" onclick="applyTo('summary_bg_url')">Summary</button>
+    <button class="btn btn-primary" onclick="applyTo('login_bg_url')">Login</button>
+    <br><br>
+    <button class="btn btn-danger" onclick="closePopup()">닫기</button>
+</div>
+
+<div id="image-browser-modal">
+    <div class="modal-content-container">
+        <div class="modal-header">
+            <h2>배경 이미지 선택</h2>
+            <button class="modal-close-btn" onclick="closeImageBrowser()">×</button>
+        </div>
+        <div id="modal-image-gallery" class="image-selector">
+        </div>
+    </div>
+</div>
+
+<button class="btn-save-all" onclick="saveAllSettings()">💾 모든 설정 저장</button>
+
+<style>
+    .admin-container {
+        display: flex;
+        height: calc(100vh - 60px);
+        margin-top: 20px;
+    }
+
+    .tabs-sidebar {
+        width: 200px;
+        background: #2c3e50;
+        color: white;
+        padding: 20px 0;
+        display: flex; 
+        flex-direction: column; 
+    }
+    
+    .tab-button {
+        display: block;
+        padding: 14px 18px;
+        width: 100%;
+        color: white;
+        background: none;
+        border: none;
+        text-align: left;
+        cursor: pointer;
+        font-size: 16px;
+    }
+
+    .tab-button:hover { background: #34495e; }
+    .tab-button.active {
+        background: #3498db;
+        border-left: 4px solid #2980b9;
+    }
+
+    .content-area {
+        flex: 1;
+        padding: 25px;
+        overflow-y: auto;
+    }
+
+    .tab-content {
+        display: none;
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .tab-content.active { display: block; }
+
+    .section-title {
+        font-size: 22px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #3498db;
+    }
+
+    .form-group { margin-bottom: 18px; }
+    .form-label { display: block; font-weight: 600; margin-bottom: 5px; }
+
+    .form-input {
+        width: 100%; padding: 10px;
+        border: 1px solid #ddd; border-radius: 4px;
+    }
+    
+    .input-with-button {
+        display: flex;
+        gap: 10px;
+        position: relative; 
+    }
+    .input-with-button .form-input {
+        flex-grow: 1;
+        width: auto;
+    }
+    
+    .image-input {
+        min-height: 40px; 
+        padding-right: 150px; 
+        background-repeat: no-repeat;
+        background-size: contain; 
+        background-position: right center; 
+        transition: background-image 0.3s ease;
+        color: #333; 
+        font-weight: bold;
+    }
+
+    .image-input.has-image {
+        color: white; 
+        text-shadow: 0 0 5px rgba(0, 0, 0, 0.7); 
+        background-color: rgba(0, 0, 0, 0.2); 
+    }
+
+    .color-display-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+    }
+
+    .color-display-group input[type="color"] {
+        width: 50px;
+        height: 35px;
+        padding: 0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        cursor: pointer;
+        box-sizing: content-box;
+    }
+
+    .color-hex-container {
+        flex-grow: 1;
+        display: flex;
+        align-items: center;
+        height: 35px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 0 10px;
+        line-height: 35px;
+        transition: background-color 0.3s;
+    }
+
+    .color-hex-display {
+        font-weight: bold;
+        font-family: monospace;
+        font-size: 14px;
+        text-shadow: 0 0 2px rgba(0,0,0,0.2);
+    }
+
+    .status-section {
+        background: #f8f8f8; padding: 20px;
+        margin-bottom: 20px; border-radius: 6px;
+    }
+    
+    .status-input-group {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+
+    .status-input-group .form-input {
+        flex-grow: 1;
+        width: auto;
+    }
+    
+    .status-tag {
+        display: inline-flex;
+        align-items: center;
+        background: #3498db;
+        color: white;
+        padding: 6px 12px;
+        border-radius: 20px;
+        margin: 4px;
+        cursor: grab;
+    }
+
+    .remove-btn {
+        cursor: pointer;
+        margin-left: 6px;
+    }
+
+    .image-selector {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); 
+        gap: 15px;
+        margin-top: 15px;
+    }
+
+    .image-option {
+        border-radius: 4px;
+        overflow: hidden;
+        border: 2px solid transparent;
+        display: flex;
+        flex-direction: column;
+        position: relative; 
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .image-option img {
+        width: 100%;
+        height: 140px; 
+        object-fit: cover;
+        cursor: pointer;
+    }
+    .image-option.selected { border-color: #27ae60; }
+    
+    .delete-image-btn-overlay {
+        position: absolute;
+        top: 5px; right: 5px;
+        background: rgba(231, 76, 60, 0.9); 
+        color: white;
+        border: none;
+        width: 30px; height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background 0.2s;
+        z-index: 10;
+    }
+    .delete-image-btn-overlay:hover {
+        background: #c0392b;
+    }
+    
+    .image-option .btn-apply { 
+        width: 100%;
+        padding: 8px 10px;
+        background: #3498db;
+        color: white;
+        border: none;
+        font-size: 14px;
+        cursor: pointer;
+    }
+
+    .btn { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; }
+    .btn-primary { background: #3498db; color: white; }
+    .btn-success { background: #27ae60; color: white; }
+    .btn-danger { background: #e74c3c; color: white; }
+
+    .btn-save-all {
+        position: fixed;
+        bottom: 30px; right: 30px;
+        padding: 15px 40px;
+        border-radius: 6px;
+        background: #27ae60; color: white;
+        font-size: 16px;
+        font-weight: bold;
+        z-index: 999;
+    }
+
+    #apply-popup {
+        display: none;
+        position: fixed; top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        background: white; padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 6px 14px rgba(0,0,0,0.3);
+        text-align: center;
+        z-index: 9999;
+    }
+    
+    #image-browser-modal {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 9000;
+        padding: 20px;
+        overflow-y: auto;
+    }
+    
+    .modal-content-container {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        width: 90%;
+        max-width: 1000px;
+        margin: 50px auto;
+    }
+    
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+    }
+
+    .modal-header h2 {
+        font-size: 20px;
+    }
+    
+    .modal-close-btn {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+    }
+
+    /* ========================================
+       다크모드 스타일
+       ======================================== */
+
+    body.dark-mode .admin-container {
+        color: var(--text-color);
+    }
+
+    body.dark-mode .tabs-sidebar {
+        background: #1e1e1e;
+        border-right: 1px solid #333;
+    }
+
+    body.dark-mode .tab-button {
+        color: #e0e0e0;
+    }
+
+    body.dark-mode .tab-button:hover {
+        background: #2d2d2d;
+    }
+
+    body.dark-mode .tab-button.active {
+        background: #4A9EFF;
+        border-left-color: #6BB6FF;
+    }
+
+    body.dark-mode .tab-content {
+        background: #2d2d2d;
+        color: var(--text-color);
+    }
+
+    body.dark-mode .section-title {
+        color: var(--text-color);
+        border-bottom-color: #4A9EFF;
+    }
+
+    body.dark-mode .form-label {
+        color: var(--text-color);
+    }
+
+    body.dark-mode .form-input {
+        background-color: var(--input-bg);
+        color: var(--input-text);
+        border-color: var(--border-color);
+    }
+
+    body.dark-mode .form-input:focus {
+        border-color: var(--link-color);
+    }
+
+    body.dark-mode .image-input {
+        color: var(--text-color);
+    }
+
+    body.dark-mode .color-hex-container {
+        border-color: var(--border-color);
+    }
+
+    body.dark-mode .status-section {
+        background: #1e1e1e;
+        border: 1px solid #333;
+    }
+
+    body.dark-mode .status-section h3 {
+        color: var(--text-color);
+    }
+
+    body.dark-mode .status-tag {
+        background: #4A9EFF;
+        color: #1a1a1a;
+    }
+
+    body.dark-mode .btn-primary {
+        background: #4A9EFF;
+        color: #1a1a1a;
+    }
+
+    body.dark-mode .btn-success {
+        background: #2ea043;
+        color: #e0e0e0;
+    }
+
+    body.dark-mode .btn-save-all {
+        background: #2ea043;
+    }
+
+    body.dark-mode .image-option {
+        background: #1e1e1e;
+        border-color: #333;
+    }
+
+    body.dark-mode #apply-popup {
+        background: #2d2d2d;
+        color: var(--text-color);
+    }
+
+    body.dark-mode #image-browser-modal {
+        background: rgba(0, 0, 0, 0.9);
+    }
+
+    body.dark-mode .modal-content-container {
+        background: #2d2d2d;
+        color: var(--text-color);
+    }
+
+    body.dark-mode .modal-header {
+        border-bottom-color: #444;
+    }
+
+    body.dark-mode .modal-close-btn {
+        color: var(--text-color);
+    }
+
+    body.dark-mode select option {
+        background-color: var(--input-bg);
+        color: var(--input-text);
+    }
+
+    /* Login preview box */
+    .login-preview-box {
+        background: #f0f8ff;
+        padding: 15px;
+        border-radius: 6px;
+        margin-top: 20px;
+    }
+
+    body.dark-mode .login-preview-box {
+        background: #1a2332;
+        border: 1px solid #3d4f66;
+        color: #e0e0e0;
+    }
+
+    body.dark-mode .login-preview-box code {
+        background: #2d3748;
+        color: #63b3ed;
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+
+    /* 토스트 메시지 애니메이션 */
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translate(-50%, -20px);
+        }
+        to {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+    }
+
+    @keyframes slideUp {
+        from {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+        to {
+            opacity: 0;
+            transform: translate(-50%, -20px);
+        }
+    }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+let currentInputTarget = null;
+
+function showTab(tabName) {
+    document.querySelectorAll(".tab-button").forEach(btn => btn.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(tab => tab.classList.remove("active"));
+    
+    const targetButton = document.querySelector(`.tab-button[onclick="showTab('${tabName}')"]`);
+    if (targetButton) {
+        targetButton.classList.add("active");
+    }
+    document.getElementById("tab-" + tabName).classList.add("active");
+    
+    localStorage.setItem('selectedAdminTab', tabName);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const savedTab = localStorage.getItem('selectedAdminTab') || 'index';
+    
+    document.querySelectorAll(".tab-button").forEach(btn => btn.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(tab => tab.classList.remove("active"));
+    
+    const initialButton = document.querySelector(`.tab-button[onclick="showTab('${savedTab}')"]`);
+    if (initialButton) {
+        initialButton.classList.add("active");
+        document.getElementById("tab-" + savedTab).classList.add("active");
+    }
+
+    ["project-status-list","research-status-list","development-status-list","others-status-list"]
+    .forEach(id => {
+        if (document.getElementById(id)) {
+            new Sortable(document.getElementById(id), { animation: 180 });
+        }
+    });
+
+    document.getElementById('modal-image-gallery').innerHTML = getModalGalleryHTML();
+    initializeSettingsDisplays();
+});
+
+function updateImageInput(inputId, imageUrl) {
+    const inputElement = document.getElementById(inputId);
+    if (!inputElement) return;
+
+    if (imageUrl && (imageUrl.startsWith('/static/images/') || imageUrl.startsWith('http'))) {
+        inputElement.style.backgroundImage = `url('${imageUrl}')`;
+        inputElement.classList.add('has-image');
+    } else {
+        inputElement.style.backgroundImage = 'none';
+        inputElement.classList.remove('has-image');
+    }
+}
+
+function initializeImagePreviews() {
+    const imageFields = [
+        'index_bg_url', 'panel1_bg_url', 'panel2_bg_url',
+        'panel3_bg_url', 'contacts_bg_url', 'summary_bg_url', 'login_bg_url'
+    ];
+
+    imageFields.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            updateImageInput(id, input.value);
+        }
+    });
+}
+
+function initializeSettingsDisplays() {
+    const colorFields = [
+        'index_bg_color', 'panel1_bg_color', 'panel2_bg_color', 
+        'panel3_bg_color', 'contacts_bg_color', 'summary_bg_color'
+    ];
+
+    colorFields.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            updateColorDisplay(id + '_hex', input.value);
+        }
+    });
+
+    initializeImagePreviews();
+
+    // Login terminal user preview
+    const loginUserInput = document.getElementById('login_terminal_user');
+    const loginPreview = document.getElementById('login-preview-user');
+    if (loginUserInput && loginPreview) {
+        loginUserInput.addEventListener('input', function() {
+            loginPreview.textContent = this.value || 'six';
+        });
+    }
+}
+
+function updateColorDisplay(displayId, colorValue) {
+    const displayElement = document.getElementById(displayId);
+    const containerElement = document.getElementById(displayId + '_container');
+    
+    if (!displayElement || !containerElement) return;
+
+    displayElement.textContent = colorValue.toUpperCase();
+    containerElement.style.backgroundColor = colorValue;
+
+    const hex = colorValue.replace('#', '');
+    const fullHex = hex.length === 3 ? hex.split('').map(c => c + c).join('') : hex;
+
+    const r = parseInt(fullHex.substring(0, 2), 16);
+    const g = parseInt(fullHex.substring(2, 4), 16);
+    const b = parseInt(fullHex.substring(4, 6), 16);
+    
+    const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    
+    displayElement.style.color = luminance > 0.5 ? '#000000' : '#ffffff';
+}
+
+function getModalGalleryHTML() {
+    let html = '';
+    const imageOptions = document.querySelectorAll('#image-gallery-content .image-option');
+    
+    imageOptions.forEach(option => {
+        const url = option.getAttribute('data-url');
+        const src = option.querySelector('img').getAttribute('src');
+        
+        html += `
+            <div class="image-option" data-url="${url}">
+                <img src="${src}" onclick="selectImageFromBrowser('${url}')" title="클릭하여 적용">
+                <button class="btn btn-success" onclick="selectImageFromBrowser('${url}')">선택</button>
+            </div>
+        `;
+    });
+    return html;
+}
+
+function openImageBrowser(targetInputId) {
+    currentInputTarget = targetInputId;
+    document.getElementById('image-browser-modal').style.display = 'block';
+    document.getElementById('modal-image-gallery').innerHTML = getModalGalleryHTML();
+}
+
+function closeImageBrowser() {
+    document.getElementById('image-browser-modal').style.display = 'none';
+    currentInputTarget = null;
+}
+
+function selectImageFromBrowser(imageUrl) {
+    if (currentInputTarget) {
+        document.getElementById(currentInputTarget).value = imageUrl;
+        updateImageInput(currentInputTarget, imageUrl); 
+        closeImageBrowser();
+    }
+}
+
+function addProjectStatus() {
+    const input = document.getElementById('new_project_status');
+    const value = input.value.trim();
+    if (!value) {
+        alert("상태 이름을 입력해주세요.");
+        return;
+    }
+
+    const projectList = document.getElementById('project-status-list');
+    const existingStatuses = collectStatuses("project-status-list");
+    
+    if (existingStatuses.includes(value)) {
+        alert(`'${value}' 상태는 이미 목록에 있습니다.`);
+        return;
+    }
+    
+    projectList.insertAdjacentHTML(
+        "beforeend",
+        `<span class="status-tag">${value}<span class="remove-btn" onclick="this.parentNode.remove()">×</span></span>`
+    );
+    
+    input.value = '';
+    updateStatusSelects();
+}
+
+function updateStatusSelects() {
+    const projectStatuses = collectStatuses("project-status-list");
+    const categories = ["research", "development", "others"];
+
+    categories.forEach(type => {
+        const select = document.getElementById(`${type}_status_select`);
+        const currentValue = select.value; 
+        
+        select.innerHTML = ''; 
+
+        projectStatuses.forEach(status => {
+            const option = document.createElement('option');
+            option.value = status;
+            option.textContent = status;
+            select.appendChild(option);
+        });
+        
+        if (projectStatuses.includes(currentValue)) {
+            select.value = currentValue;
+        }
+    });
+}
+
+function addStatusFromSelect(type) {
+    const select = document.getElementById(`${type}_status_select`);
+    const value = select.value.trim();
+    if (!value) return;
+
+    const listElement = document.getElementById(`${type}-status-list`);
+    const existingTags = [...listElement.querySelectorAll('.status-tag')].map(el => el.textContent.replace("×", "").trim());
+
+    if (existingTags.includes(value)) {
+        alert(`'${value}'는 이미 카테고리에 있습니다.`);
+        return;
+    }
+
+    listElement.insertAdjacentHTML(
+        "beforeend",
+        `<span class="status-tag">${value}<span class="remove-btn" onclick="this.parentNode.remove()">×</span></span>`
+    );
+}
+
+function collectStatuses(id) {
+    return [...document.querySelectorAll(`#${id} .status-tag`)]
+        .map(el => el.textContent.replace("×", "").trim());
+}
+
+function saveAllSettings(isHomeCall = false) {
+    const data = {
+        action: "save_all_settings",
+        index_bg_url: index_bg_url.value,
+        index_bg_color: index_bg_color.value,
+        index_opacity: index_opacity.value,
+        panel1_bg_url: panel1_bg_url.value,
+        panel1_bg_color: panel1_bg_color.value,
+        panel1_opacity: panel1_opacity.value,
+        panel2_bg_url: panel2_bg_url.value,
+        panel2_bg_color: panel2_bg_color.value,
+        panel2_opacity: panel2_opacity.value,
+        panel3_bg_url: panel3_bg_url.value,
+        panel3_bg_color: panel3_bg_color.value,
+        panel3_opacity: panel3_opacity.value,
+        project_statuses: collectStatuses("project-status-list"),
+        research_statuses: collectStatuses("research-status-list"),
+        development_statuses: collectStatuses("development-status-list"),
+        other_statuses: collectStatuses("others-status-list"),
+        contacts_bg_url: contacts_bg_url.value,
+        contacts_bg_color: contacts_bg_color.value,
+        contacts_bg_opacity: contacts_bg_opacity.value,
+        summary_bg_url: summary_bg_url.value,
+        summary_bg_color: summary_bg_color.value,
+        summary_bg_opacity: summary_bg_opacity.value,
+        login_bg_url: login_bg_url.value,
+        login_terminal_user: login_terminal_user.value
+    };
+
+    return fetch('/admin/settings', { 
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (!isHomeCall) { 
+            showToast(result.message || (result.success ? "저장되었습니다." : "저장 실패"));
+        }
+        if (result.success && !isHomeCall) {
+            setTimeout(() => location.reload(), 1000);
+        }
+        return result.success; 
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (!isHomeCall) {
+            showToast("저장 중 오류 발생", true);
+        }
+        return false; 
+    });
+}
+
+function showToast(message, isError = false) {
+    const existingToast = document.getElementById('toast-message');
+    if (existingToast) {
+        existingToast.remove();
+    }
+
+    const toast = document.createElement('div');
+    toast.id = 'toast-message';
+    toast.textContent = message;
+    toast.style.cssText = `
+        position: fixed;
+        top: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: ${isError ? '#e74c3c' : '#27ae60'};
+        color: white;
+        padding: 15px 30px;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: bold;
+        z-index: 10000;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        animation: slideDown 0.3s ease;
+    `;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'slideUp 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 2000);
+}
+
+let selectedImageUrl = null;
+
+document.addEventListener("click", function(e) {
+    if (e.target.classList.contains("apply-image-btn")) {
+        e.preventDefault();
+        selectedImageUrl = e.target.dataset.url;
+        document.getElementById("selected-image-url").textContent = selectedImageUrl;
+        document.getElementById("apply-popup").style.display = "block";
+    }
+});
+
+function deleteImage(url, elementToRemove) {
+    if (!confirm(`이미지를 삭제하시겠습니까?`)) {
+        return;
+    }
+
+    const data = {
+        action: "delete_image",
+        url: url
+    };
+
+    fetch('/admin/settings', { 
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (result.success) {
+            elementToRemove.remove();
+            document.getElementById('modal-image-gallery').innerHTML = getModalGalleryHTML();
+            initializeSettingsDisplays();
+            
+            if (result.redirect_url) {
+                window.location.href = result.redirect_url;
+            } else {
+                alert("삭제되었습니다.");
+            }
+        } else {
+            alert("삭제 실패");
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert("삭제 중 오류 발생");
+    });
+}
+
+function applyTo(targetInputId) {
+    document.getElementById(targetInputId).value = selectedImageUrl;
+    updateImageInput(targetInputId, selectedImageUrl);
+    closePopup();
+}
+
+function closePopup() {
+    document.getElementById("apply-popup").style.display = "none";
+    selectedImageUrl = null;
+}
+</script>
+
+{% endblock %}

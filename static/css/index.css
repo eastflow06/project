@@ -1,0 +1,352 @@
+/* =========================================
+   1. 색상 변수 정의 (Color Variables)
+   ========================================= */
+   :root {
+    /* 라이트 모드 (기본) */
+    --bg-color: #ffffff;
+    --text-color: #333333;
+    --border-color: #ddd;
+    --th-bg: #f0f0f0;
+    --panel-bg: #ffffff;
+    --input-bg: #ffffff;
+    --hover-bg: #e9ecef;
+    --link-color: #007bff;
+    --secondary-text: #666666;
+    --shadow-color: rgba(0,0,0,0.1);
+    --modal-bg: #ffffff;
+}
+
+/* 다크 모드 (body에 dark-mode 클래스가 있을 때) */
+body.dark-mode {
+    --bg-color: #22272e;         /* 청색 계열 어두운 배경 */
+    --text-color: #adbac7;       /* 밝은 회색 텍스트 */
+    --border-color: #444c56;     /* 어두운 테두리 */
+    --th-bg: #2d333b;            /* 테이블 헤더 */
+    --panel-bg: #22272e;         /* 패널 배경 */
+    --input-bg: #2d333b;         /* 입력창 배경 */
+    --hover-bg: #444c56;         /* 호버 색상 */
+    --link-color: #4dabf7;       /* 밝은 파란색 링크 */
+    --secondary-text: #768390;   /* 보조 텍스트 */
+    --shadow-color: rgba(0,0,0,0.5);
+    --modal-bg: #2d333b;
+}
+
+/* =========================================
+   2. 기본 레이아웃 (Layout)
+   ========================================= */
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.container {
+    width: 95%;
+    margin: 0 auto;
+}
+
+.section {
+    margin-bottom: 20px;
+}
+
+h2, h3, h4 {
+    color: var(--text-color);
+}
+
+/* =========================================
+   3. 탭 스타일 (Tabs)
+   ========================================= */
+.tabs {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--border-color);
+    flex-wrap: wrap;
+}
+
+.tab-button {
+    padding: 12px 24px;
+    cursor: pointer;
+    background-color: var(--bg-color); /* 배경색 변수 사용 */
+    border: 1px solid var(--border-color);
+    border-bottom: none;
+    margin-right: 3px;
+    border-radius: 5px 5px 0 0;
+    font-size: 16px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    color: var(--text-color);
+}
+
+.tab-button:hover {
+    background-color: var(--hover-bg);
+}
+
+.tab-button.active {
+    background-color: var(--bg-color);
+    border-bottom: 2px solid var(--bg-color); /* 활성 탭 하단을 배경색과 동일하게 */
+    margin-bottom: -2px;
+    color: var(--link-color);
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* =========================================
+   4. 프로젝트 패널 (Projects Grid)
+   ========================================= */
+.table-container {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+}
+
+.column {
+    width: 32%;
+    border: 1px solid var(--border-color);
+    background-color: var(--panel-bg);
+}
+
+.header {
+    background-color: var(--th-bg);
+    padding: 10px;
+    font-weight: bold;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+
+.content {
+    padding: 10px;
+}
+
+.status-header {
+    color: var(--text-color);
+    font-size: 0.95em;
+    margin-top: 5px;
+    margin-bottom: 8px;
+    padding-bottom: 3px;
+    font-weight: bold;
+}
+
+.project-list {
+    line-height: 1.2;
+    margin: 0;
+    padding: 0;
+    list-style-type: none;
+}
+
+.project-list li {
+    margin-bottom: 5px;
+}
+
+.project-list li:before {
+    content: "•";
+    margin-right: 5px;
+    color: var(--text-color);
+}
+
+.custom-link {
+    text-decoration: none;
+    color: var(--text-color);
+    cursor: pointer;
+    font-size: 18px;
+    color: var(--link-color) !important;
+}
+
+.custom-link:hover {
+    color: var(--link-color);
+    text-decoration: none;
+}
+
+/* =========================================
+   5. 테이블 스타일 (Tables)
+   ========================================= */
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 7px;
+    text-align: left;
+    vertical-align: middle;
+    border: 1px solid var(--border-color); /* 테두리 변수 적용 */
+    font-size: 1em;
+    color: var(--text-color);
+}
+
+th {
+    background-color: var(--th-bg);
+    font-weight: bold;
+    cursor: pointer; /* 정렬 가능 표시 */
+}
+
+/* 짝수 행 배경색 처리 (줄무늬) */
+tr:nth-child(even) {
+    background-color: rgba(0, 0, 0, 0.02); /* 라이트모드 미세한 회색 */
+}
+
+body.dark-mode tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.03); /* 다크모드 미세한 밝음 */
+}
+
+tr:hover:not(:first-child) {
+    background-color: var(--hover-bg) !important;
+}
+
+/* 테이블 텍스트 말줄임표 처리 */
+.ellipsis-cell {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    max-width: 0 !important;
+}
+
+/* =========================================
+   6. Task & 입력 폼 (Forms)
+   ========================================= */
+.toggle-switch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    color: var(--text-color);
+}
+
+.toggle-switch-track {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    background-color: #e0e0e0;
+    border-radius: 10px;
+    transition: background-color 0.3s ease;
+}
+
+.toggle-switch-thumb {
+    position: absolute;
+    left: 2px;
+    top: 2px;
+    width: 16px;
+    height: 16px;
+    background-color: white;
+    border-radius: 50%;
+    transition: left 0.3s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.toggle-switch.active .toggle-switch-track {
+    background-color: #4CAF50;
+}
+
+.toggle-switch.active .toggle-switch-thumb {
+    left: 18px;
+}
+
+/* 입력 필드 다크모드 대응 */
+input[type="text"], 
+input[type="date"], 
+select, 
+textarea {
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    padding: 5px;
+}
+
+/* =========================================
+   7. 우측 편집 패널 (Slide Panel)
+   ========================================= */
+.edit-panel {
+    position: fixed;
+    top: 0;
+    right: -40%;
+    width: 40%;
+    height: 100%;
+    background-color: var(--modal-bg);
+    box-shadow: -2px 0 5px var(--shadow-color);
+    transition: right 0.3s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    z-index: 1000;
+    border-left: 1px solid var(--border-color);
+}
+
+.editable-input {
+    border: none;
+    background-color: transparent;
+    width: 100%;
+    font-size: 0.9em;
+    color: var(--text-color);
+}
+
+.editable-input:focus {
+    border: 1px solid var(--link-color);
+    background-color: var(--input-bg);
+    outline: none;
+}
+
+/* =========================================
+   8. 유틸리티 및 모바일 (Utility & Mobile)
+   ========================================= */
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid var(--hover-bg);
+    border-top: 3px solid var(--link-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.materials-pin-memo-row {
+    background-color: #ffeb3b !important; /* 핀 고정은 노란색 유지 */
+    color: #333 !important; /* 텍스트는 검정 유지 (가독성) */
+}
+
+/* 모바일 반응형 */
+@media (max-width: 767px) {        
+    .container {
+        width: 100%;
+        padding: 0;
+    }
+    
+    .tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+    }
+    
+    .table-container {
+        flex-direction: column;
+    }
+    
+    .column {
+        width: 100%;
+        margin-bottom: 20px;
+    }
+    
+    .edit-panel {
+        width: 100%;
+        right: -100%;
+    }
+    
+    /* 모바일 테이블 조정 */
+    #todosTable th:nth-child(3), #todosTable td:nth-child(3),
+    #todosTable th:nth-child(4), #todosTable td:nth-child(4) { display: none !important; }
+    
+    #materials-table th:nth-child(2), #materials-table td:nth-child(2) { display: none !important; }
+    
+    #materials-search, #materials-tag-filter { width: 100% !important; margin-bottom: 10px; }
+}

@@ -1,0 +1,598 @@
+{% extends "base.html" %}
+{% block title %}
+프로젝트 관리
+{% endblock %}
+{% block content %}
+
+<div class="modern-container">
+    
+    <div class="header-section" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid var(--link-color); padding-bottom: 15px; margin-bottom: 20px;">
+        <h1 class="title">Projects</h1>
+        <div id="toggleProjectFormButton" class="circle-btn" title="Create Project">
+            <i class="fas fa-plus"></i>
+        </div>
+    </div>
+
+    <div class="controls-area">
+        <div class="status-filters">
+            <button class="btn btn-filter active" data-filter-type="status" data-status="All">All</button>
+            {% for status in project_statuses %}
+                {% if status != '완료' %}
+                    <button class="btn btn-filter" data-filter-type="status" data-status="{{ status }}">{{ status }}</button>
+                {% endif %}
+            {% endfor %}
+        </div>
+        
+        <div class="view-toggle">
+            <button id="completedToggleBtn" class="btn btn-filter" style="display: flex; align-items: center; gap: 6px;">
+                <i class="far fa-circle"></i> <span>미완료</span>
+            </button>
+        </div>
+    </div>
+    
+    <form id="project-form" method="POST" action="{{ url_for('projects') }}" class="form-card hidden">
+        <input type="hidden" name="action" value="create_project">
+        
+        <div class="form-group">
+            <label class="form-label">Title</label>
+            <input type="text" name="title" class="form-input" placeholder="Project Title" required>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Description</label>
+            <textarea name="description" class="form-textarea" placeholder="Project Description" rows="2"></textarea>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select" required>
+                    <option value="" disabled selected>진행상황 선택</option>
+                    {% for status in project_statuses %}
+                        <option value="{{ status }}">{{ status }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Product</label>
+                <select name="product" class="form-select">
+                    <option value="" disabled selected>제품 선택</option>
+                    {% for product in products %}
+                    <option value="{{ product.id }}">{{ product.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" name="is_completed" id="create_is_completed" value="True" style="transform: scale(1.2);">
+            <label for="create_is_completed" class="form-label" style="margin: 0; cursor: pointer;">프로젝트 완료</label>
+        </div>
+        
+        <div class="btn-group-right">
+            <button type="button" class="btn btn-danger" id="cancel-button">Cancel</button>
+            <button type="submit" class="btn btn-primary">Create</button>
+        </div>
+    </form>
+    
+    <div style="overflow-x: auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th class="sortable" data-sort="title" style="width: 35%;">Title</th>
+                    <th class="sortable" data-sort="status" style="width: 10%;">Status</th>
+                    <th class="sortable" data-sort="is_completed" style="width: 8%; text-align: center;">State</th>
+                    <th class="sortable" data-sort="product" style="width: 15%;">Products</th>
+                    <th class="sortable" data-sort="tasks" style="width: 10%; text-align: center;">Tasks</th>
+                    <th class="sortable mobile-hide" data-sort="created_date" style="width: 10%;">Date</th>
+                    <th class="actions-header" style="width: 12%; text-align: center;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="projectTableBody">
+                {% if projects %}
+                    {% for project in projects %}
+                        <tr 
+                            data-status="{{ project.status }}" 
+                            data-is-completed="{{ 'true' if project.is_completed else 'false' }}" 
+                            data-title="{{ project.title }}" 
+                            data-product-names="{% for product in project.products %}{{ product.name }}{% if not loop.last %}, {% endif %}{% endfor %}"
+                            data-task-count="{% if project.tasks %}{{ project.tasks|selectattr('status', 'equalto', 'Done')|list|length }}{% else %}0{% endif %}"
+                            data-created-date="{{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '' }}"
+                            class="{% if project.is_completed %}completed-row{% endif %}"
+                        >
+                            <td>
+                                <a href="{{ url_for('project', project_id=project.id) }}" class="project-title">
+                                {{ project.title }}
+                                </a>
+                            </td>
+                            <td style="text-align: center;">
+                                <span class="badge">{{ project.status }}</span>
+                            </td>
+                            
+                            <td style="text-align: center; vertical-align: middle;">
+                                {% if project.is_completed %}
+                                    <span class="state-text" style="color: var(--success-color, green); font-weight: bold;">Done</span>
+                                    <span class="state-icon" style="color: var(--success-color, green); display: none;">
+                                        <i class="fas fa-check-circle fa-lg"></i>
+                                    </span>
+                                {% else %}
+                                    <span class="state-text" style="color: var(--warning-color, orange); font-weight: bold;">Running</span>
+                                    <span class="state-icon" style="color: var(--warning-color, orange); display: none;">
+                                        <i class="fas fa-running fa-lg"></i>
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% for product in project.products %}
+                                    <span class="product-text">{{ product.name }}</span>
+                                {% endfor %}
+                            </td>
+                            <td class="tasks-cell" style="text-align: center;" 
+                                data-project-id="{{ project.id }}" 
+                                data-todo-tasks="{% if project.tasks %}{{ project.tasks|selectattr('status', 'equalto', 'To Do')|list|length }}{% else %}0{% endif %}"
+                                data-done-tasks="{% if project.tasks %}{{ project.tasks|selectattr('status', 'equalto', 'Done')|list|length }}{% else %}0{% endif %}">
+                                <span style="color: var(--secondary-text);">...</span>
+                            </td>
+                            
+                            <td class="created-date-cell mobile-hide">
+                                {{ project.created_at.strftime('%Y-%m-%d') if project.created_at else '-' }}
+                            </td>
+                            
+                            <td class="actions-cell" style="text-align: center;">                        
+                                <button class="btn btn-sm btn-edit-icon" onclick="showEditForm({{ project.id }}, '{{ project.title }}', '{{ project.status }}', {{ project.products|map(attribute='id')|list }}, {{ 'true' if project.is_completed else 'false' }}); return false;">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <form action="{{ url_for('projects') }}" method="post" style="display: inline-block; margin: 0;" onsubmit="return confirmDelete();">
+                                    <input type="hidden" name="action" value="delete_project">
+                                    <input type="hidden" name="project_id" value="{{ project.id }}">
+                                    <button type="submit" class="btn btn-sm btn-delete-icon">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="empty-message">No projects available.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <form method="POST" action="{{ url_for('projects') }}" id="edit_form" class="form-card hidden">
+        <input type="hidden" name="action" value="edit_project">
+        <input type="hidden" name="project_id" id="edit_project_id" required>
+        
+        <div class="form-group">
+            <label class="form-label">Edit Title</label>
+            <input type="text" name="title" id="edit_title" class="form-input" required>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Status</label>
+                <select name="status" id="edit_status" class="form-select" required>
+                    <option value="" disabled>진행상황 선택</option>
+                    {% for status in project_statuses %}
+                        <option value="{{ status }}">{{ status }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Product</label>
+                <select name="product" id="edit_product" class="form-select">
+                    <option value="" selected>제품 선택 안 함</option>
+                    {% for product in products %}
+                        <option value="{{ product.id }}">{{ product.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" name="is_completed" id="edit_is_completed" value="True" style="transform: scale(1.2);">
+            <label for="edit_is_completed" class="form-label" style="margin: 0; cursor: pointer;">프로젝트 완료</label>
+        </div>
+
+        <div class="btn-group-right">
+            <button type="button" class="btn btn-danger" onclick="hideEditForm()">Cancel</button>
+            <button type="submit" class="btn btn-primary">Update</button>
+        </div>
+    </form>
+</div>
+
+<style>
+    /* [페이지 전용 스타일] */
+
+    .controls-area {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        gap: 15px;
+    }
+
+    .status-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    /* 필터 버튼 스타일 */
+    .btn-filter {
+        padding: 6px 14px;
+        font-size: 13px;
+        border-radius: 20px;
+        background-color: var(--stripe-bg);
+        color: var(--text-color);
+        border: 1px solid var(--border-color);
+    }
+
+    .btn-filter:hover {
+        background-color: var(--dropdown-hover-bg);
+    }
+
+    .btn-filter.active {
+        background-color: var(--link-color);
+        color: white;
+        border-color: var(--link-color);
+    }
+
+    /* 테이블 스타일 */
+    .project-title {
+        font-weight: 600;
+        color: var(--text-color);
+        text-decoration: none;
+    }
+    .project-title:hover {
+        color: var(--link-color);
+        text-decoration: underline;
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        font-size: 12px;
+        border-radius: 4px;
+        background-color: var(--dropdown-hover-bg);
+        color: var(--text-color);
+        border: 1px solid var(--border-color);
+    }
+    
+    .product-text {
+        font-size: 1.2em;
+        color: var(--text-color);
+    }
+    .product-text:not(:last-child)::after {
+        content: ", ";
+    }
+
+    .completed-row {
+        background-color: rgba(40, 167, 69, 0.1) !important;
+    }
+    body.dark-mode .completed-row {
+        background-color: rgba(40, 167, 69, 0.15) !important;
+    }
+
+    /* 아이콘 버튼 */
+    .btn-sm {
+        padding: 4px 8px;
+        font-size: 12px;
+        margin: 0 2px;
+        background: transparent;
+        border: none;
+        box-shadow: none;
+    }
+    .btn-edit-icon { color: var(--link-color); }
+    .btn-edit-icon:hover { color: var(--link-hover); transform: scale(1.1); }
+    
+    .btn-delete-icon { color: var(--danger-color); }
+    .btn-delete-icon:hover { color: #b02a37; transform: scale(1.1); }
+
+    /* [새로 추가] Actions 셀 줄바꿈 방지 기본 설정 */
+    .actions-cell {
+        white-space: nowrap;
+    }
+
+    /* [모바일 대응 스타일] */
+    @media (max-width: 768px) {
+        .controls-area {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        /* 셀 높이 50px 고정 */
+        table tr {
+            height: 50px !important;
+        }
+        
+        /* 1. Date 컬럼 숨김 */
+        .mobile-hide {
+            display: none !important;
+        }
+
+        /* 2. 헤더 텍스트 숨기고 아이콘으로 대체 (State, Actions) */
+        table thead th:nth-child(3), 
+        table thead th.actions-header {
+            font-size: 0 !important;
+            padding: 0 !important; /* 헤더 패딩 제거 */
+            vertical-align: middle;
+            text-align: center;
+        }
+
+        /* State 헤더 아이콘 (깃발) */
+        table thead th:nth-child(3)::before {
+            content: '\f024';
+            font-family: "Font Awesome 5 Free";
+            font-weight: 900;
+            font-size: 14px;
+            color: var(--text-color);
+            display: inline-block;
+        }
+
+        /* Actions 헤더 아이콘 (톱니바퀴) */
+        table thead th.actions-header::before {
+            content: '\f013';
+            font-family: "Font Awesome 5 Free";
+            font-weight: 900;
+            font-size: 14px;
+            color: var(--text-color);
+            display: inline-block;
+        }
+
+        /* 3. 데이터 셀 스타일 (State) */
+        .state-text { display: none !important; }
+        .state-icon { display: inline-block !important; }
+
+        /* [핵심 변경] 4. Actions 셀 최소화 */
+        .actions-cell {
+            white-space: nowrap !important;
+            width: 1% !important;       /* ★ 내용물 크기만큼만 차지하도록 강제 */
+            padding: 0 2px !important;  /* ★ 좌우 여백을 최소한으로 줄임 */
+            text-align: center;
+        }
+        
+        /* 삭제 버튼 숨김 */
+        .actions-cell .btn-delete-icon, 
+        .actions-cell form { 
+            display: none !important; 
+        }
+
+        /* 5. 컬럼 너비 재분배 (Actions에서 줄인 공간을 Title에 투자) */
+        th:nth-child(1), td:nth-child(1) { width: 45% !important; } /* Title (40% -> 45% 확장) */
+        th:nth-child(2), td:nth-child(2) { width: 15% !important; } /* Status */
+        th:nth-child(3), td:nth-child(3) { width: 10% !important; } /* State */
+        th:nth-child(4), td:nth-child(4) { width: 20% !important; } /* Products */
+        /* Actions는 width: 1% 설정으로 자동 최소화 */
+        
+        /* 공통 폰트 및 정렬 */
+        table td, table th {
+            font-size: 14px;
+            padding: 0 4px; /* 전체적인 셀 패딩도 좁게 유지 */
+            vertical-align: middle;
+        }
+    }
+</style>
+
+<script>
+function showEditForm(id, title, status, products, isCompleted) {
+    populateEditForm(id, title, status, products, isCompleted);
+    document.getElementById('edit_form').classList.remove('hidden');
+    document.getElementById('edit_form').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function populateEditForm(id, title, status, products, isCompleted) {
+    document.getElementById('edit_project_id').value = id;
+    document.getElementById('edit_title').value = title;
+    document.getElementById('edit_status').value = status;
+    document.getElementById('edit_is_completed').checked = isCompleted;
+
+    const productSelect = document.getElementById('edit_product');
+    productSelect.value = "";
+    for (let option of productSelect.options) {
+        if (products.includes(parseInt(option.value))) {
+             productSelect.value = option.value;
+             break;
+        }
+    }
+}
+
+function hideEditForm() {
+    document.getElementById('edit_form').classList.add('hidden');
+}
+
+function confirmDelete() {
+    return confirm('정말로 삭제하시겠습니까?');
+}
+
+// 폼 토글
+const toggleBtn = document.getElementById('toggleProjectFormButton');
+const projectForm = document.getElementById('project-form');
+const icon = toggleBtn.querySelector('i');
+
+toggleBtn.addEventListener('click', function() {
+    if (projectForm.classList.contains('hidden')) {
+        projectForm.classList.remove('hidden');
+        icon.className = 'fas fa-minus';
+    } else {
+        projectForm.classList.add('hidden');
+        icon.className = 'fas fa-plus';
+    }
+});
+
+document.getElementById('cancel-button').addEventListener('click', function () {
+    projectForm.classList.add('hidden'); 
+    icon.className = 'fas fa-plus';
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const tableBody = document.getElementById('projectTableBody');
+    const statusFilterButtons = document.querySelectorAll('.btn-filter[data-status]');
+    const completedToggleBtn = document.getElementById('completedToggleBtn'); 
+    const sortableHeaders = document.querySelectorAll('.sortable');
+    
+    let currentSort = { column: '', direction: '' };
+    let selectedStatuses = new Set(['All']); 
+    let showCompleted = false; 
+
+    loadTasksData();
+
+    // 1. 상태 필터
+    statusFilterButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const status = this.dataset.status;
+            
+            if (status === 'All') {
+                if (!selectedStatuses.has('All')) {
+                    selectedStatuses.clear();
+                    selectedStatuses.add('All');
+                    statusFilterButtons.forEach(btn => btn.classList.remove('active'));
+                    this.classList.add('active');
+                }
+            } else {
+                selectedStatuses.delete('All');
+                document.querySelector('.btn-filter[data-status="All"]').classList.remove('active');
+                
+                if (this.classList.contains('active')) {
+                    this.classList.remove('active');
+                    selectedStatuses.delete(status);
+                } else {
+                    this.classList.add('active');
+                    selectedStatuses.add(status);
+                }
+                
+                if (selectedStatuses.size === 0) {
+                    selectedStatuses.add('All');
+                    document.querySelector('.btn-filter[data-status="All"]').classList.add('active');
+                }
+            }
+            updateTable();
+        });
+    });
+    
+    // 2. 미완료/완료 토글
+    completedToggleBtn.addEventListener('click', function() {
+        showCompleted = !showCompleted; 
+        
+        const iconSpan = this.querySelector('i');
+        const textSpan = this.querySelector('span');
+        
+        if (showCompleted) {
+            this.classList.add('active');
+            iconSpan.className = 'fas fa-check-circle';
+            textSpan.textContent = '완료';
+        } else {
+            this.classList.remove('active');
+            iconSpan.className = 'far fa-circle';
+            textSpan.textContent = '미완료';
+        }
+        updateTable();
+    });
+
+    // 3. 정렬
+    sortableHeaders.forEach(header => {
+        header.addEventListener('click', function() {
+            const column = this.dataset.sort;
+            sortableHeaders.forEach(h => {
+                if (h !== this) h.classList.remove('asc', 'desc');
+            });
+
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+                this.classList.toggle('asc', currentSort.direction === 'asc');
+                this.classList.toggle('desc', currentSort.direction === 'desc');
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'asc';
+                this.classList.add('asc');
+            }
+            updateTable();
+        });
+    });
+
+    // 4. 테이블 업데이트
+    function updateTable() {
+        const rows = Array.from(tableBody.getElementsByTagName('tr'));
+        
+        rows.forEach(row => {
+            const status = row.dataset.status;
+            const isCompletedRow = row.dataset.isCompleted === 'true'; 
+            
+            let statusMatch;
+            if (selectedStatuses.has('All')) {
+                statusMatch = true; 
+            } else {
+                statusMatch = selectedStatuses.has(status); 
+            }
+            
+            let completedMatch;
+            if (showCompleted) {
+                completedMatch = isCompletedRow; 
+            } else {
+                completedMatch = !isCompletedRow; 
+            }
+
+            const shouldShow = statusMatch && completedMatch;
+            row.style.display = shouldShow ? '' : 'none';
+        });
+
+        if (currentSort.column) {
+            const visibleRows = rows.filter(row => row.style.display !== 'none');
+            visibleRows.sort((a, b) => {
+                let aValue, bValue;
+                let comparison;
+                
+                if (currentSort.column === 'title') {
+                    aValue = a.dataset.title; bValue = b.dataset.title;
+                    comparison = aValue.localeCompare(bValue, 'ko');
+                } else if (currentSort.column === 'status') {
+                    aValue = a.dataset.status; bValue = b.dataset.status;
+                    comparison = aValue.localeCompare(bValue, 'ko');
+                } else if (currentSort.column === 'is_completed') {
+                    aValue = a.dataset.isCompleted === 'true'; bValue = b.dataset.isCompleted === 'true';
+                    comparison = aValue === bValue ? 0 : (aValue ? 1 : -1);
+                } else if (currentSort.column === 'product') {
+                    aValue = a.dataset.productNames; bValue = b.dataset.productNames;
+                    comparison = aValue.localeCompare(bValue, 'ko');
+                } else if (currentSort.column === 'tasks') {
+                    aValue = parseInt(a.dataset.taskCount) || 0; bValue = parseInt(b.dataset.taskCount) || 0;
+                    comparison = aValue - bValue;
+                } else if (currentSort.column === 'created_date') {
+                    aValue = a.dataset.createdDate; bValue = b.dataset.createdDate;
+                    comparison = aValue.localeCompare(bValue);
+                }
+                
+                return currentSort.direction === 'asc' ? comparison : -comparison;
+            });
+            visibleRows.forEach(row => tableBody.appendChild(row));
+        }
+    }
+});
+
+function loadTasksData() {
+    try {
+        const projectRows = document.querySelectorAll('tr[data-status]');
+        projectRows.forEach(row => {
+            const tasksCell = row.querySelector('.tasks-cell');
+            if (tasksCell) {
+                const todoTasks = parseInt(tasksCell.getAttribute('data-todo-tasks')) || 0;
+                const doneTasks = parseInt(tasksCell.getAttribute('data-done-tasks')) || 0;
+                
+                tasksCell.innerHTML = `
+                    <span style="color: var(--danger-color); font-size: 1.1em; font-weight: bold;">${todoTasks}</span>
+                    <span style="color: var(--secondary-text); margin: 0 4px;">|</span>
+                    <span style="color: green; font-size: 1.1em; font-weight: bold;">${doneTasks}</span>
+                `;
+                row.setAttribute('data-task-count', todoTasks + doneTasks);
+            }
+        });
+    } catch (error) { console.error('Tasks Error', error); }
+}
+</script>
+{% endblock %}

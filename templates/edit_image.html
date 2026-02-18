@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="width: 50%; margin: 0 auto; text-align: center;">
+    <h1>Edit Image</h1>
+    <form method="POST">
+        <div>
+            <label for="memo">Memo:</label>
+            <textarea id="memo" name="memo" required>{{ image.memo }}</textarea>
+        </div>
+        <input type="submit" value="Update Image">
+    </form>
+    <a href="{{ request.referrer }}">Cancel</a>
+</div>
+{% endblock %}

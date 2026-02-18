@@ -1,0 +1,459 @@
+{% extends "base.html" %}
+
+{% block title %}{{ flowchart['title'] }} - 플로우차트{% endblock %}
+
+{% block content %}
+<script src="https://unpkg.com/cytoscape@3.21.1/dist/cytoscape.min.js"></script>
+<style>
+    /* View-specific styles that don't conflict with base.html */
+    .flowchart-view-wrapper {
+        display: flex;
+        flex-direction: column;
+        /* Height adjustment: 100vh - 44px (navbar) */
+        height: calc(100vh - 44px); 
+        background: var(--bg-color);
+        overflow: hidden;
+    }
+    
+    /* Override base.html padding */
+    main { padding-top: 44px !important; }
+
+    .flowchart-header {
+        background: var(--th-bg);
+        padding: 10px 20px;
+        color: var(--text-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--border-color);
+        flex-shrink: 0;
+    }
+    .flowchart-header h1 {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0;
+        color: var(--text-color);
+    }
+    .header-center {
+        display: flex;
+        gap: 8px;
+    }
+    .header-center button {
+        padding: 6px 12px;
+        background: var(--input-bg);
+        color: var(--text-color);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.2s;
+    }
+    .header-center button:hover {
+        background: rgba(0, 217, 255, 0.2);
+        border-color: #00d9ff;
+    }
+    .header-actions {
+        display: flex;
+        gap: 10px;
+    }
+    /* Renamed btns to avoid conflict or just ensuring specific styles */
+    .btn-fc {
+        padding: 6px 14px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s;
+        line-height: normal;
+    }
+    .btn-fc-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    .btn-fc-primary:hover {
+        box-shadow: 0 3px 10px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+    .btn-fc-secondary {
+        background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%);
+        color: white;
+    }
+    .btn-fc-secondary:hover {
+        color: white;
+    }
+
+    /* Dark Mode Override for Canvas to ensure lines (#404040) are visible */
+    body.dark-mode #cy {
+        background-color: #C8CDC3 !important;
+    }
+
+    #cy {
+        flex: 1; /* Take remaining height */
+        background: var(--bg-color);
+        width: 100%;
+    }
+    .toast {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #38ef7d;
+        color: #000;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-weight: bold;
+        z-index: 9999;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        display: none;
+    }
+</style>
+
+<div class="flowchart-view-wrapper">
+    <div class="flowchart-header">
+        <h1>{{ flowchart['title'] }}</h1>
+        <div class="header-center">
+            <button onclick="fitToView()">🔍 맞춤</button>
+            <button onclick="zoomIn()">➕ 확대</button>
+            <button onclick="zoomOut()">➖ 축소</button>
+            <button onclick="exportImage()">📸 저장</button>
+            <button onclick="copyShareLink()">🔗 공유</button>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('flowchart.edit', id=flowchart['id']) }}" class="btn-fc btn-fc-primary">✏️ 편집</a>
+            <a href="{{ url_for('flowchart.index') }}" class="btn-fc btn-fc-secondary">← 목록</a>
+        </div>
+    </div>
+
+    <div id="cy"></div>
+    <div id="toast" class="toast"></div>
+</div>
+
+<script>
+    const cy = cytoscape({
+        container: document.getElementById('cy'),
+        elements: {{ flowchart['data']|safe }},
+        style: [
+                // 기본 노드 스타일 (투명 배경, 검은 테두리, pill 모양)
+                {
+                    selector: 'node',
+                    style: {
+                        'content': 'data(label)',
+                        'text-valign': 'center',
+                        'text-halign': 'center',
+                        'background-color': '#f5f5f0',
+                        'border-color': '#333333',
+                        'border-width': 1.5,
+                        'width': 120,
+                        'height': 40,
+                        'shape': 'round-rectangle',
+                        'font-size': '14px',
+                        'font-weight': 'normal',
+                        'color': '#333333',
+                        'text-wrap': 'wrap',
+                        'text-max-width': '110px'
+                    }
+                },
+                // Start 노드 (이중 원, 연두색)
+                {
+                    selector: 'node[nodeType="start"]',
+                    style: {
+                        'background-color': '#ACE7AE',
+                        'border-color': '#52CE60',
+                        'border-width': 4,
+                        'border-style': 'double',
+                        'width': 70,
+                        'height': 70,
+                        'shape': 'ellipse'
+                    }
+                },
+                // End 노드 (단일 원, 핑크색)
+                {
+                    selector: 'node[nodeType="end"]',
+                    style: {
+                        'background-color': '#F8CECC',
+                        'border-color': '#B85450',
+                        'border-width': 2,
+                        'width': 60,
+                        'height': 60,
+                        'shape': 'ellipse'
+                    }
+                },
+                // State 노드 (투명 배경, 검은 테두리, pill 모양)
+                {
+                    selector: 'node[nodeType="state"]',
+                    style: {
+                        'background-color': '#f5f5f0',
+                        'border-color': '#333333',
+                        'border-width': 1.5,
+                        'width': 120,
+                        'height': 40,
+                        'shape': 'round-rectangle',
+                        'color': '#333333'
+                    }
+                },
+                // Decision 노드 (다이아몬드, 노란색)
+                {
+                    selector: 'node[nodeType="decision"]',
+                    style: {
+                        'background-color': '#FFF2CC',
+                        'border-color': '#D6B656',
+                        'border-width': 2,
+                        'width': 80,
+                        'height': 80,
+                        'shape': 'diamond'
+                    }
+                },
+                // Text 노드 (텍스트 박스)
+                {
+                    selector: 'node[nodeType="text"]',
+                    style: {
+                        'content': 'data(memo)',
+                        'background-color': 'transparent',
+                        'background-opacity': 0,
+                        'border-width': 0,
+                        'width': 200,
+                        'height': 'label',
+                        'padding': '10px',
+                        'shape': 'rectangle',
+                        'text-wrap': 'wrap',
+                        'text-max-width': '190px',
+                        'font-size': '14px',
+                        'color': '#333333',
+                        'text-halign': 'center',
+                        'text-valign': 'center'
+                    }
+                },
+                // Text 노드 너비 데이터 적용
+                {
+                    selector: 'node[nodeType="text"][boxWidth]',
+                    style: {
+                        'width': 'data(boxWidth)',
+                        'text-max-width': 'data(textMaxWidth)'
+                    }
+                },
+                // Text 노드 배경색 적용
+                {
+                    selector: 'node[nodeType="text"][bgColor]',
+                    style: {
+                        'background-color': 'data(bgColor)',
+                        'background-opacity': 1
+                    }
+                },
+                // Text 노드 테두리 적용
+                {
+                    selector: 'node[nodeType="text"][borderColor]',
+                    style: {
+                        'border-color': 'data(borderColor)',
+                        'border-width': 'data(borderWidth)'
+                    }
+                },
+                // Text 노드 폰트 스타일
+                {
+                    selector: 'node[fontSize]',
+                    style: { 'font-size': 'data(fontSize)' }
+                },
+                {
+                    selector: 'node[fontWeight]',
+                    style: { 'font-weight': 'data(fontWeight)' }
+                },
+                {
+                    selector: 'node[fontStyle]',
+                    style: { 'font-style': 'data(fontStyle)' }
+                },
+                // Text 노드 정렬 (박스 내부 정렬)
+                {
+                    selector: 'node[nodeType="text"][textAlign]',
+                    style: { 'text-justification': 'data(textAlign)' }
+                },
+                // 기존 데이터 호환용 스타일
+                {
+                    selector: 'node[bgColor]',
+                    style: { 'background-color': 'data(bgColor)', 'color': '#333333' }
+                },
+                {
+                    selector: 'node[borderColor]',
+                    style: { 'border-color': 'data(borderColor)' }
+                },
+                {
+                    selector: 'node[borderWidth]',
+                    style: { 'border-width': 'data(borderWidth)' }
+                },
+                {
+                    selector: 'node[textColor]',
+                    style: { 'color': 'data(textColor)' }
+                },
+                {
+                    selector: 'node[shape]',
+                    style: { 'shape': 'data(shape)' }
+                },
+                {
+                    selector: 'node:selected',
+                    style: {
+                        'border-color': '#00d9ff',
+                        'border-width': 3,
+                        'overlay-color': '#00d9ff',
+                        'overlay-opacity': 0.2
+                    }
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'width': 1.5,
+                        'line-color': '#404040',
+                        'target-arrow-color': '#404040',
+                        'target-arrow-shape': 'triangle',
+                        'arrow-scale': 1.2,
+                        'curve-style': 'straight',
+                        'taxi-direction': 'auto',
+                        'taxi-turn': '50%',
+                        'line-style': 'solid',
+                        'label': 'data(label)',
+                        'font-size': '12px',
+                        'color': '#333',
+                        'text-background-color': '#FFF2CC',
+                        'text-background-opacity': 1,
+                        'text-background-padding': '4px',
+                        'text-background-shape': 'roundrectangle',
+                        'text-border-color': '#D6B656',
+                        'text-border-width': 1,
+                        'text-border-opacity': 1
+                    }
+                },
+                {
+                    selector: 'edge[curveStyle]',
+                    style: {
+                        'curve-style': 'data(curveStyle)'
+                    }
+                },
+                {
+                    selector: 'edge[!label], edge[label=""]',
+                    style: {
+                        'text-background-opacity': 0,
+                        'text-border-opacity': 0
+                    }
+                },
+                {
+                    selector: 'edge[lineColor]',
+                    style: {
+                        'line-color': 'data(lineColor)',
+                        'target-arrow-color': 'data(lineColor)'
+                    }
+                },
+                {
+                    selector: 'edge[lineStyle]',
+                    style: { 'line-style': 'data(lineStyle)' }
+                },
+                {
+                    selector: 'edge:selected',
+                    style: {
+                        'line-color': '#00d9ff',
+                        'target-arrow-color': '#00d9ff',
+                        'width': 2
+                    }
+                }
+            ],
+        layout: { name: 'preset' },
+        userZoomingEnabled: true,
+        userPanningEnabled: true,
+        boxSelectionEnabled: false,
+        minZoom: 0.3,
+        maxZoom: 3
+    });
+
+    function showToast(message) {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; }, 2000);
+    }
+
+    function fitToView() {
+        cy.fit(null, 50);
+    }
+
+    function zoomIn() {
+        cy.zoom(cy.zoom() * 1.2);
+    }
+
+    function zoomOut() {
+        cy.zoom(cy.zoom() / 1.2);
+    }
+
+    function exportImage() {
+        const cyContainer = document.getElementById('cy');
+        const bgColor = window.getComputedStyle(cyContainer).backgroundColor;
+
+        const png = cy.png({
+            output: 'blob',
+            bg: bgColor,
+            full: true,
+            scale: 2
+        });
+        const url = URL.createObjectURL(png);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '{{ flowchart["title"] }}.png';
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+
+    function copyShareLink() {
+        const url = '{{ url_for("flowchart.share", id=flowchart["id"], _external=True) }}';
+        navigator.clipboard.writeText(url).then(() => {
+            showToast('✅ 공유 링크가 복사되었습니다!');
+        });
+    }
+
+    // Bezier 컨트롤 포인트 적용
+    function applyBezierControlPoints() {
+        cy.edges().forEach(edge => {
+            if (edge.data('curveStyle') === 'unbundled-bezier') {
+                const cp1 = edge.data('controlPoint1');
+                const cp2 = edge.data('controlPoint2');
+
+                if (cp1 && cp2) {
+                    const sourceNode = cy.getElementById(edge.data('source'));
+                    const targetNode = cy.getElementById(edge.data('target'));
+
+                    if (sourceNode.length && targetNode.length) {
+                        const sourcePos = sourceNode.position();
+                        const targetPos = targetNode.position();
+
+                        const dx = targetPos.x - sourcePos.x;
+                        const dy = targetPos.y - sourcePos.y;
+                        const lineLength = Math.sqrt(dx * dx + dy * dy);
+
+                        if (lineLength > 0) {
+                            const perpX = -dy / lineLength;
+                            const perpY = dx / lineLength;
+
+                            const dist1 = (cp1.x - sourcePos.x) * perpX + (cp1.y - sourcePos.y) * perpY;
+                            const dist2 = (cp2.x - sourcePos.x) * perpX + (cp2.y - sourcePos.y) * perpY;
+
+                            const weight1 = ((cp1.x - sourcePos.x) * dx + (cp1.y - sourcePos.y) * dy) / (lineLength * lineLength);
+                            const weight2 = ((cp2.x - sourcePos.x) * dx + (cp2.y - sourcePos.y) * dy) / (lineLength * lineLength);
+
+                            edge.style({
+                                'curve-style': 'unbundled-bezier',
+                                'control-point-distances': [dist1, dist2],
+                                'control-point-weights': [weight1, weight2]
+                            });
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    applyBezierControlPoints();
+
+    // 초기 뷰 설정
+    setTimeout(() => cy.fit(null, 50), 100);
+</script>
+{% endblock %}
+

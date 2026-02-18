@@ -1,0 +1,485 @@
+{% extends "base.html" %}
+{% block title %}
+Tasks-{{ project.title }}
+{% endblock %}
+{% block content %}
+<!-- Overlay for panels -->
+<div id="panel-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.3); z-index: 999;"></div>
+
+<div style="display: flex; justify-content: center; width: 100%; position: relative;">
+    <div style="width: 80%; margin: 0 auto;">
+        <h1><a href="{{ url_for('project', project_id=project.id) }}">{{ project.title }}</a></h1>
+        <p>프로젝트 설명: {{ project.description }}</p>
+
+        <!-- Add New Task Button -->
+        <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+            <a href="javascript:void(0);" id="toggle-done-tasks" onclick="toggleDoneTasks()" style="font-size: 1.1em;">완료된 일정 가리기</a>
+            <button onclick="showNewTaskForm()" style="padding: 4px 18px; width: 120px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                <i class="fas fa-plus"></i> New Task
+            </button>
+        </div>
+
+        <!-- Task List Table -->
+        <table class="no-border" id="task-list" style="width: 100%; border-collapse: collapse; border-spacing: 0;">
+            <thead>
+                <tr style="border-bottom: 1px solid #ddd;">
+                    <th style="width: 30px; border: none;"></th>
+                    <th style="text-align: left; border: none;">Task</th>
+                    <th style="width: 200px; text-align: center; border: none;">Date</th>                  
+                </tr>
+            </thead>
+            <tbody>
+                <!-- 미완료된 태스크 (To Do) -->
+                {% for task in todo_tasks %}
+                <tr data-status="{{ task.status }}" style="border-bottom: 1px solid #ddd;">
+                    <td class="no-border" style="padding: 10px 0;">
+                        <input type="checkbox" 
+                               {% if task.status == 'Done' %}checked{% endif %} 
+                               onchange="toggleTaskStatus(this, {{ task.id }}, '{{ task.title|replace("'", "\\'") }}')"
+                               data-task-id="{{ task.id }}"
+                               data-due-date="{{ task.due_date.strftime('%Y-%m-%d') if task.due_date else '' }}"
+                               data-comment="{{ task.comment|replace("'", "\\'") if task.comment else '' }}">
+                    </td>
+                    <td class="no-border" style="padding: 10px 0;">
+                        <span onclick="toggleEditForm({{ task.id }},
+                                                       '{{ task.title|replace("'", "\\'") }}', 
+                                                       '{{ task.status }}', 
+                                                       '{{ task.start_date.strftime('%Y-%m-%d') if task.start_date else '' }}', 
+                                                       '{{ task.due_date.strftime('%Y-%m-%d') if task.due_date else '' }}', 
+                                                       '{{ task.finished_date.strftime('%Y-%m-%d') if task.finished_date else '' }}', 
+                                                       '{{ task.created_at.strftime('%Y-%m-%d') if task.created_at else '' }}',
+                                                       `{{ task.comment|replace('\\', '\\\\')|replace('\n', '\\n')|replace("'", "\\'") if task.comment else '' }}`);"><strong>
+                            {{ task.title }}
+                        </span></strong>
+                        {% if task.comment %}
+                        <span style="color: #555;">({{ task.comment }})</span>
+                        {% endif %}
+                    </td>
+                    <td class="no-border" style="text-align: center; padding: 10px 0; color: grey;">
+                        {% if task.due_date %}
+                            {{ task.start_date.strftime('%Y.%m.%d') if task.start_date else '' }} → {{ task.due_date.strftime('%Y.%m.%d') if task.due_date else '' }}
+                        {% else %}
+                            {{ task.start_date.strftime('%Y.%m.%d') if task.start_date else '' }} →
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                
+                <!-- 완료된 태스크 (Done) -->
+                {% for task in done_tasks %}
+                <tr data-status="{{ task.status }}" style="border-bottom: 1px solid #ddd;">
+                    <td class="no-border" style="padding: 10px 0;">
+                        <input type="checkbox" 
+                               {% if task.status == 'Done' %}checked{% endif %} 
+                               onchange="toggleTaskStatus(this, {{ task.id }}, '{{ task.title|replace("'", "\\'") }}')"
+                               data-task-id="{{ task.id }}"
+                               data-due-date="{{ task.due_date.strftime('%Y-%m-%d') if task.due_date else '' }}"
+                               data-comment="{{ task.comment|replace("'", "\\'") if task.comment else '' }}">
+                    </td>
+                    <td class="no-border" style="padding: 10px 0;">
+                        <span onclick="toggleEditForm({{ task.id }},
+                                                       '{{ task.title|replace("'", "\\'") }}', 
+                                                       '{{ task.status }}', 
+                                                       '{{ task.start_date.strftime('%Y-%m-%d') if task.start_date else '' }}', 
+                                                       '{{ task.due_date.strftime('%Y-%m-%d') if task.due_date else '' }}', 
+                                                       '{{ task.finished_date.strftime('%Y-%m-%d') if task.finished_date else '' }}', 
+                                                       '{{ task.created_at.strftime('%Y-%m-%d') if task.created_at else '' }}',
+                                                       `{{ task.comment|replace('\\', '\\\\')|replace('\n', '\\n')|replace("'", "\\'") if task.comment else '' }}`);"><strong>
+                            {{ task.title }}
+                        </span></strong>
+                        {% if task.comment %}
+                        <span style="color: #555;">({{ task.comment }})</span>
+                        {% endif %}
+                    </td>
+                    <td class="no-border" style="text-align: center; padding: 10px 0; color: grey;">
+                        {{ task.start_date.strftime('%Y.%m.%d') if task.start_date else '' }} → {{ task.finished_date.strftime('%Y.%m.%d') if task.finished_date else '' }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Back to Project Link -->
+        <div style="margin-top: 30px; text-align: center;">
+            <a href="{{ url_for('project', project_id=project.id) }}">Back to Project</a>
+        </div>
+    </div>
+</div>
+
+<!-- New Task Panel -->
+<div id="new-task-panel" class="edit-panel" style="position: fixed; top: 0; right: -40%; width: 40%; height: 100%; background-color: white; box-shadow: -2px 0 5px rgba(0,0,0,0.1); transition: right 0.3s ease-in-out; display: none; flex-direction: column; z-index: 1000;">
+    <!-- Top Section -->
+    <div style="height: 6%; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; background-color: #f8f9fa; border-bottom: 1px solid #dee2e6;">
+        <span style="font-size: 1.2em; font-weight: 500;">New Task</span>
+        <button type="button" onclick="hideNewTaskForm();" style="background: none; border: none; font-size: 16px; cursor: pointer;">✖</button>
+    </div>
+
+    <!-- Middle Content Section -->
+    <div style="flex: 1; padding: 20px; overflow-y: auto;">
+        <form id="new-task-form" method="POST" action="{{ url_for('new_task', project_id=project.id) }}">
+            <!-- Task Title -->
+            <div style="margin-bottom: 20px;">
+                <label for="title" style="display: block; margin-bottom: 5px; font-weight: 500;">Task Title</label>
+                <input type="text" id="title" name="title" required class="editable-input" style="font-size: 1.1em;">
+            </div>
+
+            <!-- Status -->
+            <div style="margin-bottom: 20px;">
+                <label for="status" style="display: block; margin-bottom: 5px; font-weight: 500;">Status</label>
+                <select id="status" name="status" required class="editable-input" style="width: 150px;">
+                    <option value="To Do" selected>To Do</option>
+                    <option value="Done">Done</option>
+                </select>
+            </div>
+
+            <!-- Dates -->
+            <div style="display: flex; margin-bottom: 20px; gap: 20px;">
+                <div style="flex: 1;">
+                    <label for="start_date" style="display: block; margin-bottom: 5px; font-weight: 500;">Start Date</label>
+                    <input type="date" id="start_date" name="start_date" required class="editable-input">
+                </div>
+                <div style="flex: 1;">
+                    <label for="due_date" style="display: block; margin-bottom: 5px; font-weight: 500;">Due Date</label>
+                    <input type="date" id="due_date" name="due_date" class="editable-input">
+                </div>
+            </div>
+
+            <!-- Comment -->
+            <div style="margin-bottom: 20px;">
+                <label for="comment" style="display: block; margin-bottom: 5px; font-weight: 500;">Comment</label>
+                <textarea id="comment" name="comment" rows="5" class="editable-input" style="resize: vertical;"></textarea>
+            </div>
+
+            <!-- Buttons -->
+            <div style="display: flex; justify-content: center; gap: 10px; margin-top: 30px;">
+                <button type="submit" style="padding: 8px 24px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">Create</button>
+                <button type="button" onclick="hideNewTaskForm();" style="padding: 8px 24px; background-color: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Task Panel -->
+<div id="edit-panel" class="edit-panel" style="position: fixed; top: 0; right: -40%; width: 40%; height: 100%; background-color: white; box-shadow: -2px 0 5px rgba(0,0,0,0.1); transition: right 0.3s ease-in-out; display: none; flex-direction: column; z-index: 1000;">
+    <!-- Top Section -->
+    <div style="height: 6%; display: flex; align-items: center; justify-content: space-between; padding: 0 20px;">
+        <span>Edit Task</span>
+        <button type="button" onclick="toggleEditForm();" style="background: none; border: none; font-size: 16px;">✖</button>
+    </div>
+
+    <!-- Horizontal line separating the top section -->
+    <hr style="margin: 0;">
+
+    <!-- Middle Content Section -->
+    <div style="flex: 1; padding: 20px; overflow-y: auto;">
+        <form id="edit-form" method="POST" action="">
+            <!-- Task Title with Editable Input Style -->
+            <div style="margin-bottom: 10px;">
+                <input type="text" name="title" value="${title}" required class="editable-input" style="font-size: 24px;">
+            </div>
+
+            <!-- Status Dropdown Below Title -->
+            <div style="margin-bottom: 10px;">
+                <select name="status" required style="width: 30%; padding: 5px;" onchange="updateFinishedDate(this);">
+                    <option value="To Do" ${status === 'To Do' ? 'selected' : ''}>To Do</option>
+                    <option value="Done" ${status === 'Done' ? 'selected' : ''}>Done</option>
+                </select>
+            </div>
+
+            <!-- Start Date and Due Date -->
+            <div style="display: flex; margin-bottom: 10px;">
+                <div style="flex: 1; margin-right: 5px;">
+                    <label for="start_date">Start Date:</label>
+                    <input type="date" name="start_date" value="${startDate}" style="width: 80%; padding: 5px;">
+                </div>
+                <div style="flex: 1; margin-right: 5px;">
+                    <label for="due_date">Due Date:</label>
+                    <input type="date" name="due_date" value="${dueDate}" style="width: 80%; padding: 5px;">
+                </div>
+            </div>
+
+            <!-- Finished Date on a new line -->
+            <div style="margin-bottom: 10px;">
+                <label for="finished_date">Finished Date:</label>
+                <input type="date" id="finished_date" name="finished_date" value="${finishedDate}" style="width: 40%; padding: 5px;">
+            </div>
+
+            <!-- Comment textarea -->
+            <div style="margin-bottom: 10px;">
+                <label for="comment">Comment:</label>
+                <textarea name="comment" rows="7" style="width: 95%; padding: 5px;">${comment}</textarea>
+            </div>
+
+            <!-- Update and Cancel buttons -->
+            <div style="margin-bottom: 10px; text-align: center;">
+                <input type="submit" value="Update" style="display: inline-block; width: 100px; padding: 5px; background-color: #4CAF50; color: white; border: none; cursor: pointer; margin-right: 10px;">
+                <button type="button" onclick="toggleEditForm();" style="display: inline-block; width: 100px; padding: 5px; background-color: #f44336; color: white; border: none; cursor: pointer;">Cancel</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Bottom Section -->
+    <div style="height: 5%; display: flex; align-items: center; justify-content: flex-end; padding-right: 20px;">
+        <button type="button" onclick="confirmDelete();" style="background: none; border: none; cursor: pointer;">
+            <i class="fas fa-trash" style="font-size: 20px; color: #f44336;"></i>
+        </button>
+    </div>
+</div>
+
+<style>
+    .editable-input {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        font-size: 1em;
+        background-color: white;
+    }
+    
+    .editable-input:focus {
+        border-color: #4CAF50;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(74, 175, 80, 0.2);
+    }
+
+    .no-border {
+        border-left: none;
+        border-right: none;
+    }
+
+    thead tr {
+        background-color: #f8f9fa;
+    }
+</style>
+
+<script>
+function showNewTaskForm() {
+    var panel = document.getElementById('new-task-panel');
+    var overlay = document.getElementById('panel-overlay');
+    
+    panel.style.display = 'flex';
+    overlay.style.display = 'block';
+    
+    setTimeout(() => {
+        panel.style.right = '0';
+    }, 10);
+    
+    // Set default date to today
+    var today = new Date().toISOString().split('T')[0];
+    document.getElementById('start_date').value = today;
+    
+    // Focus on title input
+    document.getElementById('title').focus();
+}
+
+function hideNewTaskForm() {
+    var panel = document.getElementById('new-task-panel');
+    var overlay = document.getElementById('panel-overlay');
+    
+    panel.style.right = '-40%';
+    overlay.style.display = 'none';
+    
+    setTimeout(() => {
+        panel.style.display = 'none';
+        document.getElementById('new-task-form').reset();
+    }, 300);
+}
+
+function toggleTaskStatus(checkbox, taskId, title) {
+    const newStatus = checkbox.checked ? 'Done' : 'To Do';
+    const row = checkbox.closest('tr');
+
+    // FormData 객체 생성
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('status', newStatus);
+    
+    // 시작일 가져오기
+    const dateText = row.querySelector('td:last-child').textContent;
+    const startDateStr = dateText.split('→')[0].trim();
+    // YYYY.MM.DD 형식을 YYYY-MM-DD 형식으로 변환
+    const startDate = startDateStr.replace(/\./g, '-');
+    formData.append('start_date', startDate);
+
+    // 현재 상태가 있는 경우 유지
+    const existingDueDate = checkbox.getAttribute('data-due-date');
+    if (existingDueDate) {
+        formData.append('due_date', existingDueDate);
+    }
+
+    // Done 상태로 변경 시 현재 날짜를 finished_date로 설정
+    if (newStatus === 'Done') {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const formattedDate = `${year}-${month}-${day}`;
+        formData.append('finished_date', formattedDate);
+    }
+
+    // 기존 comment가 있다면 유지
+    const existingComment = checkbox.getAttribute('data-comment');
+    if (existingComment) {
+        formData.append('comment', existingComment);
+    }
+
+    fetch(`/update_task/${taskId}`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to update task status');
+        }
+        // 성공 시 페이지 새로고침
+        window.location.reload();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        checkbox.checked = !checkbox.checked; // 에러 시 체크박스 상태 되돌리기
+        alert('Failed to update task status. Please try again.');
+    });
+}
+
+function toggleEditForm(taskId, title, status, startDate, dueDate, finishedDate, createdAt, comment) {
+    var panel = document.getElementById('edit-panel');
+    var overlay = document.getElementById('panel-overlay');
+    var isPanelVisible = panel.style.right === '0px';
+
+    if (!isPanelVisible) {
+        panel.style.right = '0';
+        panel.style.display = 'flex';
+        overlay.style.display = 'block';
+        
+        // Populate the form with task details
+        var form = document.getElementById('edit-form');
+        form.innerHTML = generateEditFormHTML(taskId, title, status, startDate, dueDate, finishedDate, createdAt, comment);
+        form.action = `/update_task/${taskId}`;
+    } else {
+        panel.style.right = '-40%';
+        overlay.style.display = 'none';
+        
+        setTimeout(function() {
+            panel.style.display = 'none';
+        }, 300);
+    }
+}
+
+function generateEditFormHTML(taskId, title, status, startDate, dueDate, finishedDate, createdAt, comment) {
+    const sanitizedComment = comment.replace(/\n/g, '&#10;');
+    
+    return `
+        <div style="margin-bottom: 10px;">
+            <input type="text" name="title" value="${title}" required class="editable-input" style="font-size: 24px; font-weight: bold;">
+        </div>
+        <div style="margin-bottom: 10px;">
+            <select name="status" required class="editable-input" style="width: 30%; padding: 5px;" onchange="updateFinishedDate(this);">
+                <option value="To Do" ${status === 'To Do' ? 'selected' : ''}>To Do</option>
+                <option value="Done" ${status === 'Done' ? 'selected' : ''}>Done</option>
+            </select>
+        </div>
+
+        <!-- Start Date and Due Date -->
+        <div style="display: flex; margin-bottom: 10px;">
+            <div style="flex: 1; margin-right: 5px;">
+                <label for="start_date">Start Date:</label>
+                <input type="date" name="start_date" value="${startDate}" class="editable-input" style="width: 80%; padding: 5px;">
+            </div>
+            <div style="flex: 1; margin-right: 5px;">
+                <label for="due_date">Due Date:</label>
+                <input type="date" name="due_date" value="${dueDate}" class="editable-input" style="width: 80%; padding: 5px;">
+            </div>
+        </div>
+
+        <!-- Finished Date on a new line -->
+        <div style="margin-bottom: 10px;">
+            <label for="finished_date">Finished Date:</label>
+            <input type="date" id="finished_date" name="finished_date" value="${finishedDate}" class="editable-input" style="width: 40%; padding: 5px;">
+        </div>
+
+        <!-- Comment textarea -->
+        <div style="margin-bottom: 10px;">
+            <label for="comment">Comment:</label>
+            <textarea name="comment" rows="7" style="width: 95%; padding: 5px;">${sanitizedComment}</textarea>
+        </div>
+
+        <!-- Update and Cancel buttons -->
+        <div style="margin-bottom: 10px; text-align: center;">
+            <input type="submit" value="Update" style="display: inline-block; width: 100px; height: 35px; padding: 5px; background-color: #4CAF50; color: white; border: none; cursor: pointer; margin-right: 20px;">
+            <button type="button" onclick="toggleEditForm();" style="display: inline-block; width: 100px; height: 35px; padding: 5px; background-color: #6c757d; color: white; border: #6c757d; cursor: pointer;">Cancel</button>
+        </div>
+    `;
+}
+
+function updateFinishedDate(statusSelect) {
+    var finishedDateInput = document.getElementById('finished_date');
+
+    if (statusSelect.value === 'Done') {
+        var today = new Date().toISOString().split('T')[0];
+        finishedDateInput.value = today;
+    } else {
+        finishedDateInput.value = '';
+    }
+}
+
+function confirmDelete() {
+    if (confirm('Are you sure you want to delete this task?')) {
+        var taskId = document.getElementById('edit-form').action.split('/').pop();
+
+        fetch(`/delete_task/${taskId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to delete task');
+            }
+            window.location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            window.location.reload();
+        });
+    }
+}
+
+let hideDoneTasks = false;
+
+function toggleDoneTasks() {
+    hideDoneTasks = !hideDoneTasks;  // Toggle the flag
+
+    const doneTasks = document.querySelectorAll('tr[data-status="Done"]'); // Select all 'Done' tasks
+    doneTasks.forEach(task => {
+        task.style.display = hideDoneTasks ? 'none' : '';  // Hide or show based on the flag
+    });
+
+    const toggleLink = document.getElementById('toggle-done-tasks');
+    if (hideDoneTasks) {
+        toggleLink.textContent = '완료된 일정 보기';  // Change the link text
+    } else {
+        toggleLink.textContent = '완료된 일정 가리기';
+    }
+}
+
+// 오버레이 클릭 이벤트 핸들러 추가
+document.addEventListener('DOMContentLoaded', function() {
+    var overlay = document.getElementById('panel-overlay');
+    overlay.addEventListener('click', function() {
+        // 현재 열려있는 패널 확인 및 닫기
+        var newTaskPanel = document.getElementById('new-task-panel');
+        var editPanel = document.getElementById('edit-panel');
+        
+        if (newTaskPanel.style.right === '0px') {
+            hideNewTaskForm();
+        }
+        
+        if (editPanel.style.right === '0px') {
+            toggleEditForm();
+        }
+    });
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,101 @@
+[
+    {
+        "id": 1,
+        "name": "김가영",
+        "position": "부장",
+        "department": "경영지원부",
+        "phone": "010-7758-1855",
+        "extension": "602",
+        "email": "kgy1855@hpnc.co.kr",
+        "is_favorite": true,
+        "priority_score": 3
+    },
+    {
+        "id": 2,
+        "name": "하용찬",
+        "position": "이사",
+        "department": "경영지원부",
+        "phone": "010-3323-2950",
+        "extension": "605",
+        "is_favorite": true,
+        "email": "",
+        "priority_score": 0
+    },
+    {
+        "id": 3,
+        "name": "한채은",
+        "position": "과장",
+        "department": "경영지원부",
+        "phone": "010-9885-5519",
+        "extension": "603",
+        "is_favorite": true,
+        "email": "",
+        "priority_score": 0
+    },
+    {
+        "id": 4,
+        "name": "김홍주",
+        "position": "부사장",
+        "department": "임원",
+        "phone": "010-9099-2882",
+        "extension": "202",
+        "email": "",
+        "is_favorite": true,
+        "priority_score": 5
+    },
+    {
+        "id": 5,
+        "name": "이용필",
+        "position": "부장",
+        "department": "소독제품질보증팀",
+        "phone": "010-5459-8772",
+        "extension": "451",
+        "email": "",
+        "is_favorite": true,
+        "priority_score": 2
+    },
+    {
+        "id": 6,
+        "name": "안영진",
+        "position": "차장",
+        "department": "소독제생산",
+        "phone": "010-9831-3575",
+        "extension": "471",
+        "email": "",
+        "is_favorite": true,
+        "priority_score": 0
+    },
+    {
+        "id": 7,
+        "name": "탁훈",
+        "position": "차장",
+        "department": "화장품개발",
+        "phone": "010-9387-4739",
+        "extension": "334",
+        "email": "",
+        "is_favorite": false,
+        "priority_score": 0
+    },
+    {
+        "id": 8,
+        "name": "이종욱",
+        "position": "부사장",
+        "department": "임원",
+        "phone": "010-4280-1945",
+        "extension": "506",
+        "email": "",
+        "is_favorite": true,
+        "priority_score": 0
+    },
+    {
+        "id": 9,
+        "name": "김태만",
+        "position": "이사",
+        "department": "관리부",
+        "phone": "010-3792-1945",
+        "extension": "502",
+        "email": "",
+        "is_favorite": true,
+        "priority_score": 0
+    }
+]

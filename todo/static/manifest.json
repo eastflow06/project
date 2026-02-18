@@ -1,0 +1,13 @@
+@todo_bp.route('/manifest.json')
+def manifest():
+    return jsonify({
+        "name": "Todo App",
+        "short_name": "Todo",
+        "description": "할 일 관리",
+        "start_url": "/todo/index.html",  # 이 부분 수정
+        "scope": "/todo/",
+        "display": "standalone",
+        "background_color": "#1a1a1a",
+        "theme_color": "#4285f4",
+        "orientation": "portrait-primary"
+    })

@@ -1,0 +1,597 @@
+{% extends "base.html" %}
+{% block title %}
+검색
+{% endblock %}
+
+{% block content %}
+<div id="search-container">
+    <div class="search-header">
+        <h1>Search</h1>
+        <div class="search-form-container">
+            <form method="GET" action="{{ url_for('search') }}" id="search-form">
+                <div class="input-group">
+                    <input type="text" name="keyword" placeholder="검색어를 입력하세요 (예: python && flask @프로젝트명)" required class="search-input" value="{{ keyword|default('', true) }}" lang="ko" autofocus>
+                    <div class="button-group">
+                        <button type="submit" class="btn btn-primary">검색</button>
+                        <button type="button" class="btn btn-secondary" onclick="resetSearch()">초기화</button>
+                    </div>
+                </div>
+                <div class="search-tips">
+                    <small>💡 팁: <strong>&&</strong>로 AND 검색, <strong>@프로젝트명</strong>으로 프로젝트 필터링</small>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if request.args.get('show_flash', '') == 'true' %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+    {% endif %}
+
+    {% if keyword %}
+        <div class="search-results-container">
+            <h2>검색 결과: "{{ keyword }}"{% if project_filter %} (프로젝트: {{ project_filter.title }}){% endif %}</h2>
+
+            {% if contact_results %}
+            <div class="results-section">
+                <h3>Contacts</h3>
+                <ul class="results-list">
+                {% for contact in contact_results %}
+                    <li class="result-item">
+                        <a href="{{ url_for('contact.contact_detail', contact_id=contact.id) }}" class="result-link">
+                            <strong>{{ contact.name }}</strong>
+                            {% if contact.position %} - {{ contact.position }}{% endif %}
+                            {% if contact.department %} ({{ contact.department }}){% endif %}
+                        </a>
+                        <div class="contact-info">
+                            {% if contact.phone %}
+                                <span class="contact-detail">📱 {{ contact.phone }}</span>
+                            {% endif %}
+                            {% if contact.extension %}
+                                <span class="contact-detail">☎️ {{ contact.extension }}</span>
+                            {% endif %}
+                            {% if contact.email %}
+                                <span class="contact-detail">✉️ {{ contact.email }}</span>
+                            {% endif %}
+                        </div>
+                    </li>
+                {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if infolink_results %}
+            <div class="results-section">
+                <h3>Info Links</h3>
+                <ul class="results-list">
+                {% for infolink in infolink_results %}
+                    <li class="result-item">
+                        <a href="{{ url_for('view_infolink', infolink_id=infolink.id) }}" class="result-link">
+                            <strong>{{ infolink.name }}</strong>
+                        </a>
+                        {% if infolink.category %}
+                            <span class="infolink-category">[{{ infolink.category }}{% if infolink.subcategory %} > {{ infolink.subcategory }}{% endif %}]</span>
+                        {% endif %}
+                        {% if infolink.detail %}
+                            <div class="infolink-detail">{{ infolink.detail }}</div>
+                        {% endif %}
+                        <div class="infolink-url">
+                            <a href="{{ infolink.url }}" target="_blank" class="external-link">🔗 {{ infolink.url }}</a>
+                        </div>
+                    </li>
+                {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if task_results %}
+            <div class="results-section">
+                <h3>Tasks</h3>
+                <ul class="results-list">
+                    {% for task in task_results %}
+                        <li class="result-item {% if task.status == 'Done' %}completed-task{% endif %}">
+                            <a href="{{ url_for('project', project_id=task.project_id) }}" class="result-link">{{ task.title|highlight(keyword)|safe }}</a>
+                            {% if task.project and task.project.id != 0 %}
+                                <span class="project-link">(<a href="{{ url_for('project', project_id=task.project.id) }}">{{ task.project.title|highlight(keyword)|safe }}</a>)</span>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if link_results %}
+            <div class="results-section">
+                <h3>Links</h3>
+                <ul class="results-list">
+                {% for link in link_results %}
+                    <li class="result-item">
+                        <a href="{{ link.url }}" target="_blank" class="result-link">{{ (link.description or link.url)|highlight(keyword)|safe }}</a> 
+                        {% if link.project and link.project.id != 0 %}
+                            <span class="project-link">(<a href="{{ url_for('project', project_id=link.project.id) }}">{{ link.project.title|highlight(keyword)|safe }}</a>)</span>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if image_results %}
+            <div class="results-section">
+                <h3>Images</h3>
+                <ul class="results-list">
+                    {% for image in image_results %}
+                        <li class="result-item">
+                            <span class="image-filename">{{ image.filename|highlight(keyword)|safe }}</span>
+                            <a href="{{ url_for('view_image', project_id=image.project_id, image_id=image.id) }}" target="_blank" class="view-link">이미지 보기</a>
+                            {% if image.project and image.project.id != 0 %}
+                                <span class="project-link">(<a href="{{ url_for('project', project_id=image.project.id) }}">{{ image.project.title|highlight(keyword)|safe }}</a>)</span>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if memo_results %}
+            <div class="results-section">
+                <h3>Memos</h3>
+                <ul class="results-list">
+                {% for memo in memo_results %}
+                    <li class="result-item">
+                        <a href="{{ url_for('view_memo', memo_id=memo.id) }}" class="memo-link">
+                            <div class="memo-content">
+                                {{ memo.content|highlight(keyword)|safe }}
+                            </div>
+                        </a>
+                        <div class="memo-metadata">
+                            <span class="memo-date">{{ memo.created_at.strftime('%Y-%m-%d') }}</span>
+                            {% if memo.project and memo.project.id != 0 %}
+                                <span class="project-link">(<a href="{{ url_for('project', project_id=memo.project.id) }}">{{ memo.project.title|highlight(keyword)|safe }}</a>)</span>
+                            {% endif %}
+                        </div>
+                    </li>
+                {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if not task_results and not link_results and not image_results and not memo_results and not contact_results %}
+                <div class="no-results-message">
+                    <p>검색 결과가 없습니다.</p>
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 브라우저 캐시 문제 방지 - 뒤로가기 시 폼 클리어
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted) {
+            document.getElementById('search-form').reset();
+        }
+    });
+});
+
+function resetSearch() {
+    // 폼 초기화 및 페이지 리디렉션
+    document.getElementById('search-form').reset();
+    window.location.href = "{{ url_for('search') }}";
+}
+</script>
+
+<style>
+    /* 전체 컨테이너 스타일 */
+    #search-container {
+        width: 90% !important;
+        max-width: none;
+        margin: 0 auto;
+        padding: 10px;
+        font-family: 'Noto Sans KR', sans-serif;
+        color: var(--text-color); /* 기본 텍스트 색상 변수 적용 */
+    }
+    
+    /* 헤더 섹션 */
+    .search-header {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    
+    .search-header h1 {
+        font-size: 32px;
+        font-weight: 700;
+        margin-bottom: 20px;
+        color: var(--text-color); /* 변수 적용 */
+    }
+    
+    /* 검색 팁 스타일 */
+    .search-tips {
+        text-align: center;
+        margin-top: 10px;
+        color: var(--secondary-text); /* 변수 적용 */
+    }
+    
+    .search-tips strong {
+        color: var(--link-color); /* 변수 적용 */
+        font-weight: 600;
+    }
+    
+    /* 검색 폼 스타일 */
+    .search-form-container {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 20px;
+    }
+    
+    .input-group {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        max-width: 600px;
+    }
+    
+    .search-input {
+        width: 100%;
+        padding: 12px 15px;
+        margin-bottom: 15px;
+        
+        /* [수정] 변수 적용 */
+        background-color: var(--input-bg);
+        color: var(--input-text);
+        border: 2px solid var(--link-color);
+        
+        border-radius: 8px;
+        font-size: 16px;
+        transition: all 0.3s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        height: 40px;
+        line-height: 32px;    
+    }
+    
+    .search-input:focus {
+        border-color: var(--link-hover);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25); /* 이 부분은 포인트 컬러 유지 */
+    }
+    
+    .button-group {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+        font-size: 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        border: none;
+    }
+    
+    /* 버튼은 기존 색상 유지하되 텍스트만 확실히 흰색으로 */
+    .btn-primary {
+        background-color: var(--link-color);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        filter: brightness(0.9);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #5a6268;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* 검색 결과 섹션 - [핵심 수정] */
+    .search-results-container {
+        width: 100%;
+        
+        /* [수정] 배경색을 줄무늬 배경색(약간 회색)으로 설정하여 카드와 구분 */
+        background-color: var(--stripe-bg); 
+        
+        border-radius: 10px;
+        padding: 25px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+    
+    .search-results-container h2 {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 25px;
+        padding-bottom: 10px;
+        
+        /* [수정] 변수 적용 */
+        border-bottom: 2px solid var(--border-color);
+        color: var(--text-color);
+    }
+    
+    .results-section {
+        margin-bottom: 30px;
+    }
+    
+    .results-section h3 {
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 15px;
+        
+        /* [수정] 변수 적용 */
+        color: var(--text-color);
+        
+        padding-left: 10px;
+        border-left: 4px solid var(--link-color);
+    }
+    
+    .results-list {
+        list-style-type: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    /* 개별 결과 카드 - [핵심 수정] */
+    .result-item {
+        /* [수정] 카드는 입력창 배경색(라이트:흰색, 다크:어두운색) 사용 */
+        background-color: var(--input-bg);
+        
+        padding: 12px 15px;
+        margin-bottom: 10px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        transition: transform 0.3s ease;
+        line-height: 1.5;
+        
+        /* [수정] 다크모드에서 카드 경계가 잘 보이도록 테두리 추가 */
+        border: 1px solid var(--border-color);
+    }
+    
+    .result-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .completed-task {
+        color: var(--secondary-text);
+        text-decoration: line-through;
+    }
+    
+    .result-link {
+        color: var(--link-color);
+        text-decoration: none;
+        font-weight: 500;
+        word-break: break-all; 
+    
+        display: -webkit-box;
+        -webkit-line-clamp: 2; 
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis; 
+    }
+    
+    .result-link:hover {
+        text-decoration: underline;
+        color: var(--link-hover);
+    }
+    
+    .project-link {
+        color: var(--secondary-text);
+        margin-left: 8px;
+        font-size: 0.9em;
+    }
+    
+    .project-link a {
+        color: var(--secondary-text);
+        text-decoration: none;
+    }
+    
+    .project-link a:hover {
+        text-decoration: underline;
+        color: var(--link-color);
+    }
+    
+    .no-results {
+        color: var(--secondary-text);
+        font-style: italic;
+        padding: 10px;
+    }
+    
+    /* 전체 결과 없음 메시지 */
+    .no-results-message {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--secondary-text);
+        font-size: 18px;
+    }
+    
+    /* 플래시 메시지 스타일 */
+    .flash-messages {
+        margin-bottom: 20px;
+    }
+    
+    .alert {
+        padding: 12px 15px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        font-size: 16px;
+    }
+    /* 알림창은 색상 유지 (가독성 위해) */
+    .alert-error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+    .alert-success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+    .alert-info { background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+    .alert-warning { background-color: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+    
+    /* 키워드 하이라이트 스타일 */
+    .keyword-highlight {
+        background-color: #ffeb3b; /* 형광 노랑 유지 */
+        color: #000; /* 텍스트는 검정 유지 */
+        font-weight: bold;
+        padding: 0 2px;
+        border-radius: 3px;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
+    }
+    
+    /* 메모 스타일 */
+    .memo-content {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: normal;
+        color: var(--text-color); /* 변수 적용 */
+    }
+    
+    .memo-link {
+        text-decoration: none;
+        display: block;
+    }
+    
+    .memo-link:hover .memo-content {
+        color: var(--link-color);
+    }
+    
+    /* 메모 메타데이터 스타일 */
+    .memo-metadata {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 5px;
+        font-size: 0.9em;
+    }
+    
+    .memo-date {
+        color: var(--secondary-text);
+        font-style: italic;
+        padding-right: 10px;
+    }
+    
+    /* 이미지 항목 스타일 */
+    .image-filename {
+        margin-right: 10px;
+        color: var(--text-color);
+    }
+    
+    .view-link {
+        color: #28a745; /* 초록색 유지 또는 var(--link-color) */
+        text-decoration: none;
+        margin-left: 10px;
+        font-size: 0.9em;
+    }
+    
+    .view-link:hover {
+        text-decoration: underline;
+    }
+    
+    /* Contact 정보 스타일 */
+    .contact-info {
+        margin-top: 5px;
+        font-size: 0.9em;
+        color: var(--secondary-text);
+    }
+    
+    .contact-detail {
+        margin-right: 15px;
+        display: inline-block;
+    }
+    /* Infolink 스타일 */
+    .infolink-category {
+        color: #28a745;
+        font-size: 0.85em;
+        margin-left: 8px;
+        font-weight: 500;
+    }
+    
+    .infolink-detail {
+        margin-top: 5px;
+        font-size: 0.9em;
+        color: var(--secondary-text);
+        word-break: break-all;
+    }
+    
+    .infolink-url {
+        margin-top: 5px;
+        font-size: 0.85em;
+        word-break: break-all;
+    }
+    
+    .external-link {
+        color: #17a2b8; /* Cyan 계열 유지 */
+        text-decoration: none;
+        word-break: break-all;
+        display: -webkit-box;
+        -webkit-line-clamp: 2; 
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .external-link:hover {
+        text-decoration: underline;
+    }
+    
+    /* 반응형 스타일 */
+    @media (max-width: 768px) {
+        #search-container {
+            width: 100% !important;
+            padding: 5px;
+        }
+        
+        .search-header h1 {
+            font-size: 24px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+        
+        .results-section h3 {
+            font-size: 18px;
+        }
+        
+        .results-section {
+            width: 100%;
+            text-align: left;
+            margin-left: 0;
+            padding-left: 0;
+        }
+        
+        .results-section > div,
+        .results-section > h3,
+        .results-section > p {
+            width: 100%;
+            text-align: left;
+            margin-left: 0;
+            padding-left: 0;
+        }
+        
+        .search-input {
+            height: 40px;
+            line-height: 25px;
+            font-size: 15px;
+        }
+        
+        .search-tips {
+            font-size: 12px;
+        }
+    }
+</style>
+{% endblock %}

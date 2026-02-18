@@ -1,0 +1,1638 @@
+1{% extends "base.html" %}
+{% block title %}Smemo{% endblock %}
+{% block content %}
+
+<style>
+    /* 1. 구글 웹폰트 임포트: 산세리프(Noto Sans KR) & 필기체(Nanum Pen Script) */
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Nanum+Pen+Script&display=swap');
+
+    :root {
+        --accent-color: #58a6ff;
+        --note-font: 'Noto Sans KR', sans-serif;      /* 포스트잇용 */
+        --photo-font: 'Nanum Pen Script', cursive;  /* 폴라로이드용 */
+    }
+
+    body {
+        {% if settings.Index.bg_url %}
+        background-image: url('{{ settings.Index.bg_url }}');
+        {% endif %}
+        background-color: {{ settings.Index.bg_color }};
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* 배경 그리드 컨테이너 */
+    .smemo-container {
+        position: fixed;
+        top: 50px;
+        left: 0;
+        width: 100%;
+        height: calc(100vh - 60px);
+        overflow: hidden;
+        cursor: grab;
+    }
+
+    /* 가상 캔버스 - 뷰포트보다 1.8배 큰 공간 (사용자 요청: 너무 넓지 않게) */
+    #smemo-items-container {
+        position: absolute;
+        width: 180vw;
+        height: 180vh;
+        background-image: 
+            repeating-linear-gradient(0deg, rgba(128, 128, 128, 0.1) 0px, rgba(128, 128, 128, 0.1) 1px, transparent 1px, transparent 40px),
+            repeating-linear-gradient(90deg, rgba(128, 128, 128, 0.1) 0px, rgba(128, 128, 128, 0.1) 1px, transparent 1px, transparent 40px);
+        background-size: 40px 40px;
+        /* Visual Border to show limits clearly */
+        border: 2px dashed rgba(255, 255, 255, 0.2); 
+        box-sizing: border-box;
+        
+        /* 초기 위치: 중앙에서 시작 (-40vw, -40vh) */
+        left: -40vw;
+        top: -40vh;
+        transition: none;
+    }
+
+    /* 아이템 공통 스타일 */
+    .smemo-item {
+        position: absolute;
+        pointer-events: auto;
+        transition: box-shadow 0.2s, background-color 0.3s;
+    }
+    
+    /* 삭제 시 fade-out 애니메이션 */
+    @keyframes fadeOut {
+        from { 
+            opacity: 1; 
+            transform: scale(1); 
+        }
+        to { 
+            opacity: 0; 
+            transform: scale(0.8); 
+        }
+    }
+    
+    .fade-out {
+        animation: fadeOut 0.3s ease-out forwards;
+        pointer-events: none;
+    }
+        animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        display: flex;
+        flex-direction: column;
+        transform-origin: center center;
+    }
+
+    .smemo-item:hover {
+        z-index: 999 !important;
+        box-shadow: 10px 10px 30px rgba(0,0,0,0.4) !important;
+    }
+
+    /* 📝 Sticky Note: 눈부심을 방지한 차분한 톤 & Noto Sans KR */
+    .sticky-note {
+        width: 210px;
+        min-height: 200px;  /* height -> min-height로 변경 */
+        background-color: #d4d46a; /* 💡 눈부심 없는 차분한 노란색 */
+        box-shadow: 5px 5px 15px rgba(0,0,0,0.3);
+        font-family: var(--note-font);
+        font-size: 0.98rem;
+        font-weight: 500;
+        color: #1a1a1a; /* 가독성을 위해 어두운 텍스트 사용 */
+        border-radius: 2px 2px 20px 2px;
+        resize: both;
+        overflow: hidden;
+        min-width: 150px;
+        min-height: 150px;
+    }
+
+    .note-header {
+        height: 34px;
+        width: 100%;
+        cursor: grab;
+        background: rgba(0,0,0,0.08);
+        border-bottom: 1px dashed rgba(0,0,0,0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 6px 5px 0 5px;
+        flex-shrink: 0;
+        box-sizing: border-box;
+    }
+
+    .note-textarea {
+        flex-grow: 1;
+        width: 100%;
+        background: transparent;
+        border: none;
+        resize: none;
+        outline: none;
+        font-family: inherit;
+        font-size: inherit;
+        font-weight: inherit;
+        color: inherit;
+        line-height: 1.6;
+        padding: 12px;
+        overflow-y: auto;
+    }
+
+    .note-footer {
+        font-family: var(--note-font);
+        font-size: 0.75rem;
+        padding: 0 10px 8px 10px;
+        opacity: 0.8;
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    /* 📷 Polaroid: 기존 감성 유지를 위한 Nanum Pen Script */
+    .polaroid-item {
+        width: 200px;
+        background-color: #eee;
+        padding: 10px 10px 45px 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        text-align: center;
+        cursor: grab;
+    }
+
+    .polaroid-img-wrapper {
+        width: 100%;
+        height: 180px;
+        background-color: #ddd;
+        overflow: hidden;
+        border: 1px solid #ccc;
+    }
+
+    .polaroid-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        pointer-events: none;
+    }
+
+    .polaroid-caption {
+        font-family: var(--photo-font);
+        font-size: 1.4rem;
+        color: #333;
+        position: absolute;
+        bottom: 8px;
+        left: 0;
+        width: 100%;
+        text-align: center;
+        pointer-events: none;
+    }
+
+    /* 🖼️ Borderless Photo (No Caption) */
+    .polaroid-item.borderless {
+        background: transparent;
+        padding: 0;
+        box-shadow: none;
+        height: auto !important; /* Allow natural height */
+    }
+    .polaroid-item.borderless .polaroid-img-wrapper {
+        border: none;
+        background: transparent;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4); /* Move shadow to image */
+        border-radius: 4px; 
+        height: auto !important; /* Remove fixed 180px height */
+    }
+    .polaroid-item.borderless .polaroid-img {
+        height: auto !important; /* Allow natural aspect ratio */
+        object-fit: contain;
+        display: block; /* Remove bottom gap */
+    }
+    .polaroid-item.borderless .polaroid-caption {
+        display: none;
+    }
+
+    /* 버튼 및 제어 요소 스타일 */
+    .item-control-btn {
+        cursor: pointer;
+        font-weight: bold;
+        color: #555;
+        font-size: 1rem;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.2s;
+    }
+    .item-control-btn:hover { color: #000; }
+    .item-close-btn:hover { color: #ff7b72; }
+
+    .polaroid-close, .polaroid-rotate {
+        position: absolute;
+        top: -10px;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        cursor: pointer;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        opacity: 0;
+        transition: opacity 0.2s;
+        z-index: 20;
+        color: white;
+    }
+    .polaroid-item:hover .polaroid-close, .polaroid-item:hover .polaroid-rotate { opacity: 1; }
+    .polaroid-close { right: -10px; background: #ff7b72; }
+    .polaroid-rotate { left: -10px; background: #58a6ff; }
+
+    /* 메뉴 및 하단 모달 */
+    /* 메뉴 및 하단 모달 */
+    .smemo-menu {
+        position: fixed; 
+        top: 70px; /* Moved to top */
+        right: 30px; 
+        z-index: 1001;
+        /* Glassmorphism: Transparent, Blur, Border */
+        background: rgba(255, 255, 255, 0.05); 
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.2); 
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        border-radius: 50px; /* Pill shape for horizontal */
+        padding: 4px 10px; 
+        display: flex; 
+        flex-direction: row; /* Horizontal */
+        gap: 4px;
+        user-select: none;
+        align-items: center;
+    }
+    .menu-item {
+        text-decoration: none; color: #eee; font-size: 0.8rem;
+        padding: 6px 10px; display: flex; align-items: center; cursor: pointer;
+        transition: all 0.2s;
+        border-radius: 30px; 
+        white-space: nowrap;
+    }
+    .menu-item:hover {
+        background-color: rgba(255, 255, 255, 0.15);
+        transform: translateY(-2px);
+    }
+    .note-actions-modal {
+        display: none; position: fixed; z-index: 10000;
+        background: rgba(22, 27, 34, 0.98); backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px;
+        padding: 20px; box-shadow: 0 15px 40px rgba(0,0,0,0.6); min-width: 300px;
+        font-family: var(--note-font);
+    }
+    .modal-input {
+        width: 100%; padding: 8px; margin-top: 5px; background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 4px; box-sizing: border-box;
+    }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
+    .modal-btn { padding: 8px 15px; border-radius: 5px; cursor: pointer; border: none; font-weight: bold; }
+    .modal-btn.primary { background: #58a6ff; color: white; }
+    .modal-btn.secondary { background: #30363d; color: white; }
+
+
+    /* Bottom Left Navigation (Boards) - Redesigned */
+    #board-nav-wrapper {
+        position: fixed;
+        bottom: 30px;
+        left: 0;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+    
+    .board-nav-container {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 20px 12px 15px;
+        /* Transparent Glassmorphism */
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-left: none;
+        border-radius: 0 50px 50px 0;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .board-tab {
+        background: rgba(255, 255, 255, 0.15);
+        color: rgba(255, 255, 255, 0.9);
+        padding: 10px 24px;
+        border-radius: 25px;
+        cursor: pointer;
+        font-size: 0.95rem;
+        font-weight: 600;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+    
+    .board-tab:hover {
+        background: rgba(255, 255, 255, 0.25);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    .board-tab.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .board-tab.active:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    }
+
+    .board-tab-icon {
+        display: none;
+    }
+
+    .add-board-btn {
+        background: transparent;
+        width: auto;
+        height: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 1.4rem;
+        transition: all 0.2s;
+        padding: 0;
+        border: none;
+    }
+
+    .add-board-btn:hover {
+        color: white;
+        transform: scale(1.2);
+    }
+
+    /* Vertical Button Stack Container */
+    .board-controls-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-left: 10px;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .board-toggle-btn {
+        width: auto;
+        height: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: rgba(255, 255, 255, 0.7);
+        transition: all 0.2s;
+        background: transparent;
+        border: none;
+        padding: 0;
+    }
+
+    .board-toggle-btn:hover {
+        color: white;
+        transform: scale(1.2);
+    }
+    
+    /* Auto-hide Logic classes */
+    .board-nav-hidden {
+        transform: translateX(calc(-100% + 50px));
+    }
+    
+    .board-nav-hidden:hover {
+        transform: translateX(0);
+    }
+
+    /* Fixed Mode is default (no class) */
+
+    @keyframes popIn { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }
+
+    /* 🗺️ Minimap (Navigator) Styles */
+    #minimap-container {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 135px; /* Reduced to ~2/3 of 200px */
+        /* Height will be determined by aspect ratio via JS */
+        height: 100px;
+        background: rgba(40, 44, 52, 0.9);
+        border-radius: 8px; /* Slightly smaller radius */
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        z-index: 1000;
+        padding: 6px; /* Reduced padding */
+        border: 1px solid rgba(255,255,255,0.1);
+        backdrop-filter: blur(10px);
+        /* Device Look */
+        outline: 2px solid #555; /* Thinner border (4px -> 2px) */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    #minimap-screen {
+        position: relative;
+        background-color: #222;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    #minimap-viewport {
+        position: absolute;
+        width: 56.18%; /* = 100 / 178 (실제 사용 가능한 캔버스) */
+        height: 56.18%; 
+        border: 2px solid rgba(255, 255, 255, 0.8);
+        box-shadow: 0 0 10px rgba(255,255,255,0.2);
+        background: rgba(255,255,255,0.1);
+        pointer-events: auto; /* Enable dragging */
+        cursor: grab;
+        z-index: 10;
+        transition: top 0.1s, left 0.1s; /* Keep transition for smooth click-jumps, logic handles drag */
+    }
+    #minimap-viewport:active {
+        cursor: grabbing;
+        transition: none; /* Disable transition during drag for responsiveness */
+    }
+
+    .minimap-item {
+        position: absolute;
+        border-radius: 2px;
+        pointer-events: none;
+    }
+</style>
+
+<div class="smemo-container">
+    <div id="smemo-items-container"></div>
+</div>
+
+<!-- Board Name Header (Optional) -->
+{% if board_title %}
+<div style="position:fixed; top:80px; left:40px; font-size:2rem; font-weight:bold; color:rgba(255,255,255,0.3); pointer-events:none; z-index:0;">
+    {{ board_title }}
+</div>
+{% endif %}
+
+
+<div class="smemo-menu">
+    <div class="menu-item" style="color: #fff9c4;" onclick="createNote()">
+        <span class="menu-icon" style="margin-right:4px; display:flex; align-items:center;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:16px; height:16px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+            </svg>
+        </span> Note
+    </div>
+    <div style="width:1px; height:12px; background:rgba(255,255,255,0.2);"></div>
+    <div class="menu-item" style="color: #b3e5fc;" onclick="createPhoto()">
+        <span class="menu-icon" style="margin-right:4px;">📷</span> Photo
+    </div>
+    <div style="width:1px; height:12px; background:rgba(255,255,255,0.2);"></div>
+    <a href="/trash" class="menu-item" style="color: #ff8a80; text-decoration: none;" title="휴지통">
+        <span class="menu-icon" style="margin-right:4px; display:flex; align-items:center;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:16px; height:16px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+            </svg>
+        </span>
+        Trash
+    </a>
+</div>
+
+<!-- 🗺️ Minimap HTML -->
+<div id="minimap-container">
+    <div id="minimap-screen">
+        <div id="minimap-viewport" onmousedown="startMinimapDrag(event)" ontouchstart="startMinimapDrag(event)"></div>
+        <div id="minimap-items-layer"></div>
+    </div>
+</div>
+
+<!-- Redesigned Board Nav Wrapper -->
+<div id="board-nav-wrapper">
+    <div class="board-nav-container">
+        <!-- Tabs injected here -->
+        <div id="board-nav-tabs" style="display:flex; gap:10px;"></div>
+        
+        <!-- Vertical Button Stack -->
+        <div class="board-controls-stack">
+            <div class="add-board-btn" onclick="addNewBoard()" title="Create New Board">+</div>
+            <div class="board-toggle-btn" onclick="toggleNavLock()" title="고정/자동숨김 토글">
+                <svg id="nav-toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:18px; height:18px;">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="note-actions-modal" class="note-actions-modal">
+    <div style="color:white; margin-bottom:15px; font-weight:bold; border-bottom:1px solid #333; padding-bottom:10px;">메모 옵션</div>
+    <div class="modal-form-group">
+        <label style="color:#aaa; font-size:0.8rem;">보드 (Title)</label>
+        <div style="position: relative;">
+            <input type="text" id="modal-title-input" class="modal-input" placeholder="보드 선택 또는 입력" list="board-options-list" autocomplete="off">
+            <datalist id="board-options-list">
+                <!-- Options populated by JS -->
+            </datalist>
+        </div>
+    </div>
+    <div class="modal-form-group" style="margin-top:10px;">
+        <label style="color:#aaa; font-size:0.8rem;">태그 (쉼표로 구분)</label>
+        <input type="text" id="modal-tag-input" class="modal-input" placeholder="업무, 연구, 일상...">
+    </div>
+    <div class="modal-form-group" style="margin-top:10px;">
+        <label style="color:#aaa; font-size:0.8rem;">기한 설정</label>
+        <input type="date" id="modal-deadline-input" class="modal-input">
+    </div>
+    <div class="modal-actions">
+        <button class="modal-btn secondary" onclick="closeNoteActionsModal()">취소</button>
+        <button id="modal-expand-btn" class="modal-btn primary" onclick="expandToNote()" style="background:#238636;">노트로 가기</button>
+        <button class="modal-btn primary" onclick="saveNoteActions()">저장</button>
+    </div>
+</div>
+
+<!-- Board Managment Modal -->
+<div id="board-manage-modal" class="note-actions-modal" style="width:280px;">
+    <div style="color:white; margin-bottom:15px; font-weight:bold; border-bottom:1px solid #333; padding-bottom:10px;">보드 관리 <span id="board-manage-title" style="color:#aaa; font-weight:normal; font-size:0.8rem; margin-left:5px;"></span></div>
+    <div class="modal-form-group">
+        <label style="color:#aaa; font-size:0.8rem;">이름 변경</label>
+        <input type="text" id="board-rename-input" class="modal-input">
+    </div>
+    <div class="modal-actions" style="margin-top:20px; justify-content:space-between;">
+        <button class="modal-btn secondary" onclick="deleteBoard()" style="background:#d73a49; color:white;">삭제</button>
+        <div>
+            <button class="modal-btn secondary" onclick="closeBoardManageModal()">취소</button>
+            <button class="modal-btn primary" onclick="renameBoard()">저장</button>
+        </div>
+    </div>
+</div>
+
+<!-- Photo Upload Modal -->
+<div id="photo-modal" class="note-actions-modal" style="width:400px; display:none;">
+    <div style="color:white; margin-bottom:15px; font-weight:bold; border-bottom:1px solid #333; padding-bottom:10px;">📷 사진 추가</div>
+    
+    <!-- Tab Buttons -->
+    <div style="display:flex; gap:10px; margin-bottom:15px;">
+        <button id="tab-url" class="photo-tab-btn active" onclick="switchPhotoTab('url')">URL</button>
+        <button id="tab-upload" class="photo-tab-btn" onclick="switchPhotoTab('upload')">파일 선택</button>
+        <button id="tab-paste" class="photo-tab-btn" onclick="switchPhotoTab('paste')">붙여넣기</button>
+    </div>
+    
+    <!-- URL Tab -->
+    <div id="photo-url-tab" class="photo-tab-content">
+        <div class="modal-form-group">
+            <label style="color:#aaa; font-size:0.8rem;">이미지 URL</label>
+            <input type="text" id="photo-url-input" class="modal-input" placeholder="https://example.com/image.jpg">
+        </div>
+    </div>
+    
+    <!-- Upload Tab -->
+    <div id="photo-upload-tab" class="photo-tab-content" style="display:none;">
+        <div class="modal-form-group">
+            <label style="color:#aaa; font-size:0.8rem;">이미지 파일</label>
+            <input type="file" id="photo-file-input" class="modal-input" accept="image/*,video/*" style="padding:5px;">
+            <div id="photo-preview-area" style="margin-top:10px; display:none;">
+                <img id="photo-preview-img" style="max-width:100%; max-height:150px; border-radius:4px;">
+            </div>
+        </div>
+    </div>
+    
+    <!-- Paste Tab -->
+    <div id="photo-paste-tab" class="photo-tab-content" style="display:none;">
+        <div class="modal-form-group">
+            <div style="color:#aaa; font-size:0.8rem; margin-bottom:10px;">
+                Ctrl+V (또는 Cmd+V)로 클립보드의 이미지를 붙여넣으세요
+            </div>
+            <div id="photo-paste-area" style="
+                border: 2px dashed rgba(255,255,255,0.3);
+                border-radius: 8px;
+                padding: 30px;
+                text-align: center;
+                min-height: 120px;
+                background: rgba(255,255,255,0.05);
+                color: #aaa;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-direction: column;
+            ">
+                <div id="paste-placeholder">
+                    📋 여기를 클릭하고 Ctrl+V를 누르세요
+                </div>
+                <img id="photo-paste-preview" style="max-width:100%; max-height:150px; border-radius:4px; display:none;">
+            </div>
+        </div>
+    </div>
+    
+    <!-- Caption (공통) -->
+    <div class="modal-form-group" style="margin-top:15px;">
+        <label style="color:#aaa; font-size:0.8rem;">캡션 (선택사항)</label>
+        <input type="text" id="photo-caption-input" class="modal-input" placeholder="My Memory">
+    </div>
+    
+    <div class="modal-actions">
+        <button class="modal-btn secondary" onclick="closePhotoModal()">취소</button>
+        <button class="modal-btn primary" onclick="savePhoto()">추가</button>
+    </div>
+</div>
+
+<style>
+.photo-tab-btn {
+    flex: 1;
+    padding: 8px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #aaa;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.photo-tab-btn:hover {
+    background: rgba(255,255,255,0.15);
+}
+.photo-tab-btn.active {
+    background: #0366d6;
+    color: white;
+    border-color: #0366d6;
+}
+</style>
+
+
+<script>
+    // 🛡️ Global Error Handler to catch hidden errors
+    window.onerror = function (msg, url, lineNo, columnNo, error) {
+        alert("Board Script Error: " + msg + "\nLine: " + lineNo);
+        return false;
+    };
+
+    // 💡 다크모드 대응을 위해 채도와 명도를 낮춘 색상 (차례대로 노랑, 분홍, 하늘, 연두, 보라)
+    const NOTE_COLORS = ['#d4d46a', '#e8b5b7', '#b9e3e7', '#c3d6a7', '#d9c2db'];
+
+    // Current Board Context - Safe encoding!
+    // If board_title is NULL (None), it becomes null (JS)
+    const BOARD_TITLE = {{ board_title | tojson | safe if board_title else 'null' }};
+
+    console.log("Current Board Title:", BOARD_TITLE);
+
+    let currentNoteId = null, currentNoteSlug = null, zIndexCounter = 1000;
+    let isDragging = false, isRotating = false, currentItem = null;
+    let dragOffsetX = 0, dragOffsetY = 0, startAngle = 0, initialRotation = 0;
+    
+    // 🌍 Canvas Panning Variables
+    let isPanning = false;
+    let panStartX = 0, panStartY = 0;
+    
+    // 로컬 스토리지 키 생성 (보드별로 위치 기억)
+    const STORAGE_KEY_PREFIX = 'smemo_canvas_pos_';
+    const storageKey = STORAGE_KEY_PREFIX + (BOARD_TITLE || 'main');
+
+    // 저장된 위치 불러오기 또는 기본값 (중앙)
+    let savedPos = localStorage.getItem(storageKey);
+    savedPos = savedPos ? JSON.parse(savedPos) : null;
+
+    let canvasX = savedPos ? savedPos.x : -window.innerWidth * 0.4;
+    let canvasY = savedPos ? savedPos.y : -window.innerHeight * 0.4;
+
+    // 🗺️ Minimap Variables
+    let minimapScaleX = 1;
+    let minimapScaleY = 1;
+    let isMinimapDragging = false;
+    let mmStartX = 0, mmStartY = 0;
+    let mmStartCanvasX = 0, mmStartCanvasY = 0;
+    
+    // 🔒 Nav Lock State
+    let isNavLocked = localStorage.getItem('smemo_nav_locked') === 'true'; // Default false (Auto-hide logic preferred by user request? "Once pressed fixed")
+
+    // 초기 로드시 캔버스 위치 설정
+    const canvasContainer = document.getElementById('smemo-items-container');
+    if (canvasContainer) {
+        if (!savedPos) {
+            canvasX = -window.innerWidth * 0.4;
+            canvasY = -window.innerHeight * 0.4;
+        }
+        containerInit(canvasContainer);
+    }
+    
+    function containerInit(container) {
+         container.style.left = canvasX + 'px';
+         container.style.top = canvasY + 'px';
+    }
+
+    async function loadSmemoItems() {
+        const container = document.getElementById('smemo-items-container');
+        if (!container) return; 
+        
+        containerInit(container);
+
+        container.innerHTML = '';
+        try {
+            let url = '/api/mymemo/smemo-items';
+            if (BOARD_TITLE) {
+                url += `?title=${encodeURIComponent(BOARD_TITLE)}`;
+            }
+            console.log("Fetching items from:", url);
+            const res = await fetch(url);
+            const mymemos = await res.json();
+            
+            // If empty, we just have a blank board, which is fine.
+            if (!mymemos || mymemos.length === 0) {
+                console.log("No items found for this board.");
+            }
+
+            mymemos.forEach(memo => {
+                const meta = memo.meta_data || {};
+                // 가상 캔버스 크기 기준으로 위치 계산 (180vw x 180vh)
+                const x = (meta.relX || 0.5) * (window.innerWidth * 1.8);
+                const y = (meta.relY || 0.5) * (window.innerHeight * 1.8);
+                if (meta.smemo_type === 'note') {
+                    renderNote(memo.id, memo.content || '', x, y, meta.rotation || 0, meta.color || NOTE_COLORS[0], meta.relX, meta.relY, meta.width, meta.height, meta.tags, meta.deadline, memo.note_slug, memo.title);
+                } else if (meta.smemo_type === 'photo') {
+                    // image_filename이 있으면 업로드된 파일, 없으면 URL (content)
+                    const imageSource = memo.image_filename || memo.content || '';
+                    renderPhoto(memo.id, imageSource, meta.caption || '', x, y, meta.rotation || 0, meta.relX, meta.relY, memo.title);
+                }
+            });
+
+            // 🗺️ Render Minimap after loading items
+            renderMinimap();
+
+        } catch (err) { console.error("로드 실패:", err); }
+    }
+
+    async function loadBoards() {
+        const navTabs = document.getElementById('board-nav-tabs'); // Changed to inner container
+        if (!navTabs) return;
+        navTabs.innerHTML = '';
+
+        try {
+            const res = await fetch('/api/mymemo/titles');
+            const data = await res.json(); 
+
+            // Always add "Main"
+            const isMainActive = !BOARD_TITLE;
+            
+            const mainTab = document.createElement('div');
+            mainTab.className = `board-tab ${isMainActive ? 'active' : ''}`;
+            mainTab.innerHTML = `Main`; // Removed Icon as per image request (clean text)
+            mainTab.onclick = () => window.location.href = `/smemo`;
+            navTabs.appendChild(mainTab);
+
+            data.forEach(board => {
+                const isActive = BOARD_TITLE === board.title;
+                const tab = document.createElement('div');
+                tab.className = `board-tab ${isActive ? 'active' : ''}`;
+                
+                let html = `${board.title}`;
+                
+                // ⚙️ Add Gear Icon for Active Board
+                if (isActive) {
+                    html += `
+                    <span class="board-settings-icon" onclick="openBoardManageModal('${board.title}'); event.stopPropagation();" title="보드 설정" style="margin-left:8px; opacity:0.5; cursor:pointer; color:#1f509a;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:14px; height:14px;">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.217.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </span>
+                    `;
+                }
+
+                tab.innerHTML = html;
+                tab.onclick = () => window.location.href = `/smemo/${encodeURIComponent(board.title)}`;
+                navTabs.appendChild(tab);
+            });
+            
+            // Re-apply nav lock state UI
+            updateNavLockUI();
+
+        } catch (err) { console.error("보드 목록 로드 실패:", err); }
+    }
+    
+    function addNewBoard() {
+        const newTitle = prompt("새 보드 이름:");
+        if (newTitle) window.location.href = `/smemo/${encodeURIComponent(newTitle)}`;
+    }
+    
+    function toggleNavLock() {
+        isNavLocked = !isNavLocked;
+        localStorage.setItem('smemo_nav_locked', isNavLocked);
+        updateNavLockUI();
+    }
+    
+    function updateNavLockUI() {
+        const wrapper = document.getElementById('board-nav-wrapper');
+        const icon = document.getElementById('nav-toggle-icon');
+        
+        if (isNavLocked) {
+            // Locked Mode: Fixed, no auto-hide class
+            wrapper.classList.remove('board-nav-hidden');
+            // Icon: Down Triangle (Fixed/Locked)
+            icon.innerHTML = '<path d="M19 9l-7 7-7-7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />';
+            icon.style.opacity = '1.0';
+        } else {
+            // Auto-hide Mode: Add class
+            wrapper.classList.add('board-nav-hidden');
+            // Icon: Right Triangle (Auto-hide)
+            icon.innerHTML = '<path d="M8 5v14l11-7z" />';
+            icon.style.opacity = '0.5';
+        }
+    }
+
+    // ⚙️ Board Management Functions
+    function openBoardManageModal(title) {
+        document.getElementById('board-manage-title').innerText = title;
+        document.getElementById('board-rename-input').value = title;
+        const modal = document.getElementById('board-manage-modal');
+        // Position near bottom left
+        modal.style.left = '30px';
+        modal.style.top = (window.innerHeight - 350) + 'px'; 
+        modal.style.display = 'block';
+    }
+
+    function closeBoardManageModal() {
+        document.getElementById('board-manage-modal').style.display = 'none';
+    }
+
+    async function renameBoard() {
+        const oldTitle = document.getElementById('board-manage-title').innerText;
+        const newTitle = document.getElementById('board-rename-input').value;
+        if (!newTitle || newTitle === oldTitle) return closeBoardManageModal();
+        
+        try {
+            const res = await fetch('/api/mymemo/board/rename', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ old_title: oldTitle, new_title: newTitle })
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.location.href = `/smemo/${encodeURIComponent(newTitle)}`;
+            } else {
+                alert("이름 변경 실패: " + data.message);
+            }
+        } catch(e) { alert("Error: " + e); }
+    }
+
+    async function deleteBoard() {
+        const title = document.getElementById('board-manage-title').innerText;
+        if (!confirm(`정말로 '${title}' 보드를 삭제하시겠습니까?\n포함된 모든 메모가 삭제됩니다.`)) return;
+
+        try {
+            const res = await fetch('/api/mymemo/board/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: title })
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.location.href = '/smemo';
+            } else {
+                alert("삭제 실패: " + data.message);
+            }
+        } catch(e) { alert("Error: " + e); }
+    }
+
+    function renderNote(id, text, x, y, rotation, color, relX, relY, width, height, tags = '', deadline = '', note_slug = '', title = '') {
+        const container = document.getElementById('smemo-items-container');
+        const div = document.createElement('div');
+        div.className = 'smemo-item sticky-note';
+        div.dataset.mymemoId = id; div.dataset.relX = relX; div.dataset.relY = relY; div.dataset.colorHex = color;
+        div.dataset.tags = tags || ''; div.dataset.deadline = deadline || ''; div.dataset.noteSlug = note_slug || '';
+        div.dataset.title = title || '';
+        div.style.left = x + 'px'; div.style.top = y + 'px'; div.style.transform = `rotate(${rotation}deg)`;
+        div.style.backgroundColor = color; 
+        div.style.width = (width || 210) + 'px'; 
+        div.style.minHeight = (height || 200) + 'px';  // height 대신 minHeight 사용
+
+        // 📝 아이콘 및 이동 경로 보정 (/pdata/note/s/ 적용)
+        // Using Heroicons document-text SVG
+        const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:18px; height:18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>`;
+        
+        const noteIcon = note_slug ? `<a href="/pdata/note/s/${note_slug}" target="_blank" style="text-decoration:none; color:inherit; margin-left:8px; display:flex; align-items:center;" title="연결된 노트 보기" onmousedown="event.stopPropagation();">${svgIcon}</a>` : '';
+
+        div.innerHTML = `
+            <div class="note-header" onmousedown="startDrag(event, this.parentNode)" ontouchstart="startDrag(event, this.parentNode)">
+                <div class="note-header-left" style="display:flex; gap:4px; align-items:center;">
+                    <div class="color-handle item-control-btn" onclick="cycleColor(this)">□</div>
+                    <div class="expand-handle item-control-btn" onclick="showNoteActions(this)" title="옵션">+</div>
+                    ${noteIcon}
+                </div>
+                <div class="item-close-btn item-control-btn" onclick="deleteItem(this)">✕</div>
+            </div>
+            <textarea class="note-textarea" placeholder="메모..." oninput="autoResizeTextarea(this); queueSave(${id})">${text}</textarea>
+            <div class="note-footer">
+                ${tags ? `<div style="color:#0366d6; font-weight:bold;">#${tags}</div>` : ''}
+                ${deadline ? `<div style="color:#d73a49;">📅 ${deadline}</div>` : ''}
+            </div>`;
+        container.appendChild(div);
+        
+        // textarea 초기 높이 조절
+        const textarea = div.querySelector('.note-textarea');
+        if (textarea) {
+            autoResizeTextarea(textarea);
+        }
+        
+        new ResizeObserver(() => queueSave(id)).observe(div);
+    }
+    
+    // textarea 자동 높이 조절 함수
+    function autoResizeTextarea(textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = textarea.scrollHeight + 'px';
+    }
+
+    function renderPhoto(id, url, caption, x, y, rotation, relX, relY, title='') {
+        const container = document.getElementById('smemo-items-container');
+        const div = document.createElement('div');
+        div.className = 'smemo-item polaroid-item';
+        if (!caption || caption.trim() === '') {
+            div.classList.add('borderless');
+        }
+        div.dataset.mymemoId = id; div.dataset.relX = relX; div.dataset.relY = relY;
+        div.dataset.title = title || '';
+        div.style.left = x + 'px'; div.style.top = y + 'px'; div.style.transform = `rotate(${rotation}deg)`;
+        div.onmousedown = (e) => startDrag(e, div);
+        div.ontouchstart = (e) => startDrag(e, div);
+
+        // URL 형식 확인: http(s)로 시작하면 외부 URL, 아니면 업로드된 파일
+        let imageUrl = url;
+        if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('/')) {
+            imageUrl = `/mymemo/uploads/${url}`;
+        }
+
+        const isVideo = imageUrl.toLowerCase().endsWith('.mp4');
+        const mediaElement = isVideo ? `<video src="${imageUrl}" class="polaroid-img" autoplay loop muted playsinline></video>` : `<img src="${imageUrl}" class="polaroid-img" draggable="false">`;
+        div.innerHTML = `<div class="polaroid-rotate" onmousedown="startRotate(event, this.parentNode)" ontouchstart="startRotate(event, this.parentNode)">⟳</div><div class="polaroid-close" onclick="deleteItem(this)">✕</div><div class="polaroid-img-wrapper">${mediaElement}</div><div class="polaroid-caption">${caption}</div>`;
+        container.appendChild(div);
+    }
+
+    // 터치/마우스 이벤트 통합 헬퍼 함수
+    function getEventCoords(e) {
+        if (e.touches && e.touches.length > 0) {
+            return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+        }
+        return { clientX: e.clientX, clientY: e.clientY };
+    }
+
+    function startDrag(e, itemEl) {
+        if (e.target.closest('.item-control-btn') || e.target.tagName === 'TEXTAREA' || e.target.closest('.polaroid-rotate')) return;
+        // textarea가 아닐 때만 preventDefault 호출 (이미 위에서 리턴되지만 안전장치)
+        if (e.target.tagName !== 'TEXTAREA') {
+            e.preventDefault(); // 터치 이벤트의 기본 동작 방지
+        }
+        isDragging = true;
+        currentItem = itemEl;
+        const coords = getEventCoords(e);
+        dragOffsetX = coords.clientX - parseFloat(itemEl.style.left);
+        dragOffsetY = coords.clientY - parseFloat(itemEl.style.top);
+        itemEl.style.zIndex = ++zIndexCounter;
+    }
+
+    function startRotate(e, itemEl) {
+        e.stopPropagation();
+        e.preventDefault(); // 터치 이벤트의 기본 동작 방지
+        isRotating = true;
+        currentItem = itemEl;
+        const rect = itemEl.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const coords = getEventCoords(e);
+        startAngle = Math.atan2(coords.clientY - centerY, coords.clientX - centerX);
+        const match = itemEl.style.transform.match(/rotate\(([-\d.]+)deg\)/);
+        initialRotation = match ? parseFloat(match[1]) : 0;
+    }
+    
+    // 🌍 Canvas Panning Event Handlers
+    function handlePanStart(e) {
+        // 아이템이나 메뉴를 클릭한 경우 패닝 시작 안 함
+        if (e.target.closest('.smemo-item') || e.target.closest('.smemo-menu') || e.target.closest('.board-nav') || e.target.closest('#minimap-container')) return;
+        const coords = getEventCoords(e);
+        isPanning = true;
+        panStartX = coords.clientX - canvasX;
+        panStartY = coords.clientY - canvasY;
+        document.querySelector('.smemo-container').classList.add('panning');
+    }
+
+    document.querySelector('.smemo-container').addEventListener('mousedown', handlePanStart);
+    document.querySelector('.smemo-container').addEventListener('touchstart', handlePanStart, { passive: false });
+
+    function handleMove(e) {
+        const coords = getEventCoords(e);
+
+        if (isPanning) {
+            e.preventDefault(); // 터치 스크롤 방지
+            // 캔버스 패닝
+            canvasX = coords.clientX - panStartX;
+            canvasY = coords.clientY - panStartY;
+
+            // 캔버스 이동 범위 제한
+            // 캔버스 크기: 180vw x 180vh
+            // 최대 이동: 0.78 * vw/vh (경계선이 보이도록 약간의 여유)
+            canvasX = Math.max(-window.innerWidth * 0.78, Math.min(0, canvasX));
+            canvasY = Math.max(-window.innerHeight * 0.78, Math.min(0, canvasY));
+
+            const canvas = document.getElementById('smemo-items-container');
+            canvas.style.left = canvasX + 'px';
+            canvas.style.top = canvasY + 'px';
+
+            // 🗺️ Update Minimap Viewport
+            updateMinimapViewport();
+
+        } else if (isMinimapDragging) {
+            e.preventDefault();
+            // 🗺️ Minimap Viewport Dragging
+            const deltaX = coords.clientX - mmStartX;
+            const deltaY = coords.clientY - mmStartY;
+
+            // Calculate Multiplier: WorldWidth / MinimapWidth
+            // WorldWidth = window.innerWidth * 1.8
+            // MinimapWidth = 135 (Fixed in code)
+            const mmWidth = 135;
+            const aspect = window.innerHeight / window.innerWidth;
+            const mmHeight = mmWidth * aspect;
+
+            const scaleX = (window.innerWidth * 1.8) / mmWidth;
+            const scaleY = (window.innerHeight * 1.8) / mmHeight;
+
+            // If I move viewport Right (+), Canvas moves Left (-)
+            canvasX = mmStartCanvasX - (deltaX * scaleX);
+            canvasY = mmStartCanvasY - (deltaY * scaleY);
+
+            // Clamp Strict
+            canvasX = Math.max(-window.innerWidth * 0.78, Math.min(0, canvasX));
+            canvasY = Math.max(-window.innerHeight * 0.78, Math.min(0, canvasY));
+
+            const canvas = document.getElementById('smemo-items-container');
+            canvas.style.left = canvasX + 'px';
+            canvas.style.top = canvasY + 'px';
+
+            updateMinimapViewport();
+
+        } else if (!currentItem) {
+            return;
+        } else if (isDragging) {
+            e.preventDefault();
+            const x = coords.clientX - dragOffsetX, y = coords.clientY - dragOffsetY;
+            currentItem.style.left = x + 'px';
+            currentItem.style.top = y + 'px';
+            // 가상 캔버스 크기 기준으로 상대 위치 저장 (1.8배)
+            currentItem.dataset.relX = x / (window.innerWidth * 1.8);
+            currentItem.dataset.relY = y / (window.innerHeight * 1.8);
+
+            // 🗺️ Update single minimap item position (Optimization: Debounce usually, but cheap logic here)
+            updateSingleMinimapItem(currentItem);
+
+        } else if (isRotating) {
+            e.preventDefault();
+            const rect = currentItem.getBoundingClientRect(), centerX = rect.left + rect.width / 2, centerY = rect.top + rect.height / 2, curAngle = Math.atan2(coords.clientY - centerY, coords.clientX - centerX), deg = (curAngle - startAngle) * (180 / Math.PI);
+            currentItem.style.transform = `rotate(${initialRotation + deg}deg)`;
+        }
+    }
+
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('touchmove', handleMove, { passive: false });
+
+    function handleEnd() {
+        if (isPanning) {
+            isPanning = false;
+            document.querySelector('.smemo-container').classList.remove('panning');
+
+            // 위치 저장 (localStorage) - Optional, but good for UX
+             localStorage.setItem(storageKey, JSON.stringify({ x: canvasX, y: canvasY }));
+        }
+        if (currentItem) queueSave(currentItem.dataset.mymemoId);
+        isDragging = false;
+        isRotating = false;
+        currentItem = null;
+
+        if (isMinimapDragging) {
+             isMinimapDragging = false;
+             const vp = document.getElementById('minimap-viewport');
+             if(vp) vp.style.transition = 'top 0.1s, left 0.1s';
+             console.log("Minimap Drag Ended");
+        }
+    }
+
+    document.addEventListener('mouseup', handleEnd);
+    document.addEventListener('touchend', handleEnd);
+    document.addEventListener('touchcancel', handleEnd);
+
+    // 🗺️ Minimap Logic
+    function renderMinimap() {
+        const mmContainer = document.getElementById('minimap-container');
+        const mmScreen = document.getElementById('minimap-screen');
+        const mmItemsLayer = document.getElementById('minimap-items-layer');
+        if (!mmContainer || !mmScreen) return;
+
+        // 1. Set Minimap Size based on Window Aspect Ratio (World is 3:3 of Window, so same aspect ratio)
+        // Fixed width 135px (Reduced from 200px)
+        const mmWidth = 135;
+        const aspect = window.innerHeight / window.innerWidth;
+        const mmHeight = mmWidth * aspect;
+        
+        mmContainer.style.height = (mmHeight + 12) + 'px'; // +padding (6px * 2)
+        mmScreen.style.width = mmWidth + 'px';
+        mmScreen.style.height = mmHeight + 'px';
+
+        // 2. Clear Items
+        mmItemsLayer.innerHTML = '';
+
+        // 3. Render Items
+        const items = document.querySelectorAll('.smemo-item');
+        items.forEach(item => {
+            const relX = parseFloat(item.dataset.relX);
+            const relY = parseFloat(item.dataset.relY);
+            
+            const mmItem = document.createElement('div');
+            mmItem.className = 'minimap-item';
+            mmItem.dataset.id = item.dataset.mymemoId;
+            
+            // Set Color
+            mmItem.style.backgroundColor = item.dataset.colorHex || '#bbb';
+            if (item.classList.contains('polaroid-item')) {
+                mmItem.style.backgroundColor = '#ddd'; 
+            }
+
+            // Size: 1.8x World
+            const w = parseFloat(item.style.width) || 200;
+            const h = parseFloat(item.style.height) || 200;
+            const scaleX = mmWidth / (window.innerWidth * 1.8);
+            const scaleY = mmHeight / (window.innerHeight * 1.8);
+
+            mmItem.style.width = Math.max(3, w * scaleX) + 'px';
+            mmItem.style.height = Math.max(3, h * scaleY) + 'px';
+            
+            mmItem.style.left = (relX * mmWidth) + 'px';
+            mmItem.style.top = (relY * mmHeight) + 'px';
+
+            mmItemsLayer.appendChild(mmItem);
+        });
+
+        updateMinimapViewport();
+    }
+
+    function updateMinimapViewport() {
+        const mmViewport = document.getElementById('minimap-viewport');
+        const mmScreen = document.getElementById('minimap-screen');
+        if (!mmViewport || !mmScreen) return;
+        
+        const mmWidth = parseFloat(mmScreen.style.width);
+        const mmHeight = parseFloat(mmScreen.style.height);
+        
+        // Indicator Size
+        const vpW = parseFloat(getComputedStyle(mmViewport).width);
+        const vpH = parseFloat(getComputedStyle(mmViewport).height);
+
+        // Viewport logic:
+        // relX = -canvasX / (1.78 * window.innerWidth) - 실제 사용 가능한 캔버스
+        const relX = -canvasX / (1.78 * window.innerWidth);
+        const relY = -canvasY / (1.78 * window.innerHeight);
+
+        let left = (relX * mmWidth);
+        let top = (relY * mmHeight);
+        
+        // 🛡️ Visual Clamping: Ensure it stays within screen
+        // Indicator Width is ~55% of Screen.
+        // It can't go below 0 or above (mmWidth - vpW).
+        left = Math.max(0, Math.min(mmWidth - vpW, left));
+        top = Math.max(0, Math.min(mmHeight - vpH, top));
+
+        mmViewport.style.left = left + 'px';
+        mmViewport.style.top = top + 'px';
+    }
+
+    function updateSingleMinimapItem(realItem) {
+        const mmItem = document.querySelector(`.minimap-item[data-id="${realItem.dataset.mymemoId}"]`);
+        if (!mmItem) return;
+        
+        const mmScreen = document.getElementById('minimap-screen');
+        const mmWidth = parseFloat(mmScreen.style.width);
+        const mmHeight = parseFloat(mmScreen.style.height);
+        
+        const relX = parseFloat(realItem.dataset.relX);
+        const relY = parseFloat(realItem.dataset.relY);
+        
+        mmItem.style.left = (relX * mmWidth) + 'px';
+        mmItem.style.top = (relY * mmHeight) + 'px';
+    }
+
+    function startMinimapPan(e) {
+        // e.target is the screen or viewport
+        // Calculate where clicked on minimap (0..1)
+        const mmScreen = document.getElementById('minimap-screen');
+        const rect = mmScreen.getBoundingClientRect();
+        const coords = getEventCoords(e);
+
+        const clickX = coords.clientX - rect.left;
+        const clickY = coords.clientY - rect.top;
+
+        // Rel Pos (0..1) on Minimap
+        const relX = clickX / rect.width;
+        const relY = clickY / rect.height;
+
+        // Target: Viewport Center should be at Click.
+        // Viewport is 100/180 = 0.555 of World.
+        // Half viewport = 0.277...
+        const viewportRatio = 1 / 1.8;
+        const halfViewport = viewportRatio / 2;
+
+        const targetRelX = relX - halfViewport;
+        const targetRelY = relY - halfViewport;
+
+        const worldWidth = window.innerWidth * 1.8;
+        const worldHeight = window.innerHeight * 1.8;
+
+        canvasX = - (targetRelX * worldWidth);
+        canvasY = - (targetRelY * worldHeight);
+
+        // Clamp Strict
+        canvasX = Math.max(-window.innerWidth * 0.78, Math.min(0, canvasX));
+        canvasY = Math.max(-window.innerHeight * 0.78, Math.min(0, canvasY));
+
+        const canvas = document.getElementById('smemo-items-container');
+        canvas.style.left = canvasX + 'px';
+        canvas.style.top = canvasY + 'px';
+
+        updateMinimapViewport();
+    }
+
+    function startMinimapDrag(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        isMinimapDragging = true;
+        const coords = getEventCoords(e);
+        mmStartX = coords.clientX;
+        mmStartY = coords.clientY;
+        mmStartCanvasX = canvasX;
+        mmStartCanvasY = canvasY;
+
+        // Disable transition for direct 1:1 movement
+        const vp = document.getElementById('minimap-viewport');
+        if(vp) vp.style.transition = 'none';
+
+        console.log("Minimap Drag Started");
+    }
+
+    let saveTimer;
+    function queueSave(id) { clearTimeout(saveTimer); saveTimer = setTimeout(() => saveItem(id), 500); }
+    async function saveItem(id) {
+        const el = document.querySelector(`[data-mymemo-id="${id}"]`); if (!el) return;
+        const isNote = el.classList.contains('sticky-note'), match = el.style.transform.match(/rotate\(([-\d.]+)deg\)/);
+        const meta_data = { smemo_type: isNote ? 'note' : 'photo', relX: parseFloat(el.dataset.relX), relY: parseFloat(el.dataset.relY), rotation: match ? parseFloat(match[1]) : 0, color: el.dataset.colorHex, width: parseFloat(el.style.width), height: parseFloat(el.style.height), tags: el.dataset.tags || '', deadline: el.dataset.deadline || '', caption: isNote ? '' : el.querySelector('.polaroid-caption').innerText };
+        const content = isNote ? el.querySelector('textarea').value : (el.querySelector('img')?.src || el.querySelector('video')?.src);
+        const title = el.dataset.title || null;
+        try { await fetch(`/api/mymemo/update/${id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content, meta_data, title }) }); } catch (err) { }
+    }
+
+    function showNoteActions(btn) {
+        event.stopPropagation(); const noteEl = btn.closest('.sticky-note');
+        currentNoteId = noteEl.dataset.mymemoId; currentNoteSlug = noteEl.dataset.noteSlug;
+        document.getElementById('modal-tag-input').value = noteEl.dataset.tags || '';
+        document.getElementById('modal-deadline-input').value = noteEl.dataset.deadline || '';
+        document.getElementById('modal-title-input').value = noteEl.dataset.title || '';
+        
+        // Use DataList for Board Options
+        const dataList = document.getElementById('board-options-list');
+        if (dataList) {
+            dataList.innerHTML = '';
+            fetch('/api/mymemo/titles').then(res => res.json()).then(data => {
+                data.forEach(board => {
+                    const option = document.createElement('option');
+                    option.value = board.title;
+                    dataList.appendChild(option);
+                });
+            }).catch(console.error);
+        }
+        
+        const expandBtn = document.getElementById('modal-expand-btn');
+        if (currentNoteSlug) { expandBtn.innerText = "노트로 가기"; expandBtn.style.background = "#0366d6"; }
+        else { expandBtn.innerText = "노트로 확장"; expandBtn.style.background = "#238636"; }
+        const modal = document.getElementById('note-actions-modal'), rect = btn.getBoundingClientRect();
+        modal.style.left = Math.min(rect.left, window.innerWidth - 320) + 'px'; modal.style.top = Math.min(rect.bottom + 10, window.innerHeight - 250) + 'px'; modal.style.display = 'block';
+    }
+
+    function closeNoteActionsModal() { document.getElementById('note-actions-modal').style.display = 'none'; currentNoteId = null; currentNoteSlug = null; }
+    async function saveNoteActions() { 
+        if (!currentNoteId) return; 
+        const noteEl = document.querySelector(`[data-mymemo-id="${currentNoteId}"]`); 
+        noteEl.dataset.tags = document.getElementById('modal-tag-input').value; 
+        noteEl.dataset.deadline = document.getElementById('modal-deadline-input').value; 
+        noteEl.dataset.title = document.getElementById('modal-title-input').value;
+        await saveItem(currentNoteId); 
+        closeNoteActionsModal(); 
+        // Reload to update board list or move item if title changed (Implementation choice: reload for sync)
+        loadSmemoItems();
+        loadBoards(); 
+    }
+    
+    async function expandToNote() {
+        if (!currentNoteId) return;
+        // 💡 경로 보정 (/pdata/note/s/ 적용)
+        if (currentNoteSlug) { window.open(`/pdata/note/s/${currentNoteSlug}`, '_blank'); closeNoteActionsModal(); return; }
+        if (!confirm('이 메모를 정식 Note로 확장하시겠습니까?')) return;
+        try {
+            const res = await fetch('/api/mymemo/merge_to_note', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mymemo_ids: [parseInt(currentNoteId)] }) });
+            const data = await res.json();
+            if (data.success) { closeNoteActionsModal(); window.open(`/pdata/note/s/${data.note_slug}`, '_blank'); loadSmemoItems(); }
+        } catch (err) { alert("확장 실패"); }
+    }
+
+    async function createNote() { 
+        console.log("Creating Note for board:", BOARD_TITLE);
+        
+        // 🎯 뷰포트 정중앙 좌표 계산
+        // Canvas Coord = -canvasPos + ViewportCenter
+        // Rel = Canvas Coord / Canvas Size
+        const centerX = -canvasX + (window.innerWidth / 2);
+        const centerY = -canvasY + (window.innerHeight / 2);
+        const relX = centerX / (window.innerWidth * 1.8);
+        const relY = centerY / (window.innerHeight * 1.8);
+
+        const payload = { 
+            content: '', 
+            title: BOARD_TITLE || null, // Auto-assign board title
+            meta_data: { smemo_type: 'note', relX: relX, relY: relY, rotation: 0, color: NOTE_COLORS[0] } 
+        };
+        try {
+            const res = await fetch('/api/mymemo/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); 
+            const data = await res.json();
+            if (data.success) {
+                // If board was empty, we need to ensure the board tab is refreshed if it was a new board not yet in list? 
+                // Actually titles API returns distinct titles. If we create a note with new title, it should appear.
+                loadSmemoItems(); 
+                loadBoards(); // Refresh boards to show new count/title if it was the first one
+            } else {
+                console.error("Failed to create note:", data);
+                alert("메모 생성 실패: " + (data.message || "Unknown error"));
+            }
+        } catch(e) {
+            console.error("Create API Error:", e);
+            alert("Error creating note: " + e);
+        }
+    }
+    
+    // === Photo Modal Functions ===
+    let currentPhotoTab = 'url';
+    let pastedImageFile = null;
+    
+    function createPhoto() {
+        // 모달 열기
+        const modal = document.getElementById('photo-modal');
+        modal.style.display = 'block';
+        modal.style.left = '50%';
+        modal.style.top = '50%';
+        modal.style.transform = 'translate(-50%, -50%)';
+        
+        // 초기화
+        switchPhotoTab('url');
+        document.getElementById('photo-url-input').value = '';
+        document.getElementById('photo-file-input').value = '';
+        document.getElementById('photo-caption-input').value = '';
+        document.getElementById('photo-preview-area').style.display = 'none';
+        document.getElementById('photo-paste-preview').style.display = 'none';
+        document.getElementById('paste-placeholder').style.display = 'block';
+        pastedImageFile = null;
+    }
+    
+    function closePhotoModal() {
+        document.getElementById('photo-modal').style.display = 'none';
+    }
+    
+    function switchPhotoTab(tabName) {
+        currentPhotoTab = tabName;
+        
+        // 모든 탭 비활성화
+        document.querySelectorAll('.photo-tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.photo-tab-content').forEach(content => content.style.display = 'none');
+        
+        // 선택한 탭 활성화
+        document.getElementById(`tab-${tabName}`).classList.add('active');
+        document.getElementById(`photo-${tabName}-tab`).style.display = 'block';
+        
+        // Paste 탭이면 포커스 설정
+        if (tabName === 'paste') {
+            document.getElementById('photo-paste-area').focus();
+        }
+    }
+    
+    // 파일 선택 시 미리보기
+    document.addEventListener('DOMContentLoaded', () => {
+        const fileInput = document.getElementById('photo-file-input');
+        if (fileInput) {
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file && file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        document.getElementById('photo-preview-img').src = e.target.result;
+                        document.getElementById('photo-preview-area').style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+        
+        // 붙여넣기 영역 클릭 시 포커스
+        const pasteArea = document.getElementById('photo-paste-area');
+        if (pasteArea) {
+            pasteArea.setAttribute('tabindex', '0');
+            pasteArea.addEventListener('click', () => pasteArea.focus());
+            
+            // 붙여넣기 이벤트
+            pasteArea.addEventListener('paste', async (e) => {
+                e.preventDefault();
+                const items = e.clipboardData.items;
+                
+                for (let item of items) {
+                    if (item.type.startsWith('image/')) {
+                        const file = item.getAsFile();
+                        pastedImageFile = file;
+                        
+                        // 미리보기 표시
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            document.getElementById('photo-paste-preview').src = e.target.result;
+                            document.getElementById('photo-paste-preview').style.display = 'block';
+                            document.getElementById('paste-placeholder').style.display = 'none';
+                        };
+                        reader.readAsDataURL(file);
+                        break;
+                    }
+                }
+            });
+        }
+    });
+    
+    async function savePhoto() {
+        const caption = document.getElementById('photo-caption-input').value || '';
+        
+        // 뷰포트 정중앙 좌표 계산
+        const centerX = -canvasX + (window.innerWidth / 2);
+        const centerY = -canvasY + (window.innerHeight / 2);
+        const relX = centerX / (window.innerWidth * 1.8);
+        const relY = centerY / (window.innerHeight * 1.8);
+        
+        try {
+            if (currentPhotoTab === 'url') {
+                // URL 방식
+                const url = document.getElementById('photo-url-input').value.trim();
+                if (!url) {
+                    alert('이미지 URL을 입력하세요.');
+                    return;
+                }
+                
+                const payload = {
+                    content: url,
+                    title: BOARD_TITLE || null,
+                    meta_data: { smemo_type: 'photo', relX: relX, relY: relY, rotation: 0, caption: caption }
+                };
+                
+                const res = await fetch('/api/mymemo/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    closePhotoModal();
+                    loadSmemoItems();
+                    loadBoards();
+                } else {
+                    alert('사진 추가 실패: ' + (data.message || 'Unknown error'));
+                }
+                
+            } else if (currentPhotoTab === 'upload' || currentPhotoTab === 'paste') {
+                // 파일 업로드 방식
+                let imageFile = null;
+                
+                if (currentPhotoTab === 'upload') {
+                    const fileInput = document.getElementById('photo-file-input');
+                    if (!fileInput.files.length) {
+                        alert('파일을 선택하세요.');
+                        return;
+                    }
+                    imageFile = fileInput.files[0];
+                } else if (currentPhotoTab === 'paste') {
+                    if (!pastedImageFile) {
+                        alert('이미지를 붙여넣으세요.');
+                        return;
+                    }
+                    imageFile = pastedImageFile;
+                }
+                
+                // FormData로 전송
+                const formData = new FormData();
+                formData.append('image', imageFile);
+                formData.append('title', BOARD_TITLE || '');
+                formData.append('content', ''); // 빈 content (이미지만)
+                formData.append('meta_data', JSON.stringify({
+                    smemo_type: 'photo',
+                    relX: relX,
+                    relY: relY,
+                    rotation: 0,
+                    caption: caption
+                }));
+                
+                const res = await fetch('/api/mymemo/create', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    closePhotoModal();
+                    loadSmemoItems();
+                    loadBoards();
+                } else {
+                    alert('사진 추가 실패: ' + (data.message || 'Unknown error'));
+                }
+            }
+        } catch (e) {
+            console.error('Save Photo Error:', e);
+            alert('Error: ' + e);
+        }
+    }
+    
+    async function deleteItem(btn) {
+        const item = btn.closest('.smemo-item'); 
+        const memoId = item.dataset.mymemoId;
+        
+        // fade-out 애니메이션 적용
+        item.classList.add('fade-out');
+        
+        // 미니맵에서도 fade-out
+        const mmItem = document.querySelector(`.minimap-item[data-id="${memoId}"]`);
+        if (mmItem) {
+            mmItem.style.transition = 'opacity 0.3s ease-out';
+            mmItem.style.opacity = '0';
+        }
+        
+        // 애니메이션 완료 후 삭제 처리
+        setTimeout(async () => {
+            // API 호출 (soft delete)
+            await fetch(`/api/mymemo/delete/${memoId}`, { method: 'POST' }); 
+            
+            // DOM에서 제거
+            item.remove(); 
+            
+            // 미니맵에서도 제거
+            if (mmItem) {
+                mmItem.remove();
+            }
+            
+            loadBoards(); 
+        }, 300); // 애니메이션 시간과 동일
+    }
+    function cycleColor(btn) { const noteEl = btn.closest('.sticky-note'); let idx = NOTE_COLORS.indexOf(noteEl.dataset.colorHex); const nextColor = NOTE_COLORS[(idx + 1) % NOTE_COLORS.length]; noteEl.style.backgroundColor = nextColor; noteEl.dataset.colorHex = nextColor; queueSave(noteEl.dataset.mymemoId); }
+    
+    window.addEventListener('DOMContentLoaded', () => {
+        loadSmemoItems();
+        loadBoards();
+    });
+      // 🔄 Update Minimap on Resize
+    window.addEventListener('resize', () => { 
+        // 가상 캔버스 크기 기준으로 재계산 (1.8배)
+        document.querySelectorAll('.smemo-item').forEach(el => { 
+            el.style.left = (parseFloat(el.dataset.relX) * window.innerWidth * 1.8) + 'px'; 
+            el.style.top = (parseFloat(el.dataset.relY) * window.innerHeight * 1.8) + 'px'; 
+        }); 
+        // 캔버스 위치도 재조정 (Center)
+        canvasX = -window.innerWidth * 0.4;
+        canvasY = -window.innerHeight * 0.4;
+        const canvas = document.getElementById('smemo-items-container');
+        canvas.style.left = canvasX + 'px';
+        canvas.style.top = canvasY + 'px';
+        
+        renderMinimap(); // Re-render minimap size
+    });
+
+    // Safe Event Binding for Minimap Pan
+    const mmScreen = document.getElementById('minimap-screen');
+    if (mmScreen) {
+        mmScreen.addEventListener('mousedown', (e) => {
+            // If clicking the viewport (white box), ignore (let drag handle it)
+            if (e.target.id === 'minimap-viewport' || isMinimapDragging) return;
+            startMinimapPan(e);
+        });
+        mmScreen.addEventListener('touchstart', (e) => {
+            // If clicking the viewport (white box), ignore (let drag handle it)
+            if (e.target.id === 'minimap-viewport' || isMinimapDragging) return;
+            startMinimapPan(e);
+        }, { passive: false });
+    }
+</script>
+
+{% endblock %}

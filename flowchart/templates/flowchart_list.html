@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}플로우차트 관리{% endblock %}
+
+{% block content %}
+<style>
+    /* Local styles for flowchart list */
+    main { padding-top: 44px !important; }
+
+    .flowchart-container {
+        max-width: 95%;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    .flowchart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+    .flowchart-header h1 {
+        color: var(--text-color);
+        margin: 0;
+    }
+
+    /* Button styles - checking if base.html has them, if not using local but scoped */
+    .btn-flowchart {
+        padding: 10px 20px;
+        background: #2196F3;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background 0.3s;
+        display: inline-block;
+    }
+    .btn-flowchart:hover {
+        background: #1976D2;
+        color: white;
+    }
+    .btn-flowchart-danger {
+        background: #f44336;
+    }
+    .btn-flowchart-danger:hover {
+        background: #d32f2f;
+    }
+
+    .flowchart-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+    }
+    .flowchart-card {
+        background: var(--input-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .flowchart-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .flowchart-card h3 {
+        color: var(--text-color);
+        margin-bottom: 10px;
+        font-size: 18px;
+    }
+    .flowchart-card p {
+        color: var(--secondary-text);
+        font-size: 14px;
+        margin-bottom: 15px;
+        line-height: 1.5;
+    }
+    .flowchart-meta {
+        font-size: 12px;
+        color: var(--secondary-text);
+        margin-bottom: 15px;
+    }
+    .flowchart-actions {
+        display: flex;
+        gap: 10px;
+    }
+    .flowchart-actions a,
+    .flowchart-actions button {
+        flex: 1;
+        text-align: center;
+        padding: 8px;
+        font-size: 13px;
+    }
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: var(--input-bg);
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+    }
+    .empty-state h2 {
+        color: var(--secondary-text);
+        margin-bottom: 20px;
+    }
+</style>
+
+<div class="flowchart-container">
+    <div class="flowchart-header">
+        <h3>플로우차트 관리</h3>
+        <a href="{{ url_for('flowchart.create') }}" class="btn-flowchart">+ 새 차트 만들기</a>
+    </div>
+
+    {% if flowcharts %}
+    <div class="flowchart-grid">
+        {% for fc in flowcharts %}
+        <div class="flowchart-card">
+            <h3>{{ fc['title'] }}</h3>
+            <p>{{ fc['description'] or '설명 없음' }}</p>
+            <div class="flowchart-meta">
+                생성: {{ fc['created_at'][:10] }} | 수정: {{ fc['updated_at'][:10] }}
+            </div>
+            <div class="flowchart-actions">
+                <a href="{{ url_for('flowchart.view', id=fc['id']) }}" class="btn-flowchart">보기</a>
+                <a href="{{ url_for('flowchart.edit', id=fc['id']) }}" class="btn-flowchart">수정</a>
+                <button class="btn-flowchart btn-flowchart-danger" onclick="deleteFlowchart({{ fc['id'] }})">삭제</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <h2>아직 플로우차트가 없습니다</h2>
+        <p>새 플로우차트를 만들어 프로젝트 기획을 시작하세요!</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    function deleteFlowchart(id) {
+        if (confirm('정말 삭제하시겠습니까?')) {
+            fetch('{{ url_for("flowchart.delete", id=0) }}'.replace('0', id), {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                }
+            });
+        }
+    }
+</script>
+{% endblock %}
+

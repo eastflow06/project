@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+{% block title %}
+Product Manage
+{% endblock %}
+{% block content %}
+
+<div class="modern-container">
+
+    <div class="header-section"
+        style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--link-color); padding-bottom: 15px; margin-bottom: 25px;">
+        <h1 class="title">Products</h1>
+        <div id="toggleProductFormButton" class="circle-btn" title="Add Product">
+            <i class="fas fa-plus"></i>
+        </div>
+    </div>
+
+    <style>
+        /* 체크박스 숨김 */
+        .toggle-checkbox {
+            display: none !important;
+        }
+
+        /* 토글 버튼 스타일 */
+        .toggle-btn {
+            display: inline-block !important;
+            padding: 8px 16px;
+            border: 2px solid #4a5568;
+            border-radius: 20px;
+            background-color: #2d3748;
+            color: #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+            user-select: none;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        /* 호버 효과 */
+        .toggle-btn:hover {
+            background-color: #4a5568;
+            border-color: #5a67d8;
+        }
+
+        /* 선택된 상태 */
+        .toggle-checkbox:checked+.toggle-btn {
+            background-color: #5a67d8 !important;
+            color: white !important;
+            border-color: #5a67d8 !important;
+            font-weight: bold;
+        }
+    </style>
+
+
+    <div id="product-form" class="form-card hidden">
+        <form method="POST" action="{{ url_for('create_product') }}">
+            <div class="form-group">
+                <label class="form-label">Product Name</label>
+                <input type="text" name="name" class="form-input" placeholder="Enter product name" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea name="description" class="form-textarea" placeholder="Enter product description"
+                    rows="3"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Category</label>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; padding: 5px 0;">
+                    <div>
+                        <input type="checkbox" id="list_cat_1" name="category" value="의약품" class="toggle-checkbox">
+                        <label for="list_cat_1" class="toggle-btn">의약품</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="list_cat_2" name="category" value="의약외품" class="toggle-checkbox">
+                        <label for="list_cat_2" class="toggle-btn">의약외품</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="list_cat_3" name="category" value="살생물제품" class="toggle-checkbox">
+                        <label for="list_cat_3" class="toggle-btn">살생물제품</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="list_cat_4" name="category" value="위생용품" class="toggle-checkbox">
+                        <label for="list_cat_4" class="toggle-btn">위생용품</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="list_cat_5" name="category" value="식품첨가물" class="toggle-checkbox">
+                        <label for="list_cat_5" class="toggle-btn">식품첨가물</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">API</label>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; padding: 5px 0;">
+                    <div>
+                        <input type="checkbox" id="list_api_1" name="api" value="PAA" class="toggle-checkbox">
+                        <label for="list_api_1" class="toggle-btn">PAA</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="list_api_2" name="api" value="BKC" class="toggle-checkbox">
+                        <label for="list_api_2" class="toggle-btn">BKC</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="list_api_3" name="api" value="DDAC" class="toggle-checkbox">
+                        <label for="list_api_3" class="toggle-btn">DDAC</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="list_api_4" name="api" value="Citric Acid" class="toggle-checkbox">
+                        <label for="list_api_4" class="toggle-btn">Citric Acid</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="list_api_5" name="api" value="Ethanol" class="toggle-checkbox">
+                        <label for="list_api_5" class="toggle-btn">Ethanol</label>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button type="submit" class="btn btn-primary">Create</button>
+                <button type="button" class="btn btn-secondary" id="cancel-button">Cancel</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 필터 섹션 - 드롭다운 스타일 -->
+    <div
+        style="margin-bottom: 25px; padding: 20px; background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">
+        <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label style="color: var(--secondary-text); font-weight: 500; min-width: 80px;">Category:</label>
+                <select id="category-filter"
+                    style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--bg-color); color: var(--text-color); cursor: pointer; min-width: 150px;">
+                    <option value="">All Categories</option>
+                    {% for cat in allowed_categories %}
+                    <option value="{{ cat }}" {% if active_category==cat %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label style="color: var(--secondary-text); font-weight: 500; min-width: 80px;">API:</label>
+                <select id="api-filter"
+                    style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--bg-color); color: var(--text-color); cursor: pointer; min-width: 150px;">
+                    <option value="">All APIs</option>
+                    {% for api in allowed_apis %}
+                    <option value="{{ api }}" {% if active_api==api %}selected{% endif %}>{{ api }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <button id="clear-filters"
+                style="padding: 8px 16px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--stripe-bg); color: var(--text-color); cursor: pointer; transition: all 0.2s;">
+                Clear Filters
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 필터 드롭다운 기능
+        const categoryFilter = document.getElementById('category-filter');
+        const apiFilter = document.getElementById('api-filter');
+        const clearFiltersBtn = document.getElementById('clear-filters');
+
+        function applyFilters() {
+            const category = categoryFilter.value;
+            const api = apiFilter.value;
+
+            const params = new URLSearchParams();
+            if (category) params.append('category', category);
+            if (api) params.append('api', api);
+
+            const queryString = params.toString();
+            window.location.href = queryString ? `{{ url_for('product_list') }}?${queryString}` : `{{ url_for('product_list') }}`;
+        }
+
+        categoryFilter.addEventListener('change', applyFilters);
+        apiFilter.addEventListener('change', applyFilters);
+
+        clearFiltersBtn.addEventListener('click', function () {
+            window.location.href = `{{ url_for('product_list') }}`;
+        });
+    </script>
+
+
+    {% if products %}
+    <div style="overflow-x: auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th class="sortable sorted-asc" style="width: 20%; cursor: pointer;" id="name-col">
+                        Name <i class="fas fa-sort"></i>
+                    </th>
+                    <th style="width: 10%;">Category</th>
+                    <th style="width: 10%;">API</th>
+                    <th style="width: 60%;">Description</th>
+                </tr>
+            </thead>
+            <tbody id="product-table-body">
+                {% for product in products %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('product_detail', product_id=product.id) }}"
+                            style="font-weight: bold; color: var(--link-color);">
+                            {{ product.name }}
+                        </a>
+                    </td>
+                    <td>
+                        {% if product.category %}
+                        {% for cat in product.category %}
+                        <span class="badge"
+                            style="background-color: var(--stripe-bg); border: 1px solid var(--border-color); margin-right: 4px;">{{
+                            cat }}</span>
+                        {% endfor %}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if product.api %}
+                        {% for api in product.api %}
+                        <span class="badge"
+                            style="background-color: var(--stripe-bg); border: 1px solid var(--border-color); margin-right: 4px;">{{
+                            api }}</span>
+                        {% endfor %}
+                        {% endif %}
+                    </td>
+                    <td style="color: var(--secondary-text);">
+                        {{ product.description[:100] }}{% if product.description|length > 100 %}...{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 40px; color: var(--secondary-text);">
+        <p>등록된 제품이 없습니다.</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    // 토글 기능
+    const toggleBtn = document.getElementById('toggleProductFormButton');
+    const form = document.getElementById('product-form');
+    const cancelBtn = document.getElementById('cancel-button');
+    const icon = toggleBtn.querySelector('i');
+
+    function toggleForm() {
+        if (form.classList.contains('hidden')) {
+            form.classList.remove('hidden');
+            icon.className = 'fas fa-minus';
+        } else {
+            form.classList.add('hidden');
+            icon.className = 'fas fa-plus';
+        }
+    }
+
+    toggleBtn.addEventListener('click', toggleForm);
+
+    cancelBtn.addEventListener('click', function () {
+        form.classList.add('hidden');
+        icon.className = 'fas fa-plus';
+    });
+
+    // 테이블 정렬 기능
+    document.getElementById('name-col').addEventListener('click', function () {
+        const tableBody = document.getElementById('product-table-body');
+        const rows = Array.from(tableBody.querySelectorAll('tr'));
+        const isAsc = this.classList.contains('sorted-asc');
+
+        // 상태 업데이트
+        if (isAsc) {
+            this.classList.remove('sorted-asc');
+            this.classList.add('sorted-desc');
+        } else {
+            this.classList.remove('sorted-desc');
+            this.classList.add('sorted-asc');
+        }
+
+        // 정렬 수행
+        rows.sort((a, b) => {
+            const aText = a.querySelector('a').textContent.trim().toLowerCase();
+            const bText = b.querySelector('a').textContent.trim().toLowerCase();
+            return isAsc ? bText.localeCompare(aText) : aText.localeCompare(bText);
+        });
+
+        rows.forEach(row => tableBody.appendChild(row));
+    });
+</script>
+
+<style>
+    /* 모바일 대응 스타일 */
+    @media (max-width: 768px) {
+        .modern-container {
+            width: 100% !important;
+            padding: 10px !important;
+            margin: 0 !important;
+        }
+
+        /* 테이블 기본 폰트 조정 */
+        table td,
+        table th {
+            font-size: 14px;
+            padding: 8px 4px;
+            /* 좌우 패딩을 줄여 공간 확보 */
+        }
+
+        /* 1. Name 컬럼 (첫 번째) */
+        table th:nth-child(1),
+        table td:nth-child(1) {
+            width: 35% !important;
+            /* 너비를 약간 줄임 */
+            white-space: nowrap;
+            /* 이름은 한 줄로 */
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* 2. Description 컬럼 (두 번째) - 강제 표시 */
+        table th:nth-child(2),
+        table td:nth-child(2) {
+            display: table-cell !important;
+            /* 혹시 숨겨져 있다면 강제로 보이기 */
+            width: auto !important;
+            /* 남은 공간 모두 차지 */
+            white-space: normal !important;
+            /* 텍스트 줄바꿈 허용 */
+            word-break: break-all;
+            /* 긴 단어 강제 줄바꿈 */
+        }
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>카드 사용 내역 수정</title>
+    
+    <link rel="stylesheet" href="{{ url_for('card_static', filename='css/card.css') }}">
+    
+    <style>
+        /* =========================================
+           배경 이미지 레이어 설정 (라이트/다크 공통)
+           ========================================= */
+        body {
+            /* 기본 배경 제거 (가상 요소로 대체) */
+            background-image: none !important;
+            position: relative;
+            z-index: 0;
+        }
+
+        /* 배경 레이어 생성 */
+        body::before {
+            content: "";
+            position: fixed; /* 스크롤해도 배경 고정 */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1; /* 콘텐츠 뒤로 보내기 */
+            
+            /* [핵심] 라이트/다크 모드 동일한 이미지 사용 */
+            background-image: url("{{ url_for('card_static', filename='images/bg002.jpg') }}");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            
+            /* 라이트 모드용 옅은 오버레이 */
+            background-color: rgba(0, 0, 0, 0.5); 
+            background-blend-mode: multiply; /* 이미지와 색상 혼합 */
+            transition: background-color 0.3s ease;
+        }
+
+        /* 다크 모드일 때: 이미지는 그대로두고, 오버레이만 어둡게 변경 */
+        body.dark-mode::before {
+            background-color: rgba(0, 0, 0, 0.7); /* 더 진한 어두운 막 */
+        }
+
+        /* card.css에 없는 페이지 전용 스타일 */
+        .delete-btn {
+            background-color: #ff9800; /* 주황색 */
+            color: white;
+        }
+        .delete-btn:hover {
+            background-color: #e68900;
+        }
+        
+        .delete-confirm-yes {
+            background-color: #dc3545; /* 빨간색 */
+            color: white;
+        }
+        .delete-confirm-yes:hover {
+            background-color: #c82333;
+        }
+        
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--input-border);
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+            line-height: 1.4;
+            background-color: var(--input-bg);
+            color: var(--input-text);
+        }
+    </style>
+</head>
+<body class="bg-image">
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+            }
+        })();
+    </script>
+
+    <div class="form-container">
+        <form id="editForm" method="POST" action="/card/edit/{{ record['ID'] }}">
+            <div class="form-group">
+                <label for="date">일자 *</label>
+                <input type="date" id="date" name="date" required value="{{ record['date'] }}">
+            </div>
+            
+            <div class="form-group">
+                <label for="usage">사용처 *</label>
+                <input type="text" id="usage" name="usage" list="usageList" required value="{{ record['usage'] }}">
+                <datalist id="usageList">
+                    {% for usage in usages %}
+                    <option value="{{ usage }}">
+                    {% endfor %}
+                </datalist>
+            </div>
+            
+            <div class="form-group">
+                <label for="amount">금액 *</label>
+                <input type="number" id="amount" name="amount" required value="{{ record['amount'] }}">
+            </div>
+            
+            <div class="form-group">
+                <label for="user">사용자 *</label>
+                <input type="text" id="user" name="user" list="userList" required value="{{ record['user'] }}">
+                <datalist id="userList">
+                    {% for user in users %}
+                    <option value="{{ user }}">
+                    {% endfor %}
+                </datalist>
+            </div>
+            
+            <div class="form-group">
+                <label for="purpose">목적 *</label>
+                <input type="text" id="purpose" name="purpose" list="purposeList" required value="{{ record['purpose'] }}">
+                <datalist id="purposeList">
+                    {% for purpose in purposes %}
+                    <option value="{{ purpose }}">
+                    {% endfor %}
+                </datalist>
+            </div>
+            
+            <div class="form-group">
+                <label for="content">내용 *</label>
+                <div style="position: relative;">
+                    <input type="text" id="content" name="content" required value="{{ record['content'] }}" autocomplete="off">
+                    <div id="contentDropdown" class="content-dropdown"></div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="note">비고</label>
+                <div class="note-input-container">
+                    <div class="note-input-wrapper">
+                        <input type="text" id="note" name="note" value="{{ record['note'] }}" readonly>
+                    </div>
+                    <button type="button" class="add-note-btn" title="비고 추가">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="receipt">영수증</label>
+                 <select id="receipt" name="receipt">
+                     <option value="Y" {% if record['receipt'] == 'Y' %}selected{% endif %}>Y</option>
+                     <option value="N" {% if record['receipt'] == 'N' %}selected{% endif %}>N</option>
+                 </select>
+            </div>
+        </form>
+
+        <div class="button-group">
+            <a href="/card" id="cancelBtn">
+                <button type="button" class="cancel-btn">취소</button>
+            </a>
+            <button type="button" class="delete-btn" id="deleteBtn" data-id="{{ record['ID'] }}">삭제</button>
+            <button type="submit" form="editForm" class="submit-btn">저장</button>
+        </div>
+    </div>
+
+    <div id="noteModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">비고 선택</h3>
+                <button class="close-button">&times;</button>
+            </div>
+            <div class="search-wrapper">
+                <input type="text" class="search-input" placeholder="이름 검색 또는 입력...">
+                <button type="button" class="add-new-name">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    신규 추가
+                </button>
+            </div>
+            <div class="selected-names"></div>
+            <div class="names-container"></div>
+            <div class="modal-footer">
+                <button class="modal-button cancel-button">취소</button>
+                <button class="modal-button confirm-button">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="deleteConfirmModal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3 class="modal-title">삭제 확인</h3>
+                <button class="close-button delete-confirm-close">&times;</button>
+            </div>
+            <div style="padding: 20px 0; text-align: center; color: var(--text-color);">
+                <p>이 항목을 정말 삭제하시겠습니까?</p>
+            </div>
+            <div class="modal-footer" style="justify-content: center;">
+                <button class="modal-button cancel-button delete-confirm-no">취소</button>
+                <button class="modal-button delete-confirm-yes">삭제</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* 사용자/목적 등 필드 선택 모달 동적 생성 */
+        function setupFieldModal(field, data) {
+           const input = document.getElementById(field);
+           if (!input || !data || !Array.isArray(data)) return;
+           
+           const fieldModal = document.createElement('div');
+           fieldModal.id = `${field}Modal`;
+           fieldModal.className = 'modal';
+           fieldModal.innerHTML = `
+               <div class="modal-content">
+                   <div class="modal-header">
+                       <h3 class="modal-title">${field === 'purpose' ? '목적' : '사용자'} 선택</h3>
+                       <button class="close-button">&times;</button>
+                   </div>
+                   <div class="search-wrapper">
+                       <input type="text" class="search-input" placeholder="검색...">
+                   </div>
+                   <div class="names-container"></div>
+                   <div class="modal-footer">
+                       <button class="modal-button cancel-button">취소</button>
+                   </div>
+               </div>`;
+           document.body.appendChild(fieldModal);
+        
+           const modal = document.getElementById(`${field}Modal`);
+           const namesContainer = modal.querySelector('.names-container');
+           const searchInput = modal.querySelector('.search-input');
+           const closeButton = modal.querySelector('.close-button');
+           const cancelButton = modal.querySelector('.cancel-button');
+        
+           function updateList(searchText = '') {
+               const filteredItems = data.filter(item => 
+                   item && item.toString().toLowerCase().includes(searchText.toLowerCase())
+               );
+               
+               namesContainer.innerHTML = filteredItems.map(item => `
+                   <div class="name-item">${item}</div>
+               `).join('');
+        
+               namesContainer.querySelectorAll('.name-item').forEach(item => {
+                   item.addEventListener('click', () => {
+                       input.value = item.textContent;
+                       modal.style.display = 'none';
+                   });
+               });
+           }
+        
+           input.addEventListener('keydown', (e) => {
+               if (e.key === ' ') {
+                   e.preventDefault();
+                   modal.style.display = 'block';
+                   searchInput.focus();
+                   updateList();
+               }
+           });
+        
+           searchInput.addEventListener('input', (e) => updateList(e.target.value));
+           closeButton.addEventListener('click', () => modal.style.display = 'none');
+           cancelButton.addEventListener('click', () => modal.style.display = 'none');
+           modal.addEventListener('click', (e) => {
+               if (e.target === modal) modal.style.display = 'none';
+           });
+        }
+       
+       document.addEventListener('DOMContentLoaded', function() {
+           const noteInput = document.getElementById('note');
+           const addButton = document.querySelector('.add-note-btn');
+           const noteModal = document.getElementById('noteModal');
+           const deleteBtn = document.getElementById('deleteBtn');
+           const deleteConfirmModal = document.getElementById('deleteConfirmModal');
+
+           // 내용 자동완성 기능
+           const contentInput = document.getElementById('content');
+           const contentDropdown = document.getElementById('contentDropdown');
+           const contents = {{ contents|default([])|tojson|safe }};
+           let currentFocusIndex = -1;
+
+           if (contentInput && contentDropdown) {
+               contentInput.addEventListener('input', function() {
+                   const value = this.value.trim();
+                   currentFocusIndex = -1;
+                   
+                   if (value.length === 0) {
+                       contentDropdown.style.display = 'none';
+                       return;
+                   }
+                   
+                   const filtered = contents.filter(c => c.toLowerCase().startsWith(value.toLowerCase()));
+                   
+                   if (filtered.length === 0) {
+                       contentDropdown.style.display = 'none';
+                       return;
+                   }
+                   
+                   contentDropdown.innerHTML = '';
+                   filtered.forEach((content) => {
+                       const div = document.createElement('div');
+                       div.className = 'content-item';
+                       div.textContent = content;
+                       div.addEventListener('click', function() {
+                           contentInput.value = content;
+                           contentDropdown.style.display = 'none';
+                       });
+                       contentDropdown.appendChild(div);
+                   });
+                   contentDropdown.style.display = 'block';
+               });
+
+               contentInput.addEventListener('keydown', function(e) {
+                   const items = contentDropdown.querySelectorAll('.content-item');
+                   if (items.length === 0) return;
+                   
+                   if (e.key === 'ArrowDown') {
+                       e.preventDefault();
+                       currentFocusIndex++;
+                       if (currentFocusIndex >= items.length) currentFocusIndex = 0;
+                       setActiveItem(items);
+                   } else if (e.key === 'ArrowUp') {
+                       e.preventDefault();
+                       currentFocusIndex--;
+                       if (currentFocusIndex < 0) currentFocusIndex = items.length - 1;
+                       setActiveItem(items);
+                   } else if (e.key === 'Enter' && currentFocusIndex >= 0) {
+                       e.preventDefault();
+                       items[currentFocusIndex].click();
+                   } else if (e.key === 'Escape') {
+                       contentDropdown.style.display = 'none';
+                   }
+               });
+
+               function setActiveItem(items) {
+                   items.forEach((item, index) => {
+                       if (index === currentFocusIndex) {
+                           item.classList.add('active');
+                           item.scrollIntoView({ block: 'nearest' });
+                   } else {
+                           item.classList.remove('active');
+                       }
+                   });
+               }
+
+               document.addEventListener('click', function(e) {
+                   if (e.target !== contentInput) {
+                       contentDropdown.style.display = 'none';
+                   }
+               });
+           }
+
+           // 서버 데이터 파싱 (안전 처리)
+           const notes = {{ notes|default([])|tojson|safe }};
+           const purposes = {{ purposes|default([])|tojson|safe }};
+           const users = {{ users|default([])|tojson|safe }};
+
+           let selectedNames = new Set();
+
+           // 초기 비고 값 설정
+           if (noteInput && noteInput.value) {
+               selectedNames = new Set(noteInput.value.split(',').map(n => n.trim()).filter(n => n));
+           }
+
+           // 비고 모달 로직
+           function openNoteModal(e) {
+               e.preventDefault();
+               if (noteModal) {
+                   noteModal.style.display = 'block';
+                   const searchInput = noteModal.querySelector('.search-input');
+                   if (searchInput) {
+                       searchInput.value = '';
+                       searchInput.focus();
+                   }
+                   updateSelectedNames();
+                   updateNamesList('');
+               }
+           }
+
+           function closeNoteModal() {
+               if (noteModal) {
+                   noteModal.style.display = 'none';
+                   const searchInput = noteModal.querySelector('.search-input');
+                   if (searchInput) searchInput.value = '';
+               }
+           }
+
+           function toggleName(name, element) {
+               if (selectedNames.has(name)) {
+                   selectedNames.delete(name);
+                   element.style.backgroundColor = '';
+               } else {
+                   selectedNames.add(name);
+                   element.style.backgroundColor = 'var(--selected-tag-bg)';
+               }
+               updateSelectedNames();
+           }
+
+           function updateNamesList(searchText) {
+               const namesContainer = noteModal ? noteModal.querySelector('.names-container') : null;
+               const addNewNameBtn = noteModal ? noteModal.querySelector('.add-new-name') : null;
+               
+               if (!namesContainer) return;
+               
+               const cleanSearchText = searchText.trim().toLowerCase();
+               const filteredNotes = cleanSearchText 
+                   ? notes.filter(note => note && note.toLowerCase().includes(cleanSearchText))
+                   : notes;
+
+               namesContainer.innerHTML = '';
+               
+               if (cleanSearchText && filteredNotes.length === 0) {
+                   if (addNewNameBtn) addNewNameBtn.style.display = 'flex';
+                   const noResults = document.createElement('div');
+                   noResults.className = 'no-results';
+                   noResults.textContent = '검색 결과가 없습니다.';
+                   namesContainer.appendChild(noResults);
+               } else {
+                   if (addNewNameBtn) addNewNameBtn.style.display = 'none';
+                   filteredNotes.forEach(note => {
+                       const div = document.createElement('div');
+                       div.className = 'name-item';
+                       div.textContent = note;
+                       if (selectedNames.has(note)) {
+                           div.style.backgroundColor = 'var(--selected-tag-bg)';
+                       }
+                       div.addEventListener('click', () => toggleName(note, div));
+                       namesContainer.appendChild(div);
+                   });
+               }
+           }
+
+           function updateSelectedNames() {
+               const selectedNamesContainer = noteModal ? noteModal.querySelector('.selected-names') : null;
+               if (!selectedNamesContainer) return;
+               
+               selectedNamesContainer.innerHTML = '';
+               selectedNames.forEach(name => {
+                   const tag = document.createElement('div');
+                   tag.className = 'selected-name-tag';
+                   
+                   const nameSpan = document.createElement('span');
+                   nameSpan.textContent = name;
+                   
+                   const removeButton = document.createElement('span');
+                   removeButton.className = 'remove-name';
+                   removeButton.textContent = '×';
+                   removeButton.addEventListener('click', (e) => {
+                       e.stopPropagation();
+                       selectedNames.delete(name);
+                       updateSelectedNames();
+                       const searchInput = noteModal ? noteModal.querySelector('.search-input') : null;
+                       updateNamesList(searchInput ? searchInput.value : '');
+                   });
+                   
+                   tag.appendChild(nameSpan);
+                   tag.appendChild(removeButton);
+                   selectedNamesContainer.appendChild(tag);
+               });
+           }
+
+           function addNewName(name) {
+               const cleanName = name.trim();
+               if (!notes.includes(cleanName) && cleanName) {
+                   notes.push(cleanName);
+                   selectedNames.add(cleanName);
+                   updateSelectedNames();
+                   const searchInput = noteModal ? noteModal.querySelector('.search-input') : null;
+                   if (searchInput) searchInput.value = '';
+                   updateNamesList('');
+               }
+           }
+
+           // 필드 모달 설정
+           setupFieldModal('purpose', purposes);
+           setupFieldModal('user', users);
+   
+           // 이벤트 리스너 설정
+           if (addButton) addButton.addEventListener('click', openNoteModal);
+           
+           if (noteModal) {
+               const closeButton = noteModal.querySelector('.close-button');
+               const cancelButton = noteModal.querySelector('.cancel-button');
+               const addNewNameBtn = noteModal.querySelector('.add-new-name');
+               const searchInput = noteModal.querySelector('.search-input');
+               const confirmButton = noteModal.querySelector('.confirm-button');
+               
+               if (closeButton) closeButton.addEventListener('click', closeNoteModal);
+               if (cancelButton) cancelButton.addEventListener('click', closeNoteModal);
+               
+               noteModal.addEventListener('click', function(e) {
+                   if (e.target === noteModal) closeNoteModal();
+               });
+
+               if (addNewNameBtn) {
+                   addNewNameBtn.addEventListener('click', function() {
+                       if (searchInput) addNewName(searchInput.value);
+                   });
+               }
+
+               if (searchInput) {
+                   searchInput.addEventListener('keydown', function(e) {
+                       if (e.key === 'Enter' && addNewNameBtn && addNewNameBtn.style.display === 'flex') {
+                           e.preventDefault();
+                           addNewName(this.value);
+                       }
+                   });
+                   searchInput.addEventListener('input', (e) => updateNamesList(e.target.value));
+               }
+
+               if (confirmButton) {
+                   confirmButton.addEventListener('click', function(e) {
+                       e.preventDefault();
+                       if (noteInput) {
+                           noteInput.value = Array.from(selectedNames).join(', ');
+                           const event = new Event('input', { bubbles: true, cancelable: true });
+                           noteInput.dispatchEvent(event);
+                       }
+                       closeNoteModal();
+                   });
+               }
+           }
+
+           // 취소 버튼 수정
+           const cancelBtn = document.getElementById('cancelBtn');
+           if (cancelBtn) {
+               cancelBtn.addEventListener('click', function(e) {
+                   e.preventDefault();
+                   const returnYear = sessionStorage.getItem('returnYear');
+                   const returnMonth = sessionStorage.getItem('returnMonth');
+                   if (returnYear && returnMonth) {
+                       window.location.href = "/card?year=" + returnYear + "&month=" + returnMonth;
+                   } else {
+                       window.location.href = "/card";
+                   }
+               });
+           }
+            
+           // 삭제 기능
+           if (deleteBtn && deleteConfirmModal) {
+               const deleteConfirmYes = deleteConfirmModal.querySelector('.delete-confirm-yes');
+               const deleteConfirmNo = deleteConfirmModal.querySelector('.delete-confirm-no');
+               const deleteConfirmClose = deleteConfirmModal.querySelector('.delete-confirm-close');
+               
+               deleteBtn.addEventListener('click', function() {
+                   deleteConfirmModal.style.display = 'block';
+               });
+            
+               if (deleteConfirmYes) {
+                   deleteConfirmYes.addEventListener('click', function(e) {
+                       e.preventDefault();
+                       const id = deleteBtn.getAttribute('data-id');
+                       const returnYear = sessionStorage.getItem('returnYear');
+                       const returnMonth = sessionStorage.getItem('returnMonth');
+                       
+                       fetch(`/card/delete/${id}`, { method: 'POST' })
+                       .then(response => {
+                           if (response.ok) {
+                               if (returnYear && returnMonth) {
+                                   window.location.href = `/card?year=${returnYear}&month=${returnMonth}`;
+                               } else {
+                                   window.location.href = '/card';
+                               }
+                           } else {
+                               alert('삭제 중 오류가 발생했습니다.');
+                           }
+                       })
+                       .catch(error => {
+                           console.error('삭제 요청 중 오류:', error);
+                           alert('삭제 중 오류가 발생했습니다.');
+                       });
+                   });
+               }
+
+               if (deleteConfirmNo) deleteConfirmNo.addEventListener('click', () => deleteConfirmModal.style.display = 'none');
+               if (deleteConfirmClose) deleteConfirmClose.addEventListener('click', () => deleteConfirmModal.style.display = 'none');
+
+               deleteConfirmModal.addEventListener('click', function(e) {
+                   if (e.target === deleteConfirmModal) deleteConfirmModal.style.display = 'none';
+               });
+           }
+
+           document.addEventListener('keydown', function(e) {
+               if (e.key === 'Escape') {
+                   if (noteModal && noteModal.style.display === 'block') closeNoteModal();
+                   if (deleteConfirmModal && deleteConfirmModal.style.display === 'block') deleteConfirmModal.style.display = 'none';
+               }
+           });
+           
+           const amountInput = document.getElementById('amount');
+           if (amountInput) {
+               amountInput.addEventListener('keydown', function(e) {
+                   if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                       e.preventDefault();
+                       let currentValue = parseInt(this.value) || 0;
+                       if (e.key === 'ArrowUp') {
+                           this.value = currentValue + 1000;
+                       } else {
+                           this.value = Math.max(0, currentValue - 1000);
+                       }
+                   }
+               });
+           }
+
+           // 초기 이름 목록 로드
+           if (noteModal) updateNamesList('');
+       });
+    </script>
+</body>
+</html>

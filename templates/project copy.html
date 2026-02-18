@@ -1,0 +1,1427 @@
+{% extends "base.html" %}
+{% block title %}
+프로젝트-{{ project.title }}
+{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="left-pane">
+        <h1 class="project-heading" style="display: inline;">
+            {{ project.title }}
+        </h1>        
+        <span style="display: inline; margin-left: 10px; font-size: 24px; color: gray;">
+            ({{ project.status }})
+        </span>
+
+        <ul style="list-style-type: none; padding: 0; margin-top: 10px;">
+            {% for product in project.products %}
+            <li style="display: flex; align-items: center;">
+                <span style="color: #FF4500;"># {{ product.name }}</span>  </li>
+            {% endfor %}
+        </ul>
+        <hr>        
+        <div style="text-align: left; margin-bottom: 10px; margin-left: 10px;">
+            <div id="description" class="markdown-content">{{ project.description | markdown | auto_link | safe }}</div>
+            <div style="margin-bottom: 20px;">
+                <button id="edit-toggle-button" onclick="toggleEdit()" class="icon-link" style="background: #E9E8EF; border: none; color: #007BFF;">Edit</button>
+                <div id="edit-form" style="display: none;">
+                    <form method="POST" action="{{ url_for('edit_project_description', project_id=project.id) }}" style="display: inline;">
+                        <textarea name="description" rows="10" style="width: 95%;">{{ project.description }}</textarea>
+                        <input type="submit" value="Save" class="icon-button" style="background: none; border: none; color: #007BFF;">
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div style="display: flex; align-items: center;">
+            <h3 class="sub-heading" style="margin: 0; margin-right: 10px;">
+                <a href="{{ url_for('project_tasks', project_id=project.id) }}" style="text-decoration: underline; color: inherit;">Tasks</a>
+            </h3>
+            <button id="toggleTaskFormButton" onclick="toggleTaskForm()" class="icon-button" style="background: none; border: none; padding: 0;">➕</button>
+        </div>
+        <form method="POST" action="{{ url_for('create_task', project_id=project.id) }}" class="flex-form" id="task-form" style="display: none;">
+            <input type="text" name="title" placeholder="New task title" required>
+            <input type="submit" value="Add" class="icon-button">
+        </form>
+        
+        <table class="task-table">
+            {% for task in project.tasks if task.status != 'Done' %}
+            <tr id="task-item-{{ task.id }}">
+                <td class="checkbox-cell">
+                    <input type="checkbox" id="task_{{ task.id }}" 
+                           {% if task.status == 'Done' %}checked{% endif %} 
+                           onchange="updateTaskStatus({{ task.id }})">
+                </td>
+                <td class="task-title-cell">
+                    <span 
+                        onmouseover="showComment({{ task.id }}, '{{ task.comment if task.comment else '' | escape }}')" 
+                        onmouseout="hideComment()" 
+                        style="cursor: pointer;">
+                        {{ task.title }}
+                    </span>
+                    {% if task.due_date %}
+                    <span class="task-due-date">(~ {{ task.due_date.strftime('%Y-%m-%d') }})</span>
+                    {% endif %}
+                    <a href="{{ url_for('edit_task', task_id=task.id) }}" class="edit-icon">✎</a>
+                </td>
+                <div id="taskCommentTooltip" class="tooltip" style="display: none;">
+                    <p id="taskCommentText"></p>
+                </div>
+            </tr>
+            {% endfor %}
+        </table>
+        <div style="margin-bottom: 20px;"></div>
+        
+        <div style="display: flex; align-items: center;">
+          <h3 class="sub-heading" style="margin: 0; margin-right: 10px;">Links</h3>
+          <button id="toggleLinkFormButton" onclick="toggleLinkForm()" class="icon-button" style="background: none; border: none; color: #007BFF; padding: 0;">➕</button>
+        </div>
+        <form method="POST" action="{{ url_for('create_link', project_id=project.id) }}" class="flex-form" id="link-form" style="display: none;">
+            <input type="hidden" id="http-prefix" value="http://">
+            <input type="text" name="url" id="url-input" placeholder="example.com" required>
+            <input type="text" name="description" placeholder="Description">
+            <input type="submit" value="Add" class="icon-button" style="background: none; border: none; color: #007BFF;">
+        </form>
+
+        <ul class="link-list">
+            {% for link in project.links %}
+            <li>
+                <a href="{{ link.url }}" target="_blank" style="text-decoration: underline; color: blue;">
+                  {% if link.description %}
+                      {{ link.description }}
+                  {% else %}
+                      {{ link.url }}
+                  {% endif %}
+                </a>
+                <a href="{{ url_for('edit_link', link_id=link.id) }}" class="icon-link" style="margin-left: 10px; color: #007BFF; font-size:13px;">Edit</a>
+            </li>
+            {% endfor %}
+        </ul>
+        <div style="margin-bottom: 20px;"></div>
+        
+        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+            <h3 class="sub-heading" style="margin: 0; margin-right: 10px;">
+                <a href="{{ url_for('project_images', project_id=project.id) }}" style="text-decoration: underline; color: inherit;">Images</a>
+            </h3>
+            <button id="toggleImageFormButton" onclick="toggleImageForm()" class="icon-button" style="background: none; border: none; padding: 0;">➕</button>
+        </div>
+        
+        <form id="image-upload-form" action="{{ url_for('upload_image', project_id=project.id) }}" method="post" enctype="multipart/form-data" style="display: none; margin-bottom: 20px;" onsubmit="return validateImageForm()">
+            <label for="image_option">Image Option:</label>
+            <select id="image_option" name="image_option" style="width: 200px;" onchange="toggleImageInput(this.value)">
+
+                <option value="file">Upload Image File</option>
+                <option value="paste">Paste Image</option>
+            </select>
+        
+            <div id="image-file" style="display: block;">
+                <input type="file" name="file" id="file" accept="image/*">
+            </div>
+        
+            <div id="image-paste" style="display: none;">
+                <label>Paste Image:</label>
+                <div id="paste-area" style="width: 100%; height: 200px; border: 2px dashed #ccc; display: flex; justify-content: center; align-items: center; cursor: pointer;">
+                    <span id="paste-text">Paste image here</span>
+                    <img id="pasted-image" style="max-width: 100%; max-height: 200px; display: none;" alt="Pasted Image Preview">
+                </div>
+                <input type="hidden" id="pasted_image_data" name="pasted_image_data">
+            </div>        
+            <textarea name="memo" placeholder="Add a memo (optional)" style="height: 20px; width: 80%;"></textarea>
+            <input type="submit" value="Upload Image" class="icon-button">
+            <div id="error-message" class="error"></div>
+        </form>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+            {% for image in project.images[:10]|reverse %}
+            <div style="width: 150px; height: 150px; overflow: hidden; position: relative;">
+                <a href="{{ url_for('view_image', project_id=project.id, image_id=image.id) }}">
+                    <img src="{{ url_for('static', filename='data/' ~ image.filename) }}" alt="Image" style="width: 100%; height: 100%; object-fit: cover;">
+                </a>
+                {% if image.memo %}
+                <div style="text-align: center; font-size: 12px; color: #333; position: absolute; bottom: 0; width: 100%; background: rgba(255, 255, 255, 0.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    {{ image.memo }}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="right-pane">
+        <div style="width: 100%; margin: 0 auto; text-align: left;">
+            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                <h3 class="sub-heading" style="margin: 0; margin-right: 10px;">
+                    <a href="{{ url_for('memo_list', project_id=project.id) }}" style="text-decoration: underline; color: inherit;">Memos</a>
+                </h3>
+                <button id="toggleMemoFormButton" onclick="toggleMemoForm()" class="icon-button" style="background: none; border: none; padding: 0;">➕</button>
+                
+                <div style="margin-left: 30px;">
+                    <label class="switch">
+                        <input type="checkbox" id="viewModeToggle" onchange="toggleViewMode(this.checked ? 'table' : 'note')" {% if view_mode == 'table' %}checked{% endif %}>
+                        <span class="slider round"></span>
+                    </label>
+                </div>                
+            </div>
+    
+            <form method="POST" action="{{ url_for('create_memo', project_id=project.id) }}" enctype="multipart/form-data" class="flex-form" id="memo-form" style="display: none; margin-bottom: 20px;">
+                <input type="datetime-local" name="created_at" value="{{ datetime.now().strftime('%Y-%m-%dT%H:%M') }}" style="width: auto; padding: 5px; box-sizing: border-box; margin-right: 10px;">
+
+                <textarea name="content" placeholder="New memo content" required style="height: 150px; width: 80%; border: 1px solid #ccc; font-size: 13pt;"></textarea>
+                
+                <div style="margin-top: 10px;">
+                    <select id="memo_image_option" name="image_option" style="width: 200px;" onchange="toggleMemoImageInput(this.value)">
+
+                        <option value="file">Upload Image/File</option>
+                        <option value="paste">Paste Image</option>
+                    </select>
+                </div>
+            
+                <div id="memo-image-file" style="margin-top: 10px;">
+                    <input type="file" name="file" accept=".jpg,.jpeg,.png,.gif,.pdf,.xls,.xlsx,.ppt,.pptx,.md,.html,.htm">
+                </div>
+            
+                <div id="memo-image-paste" style="display: none; margin-top: 10px;">
+                    <div id="memo-paste-area" style="width: 100%; height: 150px; border: 2px dashed #ccc; display: flex; justify-content: center; align-items: center; cursor: pointer;">
+                        <span id="memo-paste-text">Paste image here (Ctrl+V)</span>
+                        <img id="memo-pasted-image" style="max-width: 100%; max-height: 150px; display: none;" alt="Pasted Image Preview">
+                    </div>
+                    <input type="hidden" id="memo-pasted-image-data" name="pasted_image_data">
+                </div>
+                
+                <div style="margin-top: 10px;">
+              
+                    <select id="tag" name="tag" style="width: auto; padding: 5px; box-sizing: border-box;">
+                        <option value="">Select a tag</option>
+                        {% for tag in tags %}
+                        <option value="{{ tag.id }}">{{ tag.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div style="margin-top: 10px; display: flex; justify-content: flex-start; gap: 10px;">
+                    <button type="button" onclick="resetMemoForm()" class="icon-button">Cancel</button>
+                    <input type="submit" value="Upload" class="icon-button" style="color: red;">
+                </div>
+            </form>
+            
+            <div id="noteView" class="memo-view {% if view_mode != 'note' %}hidden{% endif %}">
+                {% for memo in recent_memos if (memo.tag and (memo.tag.name == 'Todo' or memo.tag.name == 'pin')) %}
+                <div class="memo-date-group" style="margin-bottom: 15px;">
+                    <div style="display: inline;">
+                        <h3 style="margin: 0; margin-bottom: 5px; font-size: 18px; color: #007BFF; display: inline;">
+                            <a href="{{ url_for('view_memo', memo_id=memo.id) }}" style="color: #007BFF; text-decoration: none;">
+                                {{ memo.created_at.strftime('%Y-%m-%d') }}
+                            </a>
+                        </h3>
+                    </div>
+                    <div class="memo-section">
+                        <div class="memo-content-container" style="background-color: #E1F5FE; padding: 5px; border-radius: 5px; margin-top: 0;">
+                            {% if memo.tag %}
+                            <div class="memo-tag" style="color: #F44336; margin-bottom: 1px; font-size: 14px; line-height: 1;">
+                                #{{ memo.tag.name }}
+                            </div>
+                            {% endif %}
+                            <div class="memo-content" style="margin: 0">
+                                {{ memo.content | markdown | auto_link | safe }}
+                            </div>
+                        
+                            <div class="toggle-link-container" style="display: none;">
+                                <span class="toggle-link" style="color: #007BFF; cursor: pointer;">더보기</span>
+                            </div>
+                        </div>
+                        {% if memo.image_filename %}
+                        <a href="{{ url_for('static', filename='data/' ~ memo.image_filename) }}" target="_blank">
+                            <img src="{{ url_for('static', filename='data/' ~ memo.image_filename) }}" alt="Memo Image" style="width: 300px; max-width: 100%;">
+                        </a>
+                        {% endif %}
+                        
+                        {% if memo.pdf_filename %}
+                        <a href="{{ url_for('static', filename='data/' ~ memo.pdf_filename) }}" target="_blank" style="color: #007BFF;">PDF: {{ memo.pdf_filename }}</a>
+                        {% endif %}
+                        
+                        {% if memo.ppt_filename %}
+                        <a href="{{ url_for('static', filename='data/' ~ memo.ppt_filename) }}" target="_blank" style="color: #007BFF;">PPT: {{ memo.ppt_filename }}</a>
+                        {% endif %}
+                        
+                        {% if memo.excel_filename %}
+                        <a href="{{ url_for('static', filename='data/' ~ memo.excel_filename) }}" target="_blank" style="color: #007BFF;">XLSX: {{ memo.excel_filename }}</a>
+                        {% endif %}
+                        
+                        {% if memo.md_filename %}
+                        <a href="{{ url_for('static', filename='data/' ~ memo.md_filename) }}" target="_blank" style="color: #007BFF;">Markdown: {{ memo.md_filename }}</a>
+                        {% endif %}
+
+                        {% if memo.html_filename %}
+                        <a href="{{ url_for('view_html_file', memo_id=memo.id) }}" target="_blank" style="color: #FF8C00;">HTML: {{ memo.html_filename }}</a>
+                        {% endif %}
+                        
+                        {% for reply in memo.replies %}
+                        <div style="margin-left: 20px; border-left: 2px solid #007BFF; padding-left: 10px; margin-top: 10px;">
+                            <div style="display: inline;">
+                                <h3 style="margin: 0; margin-bottom: 10px; font-size: 16px; color: #007BFF; display: inline;">
+                                    <a href="{{ url_for('view_memo', memo_id=reply.id) }}" style="color: #007BFF; text-decoration: none;">
+                                        {{ reply.created_at.strftime('%Y-%m-%d') }}
+                                    </a>
+                                </h3>
+                            </div>
+                            <div class="memo-content" style="background-color: #e0f7fa; padding: 5px; border-radius: 5px;">
+                                {{ reply.content | markdown | auto_link | safe }}
+                            </div>
+                            <div class="toggle-link-container" style="display: none;">
+                                <span class="toggle-link" style="color: #007BFF; cursor: pointer;">더보기</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <hr>
+                {% endfor %}
+                {% for date, memos in grouped_memos %}
+                    <div class="memo-date-group" style="margin-bottom: 5px;">
+                        <div style="display: inline;">
+                            <h3 style="margin: 0; margin-bottom: 5px; font-size: 18px; color: #007BFF; display: inline;">
+                                <a href="{{ url_for('view_memo', memo_id=memos[0].id) }}" style="color: #007BFF; text-decoration: none;">
+                                    {{ date.strftime("%Y-%m-%d") }}
+                                </a>
+                            </h3>
+                        </div>
+                        {% for memo in memos %}
+                            <div class="memo-section" style="margin-bottom: 5px;">
+                                {% if memo.tag %}
+                                <div class="memo-tag" style="color: #F44336; margin-bottom: 1px; font-size: 14px; line-height: 1;">
+                                    #{{ memo.tag.name }}
+                                </div>
+                                {% endif %}
+                                <div class="memo-content" style="margin: 0;">
+                                    {{ memo.content | markdown | auto_link | safe }}
+                                </div>                            
+                                <div class="toggle-link-container" style="display: none;">
+                                    <span class="toggle-link" style="color: #007BFF; cursor: pointer;">더보기</span>
+                                </div>
+                                
+                                {% if memo.image_filename %}
+                                <a href="{{ url_for('static', filename='data/' ~ memo.image_filename) }}" target="_blank">
+                                    <img src="{{ url_for('static', filename='data/' ~ memo.image_filename) }}" alt="Memo Image" style="width: 300px; max-width: 100%;">
+                                </a>
+                                {% endif %}
+                            
+                                {% if memo.pdf_filename %}
+                                <a href="{{ url_for('static', filename='data/' ~ memo.pdf_filename) }}" target="_blank" style="color: #007BFF;">PDF: {{ memo.pdf_filename }}</a>
+                                {% endif %}
+                        
+                                {% if memo.ppt_filename %}
+                                <a href="{{ url_for('static', filename='data/' ~ memo.ppt_filename) }}" target="_blank" style="color: #007BFF;">PPT: {{ memo.ppt_filename }}</a>
+                                {% endif %}
+                        
+                                {% if memo.excel_filename %}
+                                <a href="{{ url_for('static', filename='data/' ~ memo.excel_filename) }}" target="_blank" style="color: #007BFF;">XLSX: {{ memo.excel_filename }}</a>
+                                {% endif %}
+                        
+                                {% if memo.md_filename %}
+                                <a href="{{ url_for('static', filename='data/' ~ memo.md_filename) }}" target="_blank" style="color: #007BFF;">Markdown: {{ memo.md_filename }}</a>
+                                {% endif %}
+
+                                {% if memo.html_filename %}
+                                <a href="{{ url_for('view_html_file', memo_id=memo.id) }}" target="_blank" style="color: #FF8C00;">HTML: {{ memo.html_filename }}</a>
+                                {% endif %}
+                    
+                                {% for reply in memo.replies %}
+                                <div style="margin-left: 20px; border-left: 2px solid #007BFF; padding-left: 10px; margin-top: 10px;">                                    
+                                    <div style="display: inline;">
+                                        <h3 style="margin: 0; margin-bottom: 5px; font-size: 16px; color: #007BFF; display: inline;">
+                                            <a href="{{ url_for('view_memo', memo_id=reply.id) }}" style="color: #007BFF; text-decoration: none;">
+                                                {{ reply.created_at.strftime('%Y-%m-%d') }}
+                                            </a>
+                                        </h3>
+                                    </div>
+                                    <div class="memo-content" >
+                                        {{ reply.content | markdown | auto_link | safe }}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% if not loop.last %}
+                            <hr style="border-top: 1px dashed #ccc;">
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                
+                    {% if not loop.last %}
+                    <hr style="margin-bottom: 15px; margin-top: 15px;">
+                    {% endif %}
+                {% endfor %}
+            </div>
+        
+        
+            <div id="tableView" class="memo-view {% if view_mode != 'table' %}hidden{% endif %}">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 15%;">Date</th>
+                            <th style="width: 7%;">Tag</th>
+                            <th style="width: 78%;">Content</th>
+                        </tr>
+                    </thead>
+                    <tbody id="memoTableBody">
+                        {% set memo_count = 0 %}
+                        
+                        {% for memo in recent_memos if memo.tag and memo.tag.name == 'pin' %}
+                        {% if memo_count < 15 %}
+                        <tr onclick="viewMemo({{ memo.id }})" style="cursor: pointer;">
+                            <td>{{ memo.created_at.strftime("%Y-%m-%d") }}</td>
+                            <td style="font-size: 14px; color: #F44336;">{{ memo.tag.name if memo.tag else '' }}</td>
+                            <td>
+                                <span class="ellipsis" data-content="{{ memo.content }}">
+                                    {{ memo.content | striptags }}
+                                </span>
+                                <span class="file-icons">
+                                    {% if memo.image_filename %}
+                                    <i class="fas fa-file-image" style="color: blue;"></i>
+                                    {% endif %}
+                                    {% if memo.pdf_filename %}
+                                    <i class="fas fa-file-pdf" style="color: red;"></i>
+                                    {% endif %}
+                                    {% if memo.excel_filename %}
+                                    <i class="fas fa-file-excel" style="color: green;"></i>
+                                    {% endif %}
+                                    {% if memo.ppt_filename %}
+                                    <i class="fas fa-file-powerpoint" style="color: orange;"></i>
+                                    {% endif %}
+                                    {% if memo.md_filename %}
+                                    <i class="fas fa-file-alt" style="color: purple;"></i>
+                                    {% endif %}
+                                    {% if memo.html_filename %}
+                                    <i class="fas fa-file-code" style="color: #FF8C00;"></i>
+                                    {% endif %}
+                                </span>
+                            </td>
+                        </tr>
+                        {% set memo_count = memo_count + 1 %}
+                        {% endif %}
+                        {% endfor %}
+                        
+                        {% for memo in recent_memos if not memo.tag or memo.tag.name != 'pin' %}
+                        {% if memo_count < 15 %}
+                        <tr onclick="viewMemo({{ memo.id }})" style="cursor: pointer;">
+                            <td>{{ memo.created_at.strftime("%Y-%m-%d") }}</td>
+                            <td style="font-size: 14px; color: #F44336;">{{ memo.tag.name if memo.tag else '' }}</td>
+                            <td>
+                                <span class="ellipsis" data-content="{{ memo.content }}">
+                                    {{ memo.content | striptags }}
+                                </span>
+                                <span class="file-icons">
+                                    {% if memo.image_filename %}
+                                    <i class="fas fa-file-image" style="color: blue;"></i>
+                                    {% endif %}
+                                    {% if memo.pdf_filename %}
+                                    <i class="fas fa-file-pdf" style="color: red;"></i>
+                                    {% endif %}
+                                    {% if memo.excel_filename %}
+                                    <i class="fas fa-file-excel" style="color: green;"></i>
+                                    {% endif %}
+                                    {% if memo.ppt_filename %}
+                                    <i class="fas fa-file-powerpoint" style="color: orange;"></i>
+                                    {% endif %}
+                                    {% if memo.md_filename %}
+                                    <i class="fas fa-file-alt" style="color: purple;"></i>
+                                    {% endif %}
+                                    {% if memo.html_filename %}
+                                    <i class="fas fa-file-code" style="color: #FF8C00;"></i>
+                                    {% endif %}
+                                </span>
+                            </td>
+                        </tr>
+                        {% set memo_count = memo_count + 1 %}
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            
+                {% if recent_memos|length > 15 %}
+                <div id="loadMoreContainer" style="text-align: center; margin-top: 20px;">
+                    <button onclick="loadMoreMemos()" id="loadMoreButton" class="btn" style="color: #007BFF;">더보기</button>
+                    <div id="loading" style="display: none;">로딩 중...</div>
+                </div>
+                {% endif %}
+            </div>
+            
+<style>
+h1.project-heading {
+    display: inline;
+    font-size: 1.6rem;
+    font-weight: bold;
+} 
+h3.sub-heading {
+  margin: 0;
+  margin-right: 10px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #333;
+}
+
+h3.sub-heading a {
+  text-decoration: underline;
+  color: inherit;
+  transition: color 0.2s ease;
+}
+
+h3.sub-heading a:hover {
+  color: #0056b3;
+} 
+
+#noteView p {
+    margin-top: 0.3em;
+    margin-bottom: 0.3em;
+}
+
+#noteView * {
+    line-height: 1.5;
+}
+    
+/* 마크다운 내용의 제목과 텍스트 사이의 간격 조절 */
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3 {
+    margin-top: 10px;
+    margin-bottom: 5px; /* 제목 하단 여백 줄이기 */
+}
+
+.markdown-content p {
+    margin-top: 15px; /* 문단 상단 여백 줄이기 */
+    margin-bottom: 10px; /* 문단 하단 여백 줄이기 */
+    line-height: 1.5em;
+    font-size: 1.05rem;    
+}
+
+.markdown-content ol {
+    list-style-type: decimal !important;
+    margin-top: 5px;
+    margin-bottom: 2px;
+    padding-left: 20px;
+}
+
+.markdown-content ul {
+    list-style-type: disc; /* 불릿 목록 */
+    margin-top: 5px;
+    margin-bottom: 5px;
+    padding-left: 20px;
+}
+
+.markdown-content li {
+    margin-bottom: 1px; /* 항목 간 간격 줄이기 */
+}
+
+/* 컨테이너 구조 */
+.container {
+    display: flex;
+    width: 100%;
+    margin: 0 auto;
+    max-width: 100%; /* 최대 너비 설정 */
+    padding: 0; /* 패딩 제거 */
+}
+
+.left-pane {
+    width: 43.5%;
+    padding-right: 10px;
+    border-right: 1px solid #ccc;
+}
+
+.right-pane {
+    width: 56.5%;
+    padding-left: 20px;
+}
+
+.auto-link {
+    color: #0066cc;
+    text-decoration: none;
+}
+    
+/* 표 스타일 */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+th, td {
+    padding: 5px;
+    text-align: left;
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border: none; /* 세로줄 제거 */
+}
+
+th {
+    background-color: #f0f0f0;
+    border-bottom: 2px solid #ddd;
+}
+
+tr {
+    height: 20px;
+    border-bottom: 1px solid #ddd;
+    cursor: pointer; /* 클릭 가능 */
+}
+
+tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+/* 내용 ellipsis 처리 */
+.content-ellipsis {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 메모 내용 */
+.memo-content {
+    max-height: 10.4em; /* 7줄 기준 */
+    overflow: hidden;
+    line-height: 1.5em;
+    font-size: 1.05rem;
+    padding: 7px; 
+    margin-bottom: 3px;
+    transition: max-height 0.3s ease;
+    position: relative;
+}
+
+.memo-content.expanded {
+    max-height: none;
+}
+
+.toggle-link {
+    display: inline-block;
+    cursor: pointer;
+    color: #007BFF;
+    padding: 2px 5px;
+    border-radius: 3px;
+}
+
+/* 숨김 처리 */
+.hidden {
+    display: none;
+}
+
+/* 파일 아이콘 처리 */
+.ellipsis {
+    display: inline-block;
+    max-width: calc(100% - 50px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-icons {
+    display: inline-block;
+    vertical-align: bottom;
+    margin-left: 5px;
+}
+
+.fa-file-pdf { color: red; }
+.fa-file-image { color: blue; }
+.fa-file-excel { color: green; }
+.fa-file-powerpoint { color: orange; }
+.fa-file-alt { color: purple; }
+/* 🌟 HTML 파일 아이콘 스타일 추가 🌟 */
+.fa-file-code { 
+    color: #FF8C00; /* 주황색 */
+}
+
+/* 스위치 스타일 */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 45px;
+    height: 22px;
+}
+
+.switch input { 
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .3s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 4px;
+    bottom: 2px;
+    background-color: white;
+    transition: .3s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: #2196F3;
+}
+
+input:checked + .slider:before {
+    transform: translateX(19px);
+}
+
+/* 둥근 스위치 */
+.slider.round {
+    border-radius: 34px;
+}
+
+.slider.round:before {
+    border-radius: 50%;
+}
+
+/* Task 테이블 스타일 */
+.task-table {
+    width: 100%;
+    border-collapse: collapse;
+    border: none;
+    margin: 10px 0 10px 7px;
+}
+
+.task-table tr {
+    border-bottom: none;
+    background-color: transparent;
+}
+
+.task-table td {
+    padding: 1.2px;
+    vertical-align: middle;
+    border: none;
+}
+
+.checkbox-cell {
+    width: 30px;
+}
+
+.task-title-cell {
+    text-align: left;
+}
+
+.task-due-date {
+    color: blue;
+    margin-left: 5px;
+    font-size: 0.9em;
+}
+
+.edit-icon {
+    text-decoration: none;
+}
+.tooltip {
+    display: none;
+    position: absolute;
+    background-color: #FAB27B;
+    border: 1px solid #ccc;
+    padding: 1px 5px;
+    z-index: 1000;
+    max-width: 250px;
+    font-size: 14px;
+    color: #333;
+    border-radius: 4px;
+}
+/* LaTeX 수식 스타일링 */
+.math-inline, .math-block {
+    font-family: "Times New Roman", serif;
+    font-size: 1em;
+}
+
+.math-block {
+    display: block;
+    margin: 1em 0;
+    padding: 0.5em;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.math-inline {
+    display: inline-block;
+    margin: 0 0.2em;
+}
+
+/* 수식 기호 스타일링 */
+.math-inline ×, .math-block × {
+    margin: 0 0.2em;
+}
+
+.math-inline ≈, .math-block ≈ {
+    margin: 0 0.2em;
+}
+
+#task-form input,
+#link-form input {
+    font-size: 1em;
+}
+/* 모바일 대응: 창을 세로로 정렬 */
+@media screen and (max-width: 1024px) {
+    .container {
+        flex-direction: column;
+    }
+
+    .left-pane, .right-pane {
+        width: 100%;
+        padding: 0;
+        border: none;
+    }
+    .memo-list-container {
+        width: 100%;
+        padding: 0 10px;
+    }
+
+    /* 메모 섹션 글자 크기 조정 */
+    .memo-content, .ellipsis, .memo-content-container, .markdown-content {
+        font-size: 19px !important;
+        line-height: 1.5em !important;
+    }
+
+    /* 메모 섹션의 다른 요소들도 일관성 있게 조정 */
+    .memo-section h3 {
+        font-size: 18px !important;
+    }
+
+    .memo-section a {
+        font-size: 18px !important;
+    }
+
+    .memo-date-group h3 {
+        font-size: 18px !important;
+    }
+
+    /* 파일 링크 텍스트 */
+    .memo-section a[href*="uploads"] {
+        font-size: 16px !important;
+    }
+}    
+    
+</style>
+
+<script>
+// 기존 토글 관련 함수들
+function toggleEdit() {
+    var description = document.getElementById('description');
+    var editForm = document.getElementById('edit-form');
+    var toggleButton = document.getElementById('edit-toggle-button');
+
+    if (editForm.style.display === 'none') {
+        description.style.display = 'none';
+        editForm.style.display = 'block';
+        toggleButton.textContent = 'Cancel';
+    } else {
+        description.style.display = 'block';
+        editForm.style.display = 'none';
+        toggleButton.textContent = 'Edit';
+    }
+}
+
+function toggleTaskForm() {
+    var taskForm = document.getElementById('task-form');
+    var toggleButton = document.getElementById('toggleTaskFormButton');
+    if (taskForm.style.display === 'none') {
+        taskForm.style.display = 'flex';
+        toggleButton.textContent = '➖';
+    } else {
+        taskForm.style.display = 'none';
+        toggleButton.textContent = '➕';
+    }
+}
+
+function toggleMemoForm() {
+    var memoForm = document.getElementById('memo-form');
+    var toggleButton = document.getElementById('toggleMemoFormButton');
+    if (memoForm.style.display === 'none') {
+        memoForm.style.display = 'block';
+        toggleButton.textContent = '➖';
+    } else {
+        memoForm.style.display = 'none';
+        toggleButton.textContent = '➕';
+    }
+}
+
+function toggleLinkForm() {
+    var linkForm = document.getElementById('link-form');
+    var toggleButton = document.getElementById('toggleLinkFormButton');
+    if (linkForm.style.display === 'none') {
+        linkForm.style.display = 'flex';
+        toggleButton.textContent = '➖';
+    } else {
+        linkForm.style.display = 'none';
+        toggleButton.textContent = '➕';
+    }
+}
+
+function toggleContent(button) {
+    var contentElement = button.previousElementSibling.previousElementSibling;
+    var isExpanded = contentElement.style.whiteSpace === 'normal';
+
+    if (isExpanded) {
+        contentElement.style.whiteSpace = 'nowrap';
+        contentElement.style.overflow = 'hidden';
+        contentElement.style.textOverflow = 'ellipsis';
+        button.textContent = '더보기';
+    } else {
+        contentElement.style.whiteSpace = 'normal';
+        contentElement.style.overflow = 'visible';
+        contentElement.style.textOverflow = 'clip';
+        button.textContent = '접기';
+    }
+}
+
+// 무한 스크롤 관련 변수
+let currentPage = 1;
+let isLoading = false;
+let hasMore = true;
+let scrollHandler = null;
+
+// 디바운스 함수
+function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// 메모 로드 함수
+// 메모 로드 함수
+function loadMoreMemos() {
+    if (isLoading || !hasMore) return;
+    
+    // Show loading indicator
+    const loadingElement = document.getElementById('loading');
+    if (loadingElement) loadingElement.style.display = 'block';
+    
+    // Disable load more button if it exists
+    const loadMoreButton = document.getElementById('loadMoreButton');
+    if (loadMoreButton) loadMoreButton.disabled = true;
+    
+    isLoading = true;
+
+    // Get project ID from the current page
+    const projectId = window.location.pathname.split('/').filter(Boolean).pop();
+    
+    // Make API request to get more memos
+    fetch(`/api/project/${projectId}/memos?page=${currentPage + 1}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Loaded memos data:', data);  // 디버깅용 로그
+            const tbody = document.getElementById('memoTableBody');
+            
+            if (data.memos && data.memos.length > 0) {
+                data.memos.forEach(memo => {
+                    console.log('Processing memo:', memo);  // 각 메모 데이터 로깅
+                    console.log('Memo tag:', memo.tag);  // 태그 데이터 로깅
+                    
+                    const tr = document.createElement('tr');
+                    tr.onclick = () => viewMemo(memo.id);
+                    tr.style.cursor = 'pointer';
+                    
+                    // Strip HTML tags from content
+                    const content = memo.content.replace(/<[^>]*>/g, '');
+                    
+                    // Format date
+                    const date = new Date(memo.created_at);
+                    const formattedDate = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+                    
+                    // 태그 처리 개선
+                    let tagName = '';
+                    
+                    // 태그 데이터가 있는지 확인 (다양한 형태 고려)
+                    if (memo.tag) {
+                        if (typeof memo.tag === 'object' && memo.tag.name) {
+                            tagName = memo.tag.name;
+                        } else if (typeof memo.tag === 'string') {
+                            tagName = memo.tag;
+                        }
+                    } else if (memo.tag_name) {
+                        // 서버에서 tag_name 필드로 보내는 경우
+                        tagName = memo.tag_name;
+                    }
+                    
+                    console.log('Final tag name:', tagName);  // 최종 결정된 태그 이름 로깅
+                    
+                    tr.innerHTML = `
+                        <td>${formattedDate}</td>
+                        <td style="font-size: 14px; color: #F44336;">${tagName}</td>
+                        <td>
+                            <span class="ellipsis" data-content="${escapeHtml(content)}">
+                                ${escapeHtml(content.substring(0, 100))}${content.length > 100 ? '...' : ''}
+                            </span>
+                            <span class="file-icons">
+                                ${memo.image_filename ? '<i class="fas fa-file-image" style="color: blue;"></i>' : ''}
+                                ${memo.pdf_filename ? '<i class="fas fa-file-pdf" style="color: red;"></i>' : ''}
+                                ${memo.excel_filename ? '<i class="fas fa-file-excel" style="color: green;"></i>' : ''}
+                                ${memo.ppt_filename ? '<i class="fas fa-file-powerpoint" style="color: orange;"></i>' : ''}
+                                ${memo.md_filename ? '<i class="fas fa-file-alt" style="color: purple;"></i>' : ''}
+                                ${memo.html_filename ? '<i class="fas fa-file-code" style="color: #FF8C00;"></i>' : ''}
+                            </span>
+                        </td>
+                    `;
+                    
+                    tbody.appendChild(tr);
+                });
+                
+                currentPage++;
+                hasMore = data.has_more;
+            } else {
+                hasMore = false;
+                
+                // Hide "load more" button if we've reached the end
+                const loadMoreContainer = document.getElementById('loadMoreContainer');
+                if (loadMoreContainer) loadMoreContainer.style.display = 'none';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading memos:', error);
+        })
+        .finally(() => {
+            isLoading = false;
+            
+            // Hide loading indicator
+            const loadingElement = document.getElementById('loading');
+            if (loadingElement) loadingElement.style.display = 'none';
+            
+            // Re-enable load more button
+            const loadMoreButton = document.getElementById('loadMoreButton');
+            if (loadMoreButton) loadMoreButton.disabled = false;
+        });
+}
+
+// Helper function to escape HTML content
+function escapeHtml(unsafe) {
+    return unsafe
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;");
+}
+
+// PC 및 모바일 모두에서 작동하는 스크롤 이벤트 핸들러
+function checkScrollAndLoad() {
+    // 테이블 뷰가 숨겨져 있으면 무시
+    const tableView = document.getElementById('tableView');
+    if (!tableView || tableView.classList.contains('hidden')) return;
+    
+    // 현재 스크롤 위치, 화면 높이, 문서 전체 높이 계산
+    const scrollTop = window.scrollY || window.pageYOffset || document.documentElement.scrollTop;
+    const windowHeight = window.innerHeight || document.documentElement.clientHeight;
+    const documentHeight = Math.max(
+        document.body.scrollHeight,
+        document.body.offsetHeight,
+        document.documentElement.scrollHeight,
+        document.documentElement.offsetHeight,
+        document.documentElement.clientHeight
+    );
+    
+    // 스크롤이 하단에 가까울 때 추가 메모 로드
+    if (documentHeight - (scrollTop + windowHeight) < 300) {
+        loadMoreMemos();
+    }
+}
+
+// 뷰 모드 토글 함수
+function toggleViewMode(mode) {
+    const noteView = document.getElementById('noteView');
+    const tableView = document.getElementById('tableView');
+    
+    // 기존 이벤트 리스너 제거
+    if (scrollHandler) {
+        window.removeEventListener('scroll', scrollHandler);
+        scrollHandler = null;
+    }
+
+    if (mode === 'table') {
+        noteView.classList.add('hidden');
+        tableView.classList.remove('hidden');
+        
+        // 새 이벤트 리스너 등록
+        scrollHandler = debounce(checkScrollAndLoad, 200);
+        window.addEventListener('scroll', scrollHandler);
+        
+        // 초기 로드 체크 (페이지가 짧은 경우 스크롤 없이 로드하기 위함)
+        setTimeout(checkScrollAndLoad, 500);
+    } else {
+        noteView.classList.remove('hidden');
+        tableView.classList.add('hidden');
+    }
+
+    // 세션에 모드 저장
+    fetch('/set_view_mode', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ view_mode: mode }),
+    }).then(response => {
+        if (!response.ok) {
+            console.error('Failed to save view mode');
+        }
+    });
+}
+
+function updateTaskStatus(taskId) {
+    var checkbox = document.getElementById('task_' + taskId);
+    var status = checkbox.checked ? 'Done' : 'To Do';
+
+    fetch('/update_task_status', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ task_id: taskId, status: status }),
+    }).then(response => {
+        if (response.ok) {
+            if (status === 'Done') {
+                var taskItem = document.getElementById('task-item-' + taskId);
+                taskItem.style.opacity = '0';
+                setTimeout(() => {
+                    taskItem.remove();
+                }, 300); // 300ms 후에 요소를 완전히 제거
+            }
+        } else {
+            console.log('Failed to update task status');
+            checkbox.checked = !checkbox.checked; // 업데이트 실패 시 체크박스 상태를 되돌림
+        }
+    });
+}
+    
+// 기타 유틸리티 함수들
+function viewMemo(memoId) {
+    window.location.href = "/view_memo/" + memoId;
+}
+    
+function toggleTagInput(selectElement) {
+    var tagInput = document.getElementById('tag-input');
+    if (selectElement.value === 'other') {
+        tagInput.style.display = 'inline-block';
+        tagInput.focus();
+    } else {
+        tagInput.style.display = 'none';
+    }
+}
+    
+function isiOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
+
+function showComment(taskId, comment) {
+    var tooltip = document.getElementById("taskCommentTooltip");
+    var commentText = document.getElementById("taskCommentText");
+
+    // 코멘트가 문자열이 아니거나 빈 문자열인 경우 툴팁 숨김
+    if (typeof comment === "string" && comment.trim() !== "") {
+        commentText.textContent = comment; 
+        tooltip.style.display = "block";
+
+        // 마우스 위치에 따라 툴팁 위치 조정
+        tooltip.style.left = event.pageX + "px"; 
+        tooltip.style.top = (event.pageY + 20) + "px"; 
+    } else {
+        tooltip.style.display = "none"; // 코멘트가 없으면 툴팁을 숨김
+    }
+}
+
+function hideComment() {
+    var tooltip = document.getElementById("taskCommentTooltip");
+    tooltip.style.display = "none";
+}
+    
+// 기존의 이벤트 리스너 등록
+document.getElementById('link-form').addEventListener('submit', function(event) {
+    var urlInput = document.getElementById('url-input');
+    var httpPrefix = document.getElementById('http-prefix').value;
+
+    if (!urlInput.value.startsWith('http://') && !urlInput.value.startsWith('https://')) {
+        urlInput.value = httpPrefix + urlInput.value;
+    }
+});
+
+function toggleImageForm() {
+    var form = document.getElementById('image-upload-form');
+    var toggleButton = document.getElementById('toggleImageFormButton'); // Reference the button
+    if (form.style.display === 'none') {
+        form.style.display = 'block';
+        toggleButton.textContent = '➖'; // Update button text
+    } else {
+        form.style.display = 'none';
+        toggleButton.textContent = '➕'; // Update button text
+    }
+}
+
+function toggleImageInput(option) {
+    document.getElementById('image-file').style.display = (option === 'file') ? 'block' : 'none';
+    document.getElementById('image-paste').style.display = (option === 'paste') ? 'block' : 'none';
+}
+
+function validateImageForm() {
+    const imageOption = document.getElementById('image_option').value;
+    const imageFile = document.getElementById('file').value;
+    const pastedImageData = document.getElementById('pasted_image_data').value;
+    const errorDiv = document.getElementById('error-message');
+
+    errorDiv.textContent = ''; // Reset error message
+
+    if (imageOption === 'file' && imageFile === '') {
+        errorDiv.textContent = 'Please upload an image file or choose another image option.';
+        return false;
+    }
+
+    if (imageOption === 'paste' && pastedImageData === '') {
+        errorDiv.textContent = 'Please paste an image or choose another image option.';
+        return false;
+    }
+
+    return true;
+}
+
+// Enhanced paste functionality that works on iPad
+function setupPasteArea(areaId, imageId, dataFieldId, textId) {
+    const pasteArea = document.getElementById(areaId);
+    const pastedImage = document.getElementById(imageId);
+    const pastedImageData = document.getElementById(dataFieldId);
+    const pasteText = document.getElementById(textId);
+    
+    if (!pasteArea || !pastedImage || !pastedImageData) return;
+    
+    // Add instruction text for iPad users
+    if (pasteText) {
+        const originalText = pasteText.textContent;
+        pasteText.innerHTML = originalText + '<br><small>(On iPad: copy image elsewhere, tap here, then paste)</small>';
+    }
+    
+    // Make paste area focusable and add visual cue
+    pasteArea.setAttribute('tabindex', '0');
+    pasteArea.style.outline = 'none';
+    
+    // Explicitly focus the paste area on click to enable iOS paste
+    pasteArea.addEventListener('click', function() {
+        this.focus();
+    });
+
+    // Local paste handler (works on desktop browsers)
+    pasteArea.addEventListener('paste', function(event) {
+        handlePasteEvent(event, pastedImage, pastedImageData, pasteText);
+    });
+
+    // Drag and drop handlers
+    pasteArea.addEventListener('dragover', function(event) {
+        event.preventDefault();
+        this.style.borderColor = '#007bff';
+        this.style.backgroundColor = 'rgba(0, 123, 255, 0.1)';
+    });
+
+    pasteArea.addEventListener('dragleave', function() {
+        this.style.borderColor = '#ccc';
+        this.style.backgroundColor = '';
+    });
+
+    pasteArea.addEventListener('drop', function(event) {
+        event.preventDefault();
+        this.style.borderColor = '#ccc';
+        this.style.backgroundColor = '';
+        
+        const files = event.dataTransfer.files;
+        if (files.length > 0 && files[0].type.indexOf('image') !== -1) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                pastedImage.src = e.target.result;
+                pastedImage.style.display = 'block';
+                pastedImageData.value = e.target.result;
+                if (pasteText) pasteText.style.display = 'none';
+            };
+            reader.readAsDataURL(files[0]);
+        }
+    });
+}
+
+// Handle paste events from both local and global paste events
+function handlePasteEvent(event, imageElement, dataField, textElement) {
+    const items = event.clipboardData.items;
+    let foundImage = false;
+    
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+            foundImage = true;
+            const blob = items[i].getAsFile();
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                imageElement.src = e.target.result;
+                imageElement.style.display = 'block';
+                dataField.value = e.target.result;
+                if (textElement) textElement.style.display = 'none';
+            };
+            
+            reader.readAsDataURL(blob);
+            break;
+        }
+    }
+    
+    // Provide feedback if no image was found in clipboard
+    if (!foundImage && event.clipboardData.getData('text')) {
+        alert('No image found in clipboard. Please copy an image first.');
+    }
+}
+
+function toggleMemoImageInput(option) {
+    document.getElementById('memo-image-file').style.display = (option === 'file') ? 'block' : 'none';
+    document.getElementById('memo-image-paste').style.display = (option === 'paste') ? 'block' : 'none';
+}
+
+// 메모 폼 리셋 함수
+function resetMemoForm() {
+    document.getElementById('memo-form').style.display = 'none';
+    document.getElementById('toggleMemoFormButton').textContent = '➕';
+    
+    // 이미지 관련 필드 초기화
+    document.getElementById('memo-pasted-image').style.display = 'none';
+    document.getElementById('memo-pasted-image-data').value = '';
+    document.getElementById('memo-paste-text').style.display = 'block';
+    document.getElementById('memo_image_option').value = 'file';
+    toggleMemoImageInput('file');
+}
+
+// 초기화 및 이벤트 리스너
+document.addEventListener('DOMContentLoaded', function() {
+    // URL 파라미터에서 view_mode 가져오기
+    const urlParams = new URLSearchParams(window.location.search);
+    const viewMode = urlParams.get('view_mode') || 'note';
+    
+    // 초기 뷰 모드 설정
+    toggleViewMode(viewMode);
+
+    // 메모 내용 처리
+    document.querySelectorAll('.memo-content').forEach(function(content) {
+        const lineHeight = parseFloat(getComputedStyle(content).lineHeight);
+        const maxHeight = lineHeight * 7.4;  // 7줄 기준
+
+        content.style.display = 'block';
+        
+        if (content.scrollHeight > maxHeight) {
+            content.style.maxHeight = `${maxHeight}px`;
+            content.style.overflow = 'hidden';
+
+            const toggleLinkContainer = content.nextElementSibling;
+            if (toggleLinkContainer) {
+                toggleLinkContainer.style.display = 'block';
+            }
+        }
+    });
+
+    // 더보기/접기 버튼 이벤트
+    document.querySelectorAll('.toggle-link').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const content = this.closest('.memo-section').querySelector('.memo-content');
+            const isExpanded = content.classList.toggle('expanded');
+
+            if (isExpanded) {
+                content.style.maxHeight = `${content.scrollHeight}px`;
+                this.textContent = '접기';
+            } else {
+                content.style.maxHeight = '11.4em';
+                this.textContent = '더보기';
+            }
+        });
+    });
+
+    // iOS 대응
+    if (isiOS()) {
+        document.querySelector('.container').style.flexDirection = 'column';
+        document.querySelectorAll('.left-pane, .right-pane').forEach(function(pane) {
+            pane.style.width = '100%';
+            pane.style.padding = '0';
+            pane.style.border = 'none';
+        });
+    }
+    
+    // Set up load more button
+    const loadMoreButton = document.getElementById('loadMoreButton');
+    if (loadMoreButton) {
+        loadMoreButton.addEventListener('click', loadMoreMemos);
+    }
+    
+    // Set up image paste areas
+    setupPasteArea(
+        'paste-area', 
+        'pasted-image', 
+        'pasted_image_data', 
+        'paste-text'
+    );
+    
+    setupPasteArea(
+        'memo-paste-area', 
+        'memo-pasted-image', 
+        'memo-pasted-image-data', 
+        'memo-paste-text'
+    );
+    
+    // Add global paste event for iPad
+    document.addEventListener('paste', function(event) {
+        // Determine which paste area is active/visible
+        const regularPasteArea = document.getElementById('image-paste');
+        const memoPasteArea = document.getElementById('memo-image-paste');
+        
+        if (regularPasteArea && regularPasteArea.style.display !== 'none') {
+            handlePasteEvent(
+                event, 
+                document.getElementById('pasted-image'),
+                document.getElementById('pasted_image_data'),
+                document.getElementById('paste-text')
+            );
+        } else if (memoPasteArea && memoPasteArea.style.display !== 'none') {
+            handlePasteEvent(
+                event, 
+                document.getElementById('memo-pasted-image'),
+                document.getElementById('memo-pasted-image-data'),
+                document.getElementById('memo-paste-text')
+            );
+        }
+    });
+    
+    // 수식 렌더링
+    if (typeof renderMathInElement !== 'undefined') {
+        renderMathInElement(document.body, {
+            delimiters: [
+                {left: "$$", right: "$$", display: true},  // 블록 수식
+                {left: "$", right: "$", display: false},   // 인라인 수식
+                {left: "\\[", right: "\\]", display: true},  // 블록 수식 (LaTeX)
+                {left: "\\(", right: "\\)", display: false}  // 인라인 수식 (LaTeX)
+            ],
+            throwOnError: false  // 수식 에러가 발생해도 멈추지 않도록 설정
+        });
+    }
+
+    // 모바일 환경에서의 수식 크기 조정
+    if (window.innerWidth <= 768) {
+        document.querySelectorAll('.math-inline, .math-block').forEach(function(element) {
+            element.style.fontSize = '18px';
+        });
+    }
+    
+    // 페이지 사이즈가 작아서 스크롤이 없을 경우에도 초기 데이터 로드 체크
+    if (viewMode === 'table') {
+        setTimeout(checkScrollAndLoad, 500);
+    }
+});
+</script>
+{% endblock %}

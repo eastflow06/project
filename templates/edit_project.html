@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="width: 80%; margin: 0 auto; text-align: center;">
+    <h1 style="display: inline;">
+        {{ project.title }}
+    </h1>
+    <span style="display: inline; margin-left: 10px; font-size: 24px; color: gray;">
+        ({{ project.status }})
+    </span>
+    
+    <div style="text-align: left; margin-bottom: 20px; margin-top: 20px;">
+        <h3>Project Description:</h3>
+        <div id="description">{{ project.description | markdown }}</div>
+        <div style="margin-bottom: 20px;">
+            <form method="POST" action="{{ url_for('edit_project_description', project_id=project.id) }}" style="display: inline;">
+                <textarea name="description" rows="5" style="width: 100%;">{{ project.description }}</textarea>
+                <div style="display: flex; align-items: center;">
+                    <input type="submit" value="Save" class="text-button">
+                    <button type="button" onclick="toggleEdit()" class="text-button" style="margin-left: 10px;">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <h2>Related Products</h2>
+    <ul style="list-style-type: none; padding: 0;">
+        {% for product in project.products %}
+        <li style="display: flex; align-items: center;">
+            {{ product.name }}
+            <form method="POST" action="{{ url_for('delete_product', product_id=product.id) }}" style="display:inline; margin-left: 10px;">
+                <input type="submit" value="Delete" class="text-button">
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+    <button onclick="toggleForm('product-form', 'product-toggle')" id="product-toggle" class="text-button">Add Product</button>
+    <form method="POST" action="{{ url_for('add_product', project_id=project.id) }}" class="flex-form" id="product-form" style="display: none;">
+        <input type="text" name="product_name" placeholder="New product name" required>
+        <input type="submit" value="Add" class="text-button">
+    </form>
+
+    <h2>Tasks</h2>
+    <ul style="list-style-type: none; padding: 0;">
+        {% for task in project.tasks %}
+        <li style="display: flex; align-items: center;">
+            {{ task.title }} 
+            {% if task.due_date %}
+            <span style="color: blue;">(~ {{ task.due_date.strftime('%Y-%m-%d') }})</span>
+            {% endif %}
+            - {{ task.status }}
+            <a href="{{ url_for('edit_task', task_id=task.id) }}" class="text-button">Edit</a>
+            <form method="POST" action="{{ url_for('delete_task', task_id=task.id) }}" style="display:inline; margin-left: 10px;">
+                <input type="submit" value="Delete" class="text-button">
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+    <button onclick="toggleForm('task-form', 'task-toggle')" id="task-toggle" class="text-button">Add Task</button>
+    <form method="POST" action="{{ url_for('create_task', project_id=project.id) }}" class="flex-form" id="task-form" style="display: none;">
+        <input type="text" name="title" placeholder="New task title" required>
+        <input type="submit" value="Add" class="text-button">
+    </form>
+
+    <h2>Memos</h2>
+    <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <th>Date</th>
+            <th>Content</th>
+            <th>Actions</th>
+        </tr>
+        {% for memo in project.memos %}
+        <tr>
+            <td>{{ memo.created_at.strftime('%Y-%m-%d') }}</td>
+            <td>{{ memo.content }}</td>
+            <td>
+                <a href="{{ url_for('edit_memo', memo_id=memo.id) }}" class="text-button">Edit</a>
+                <form method="POST" action="{{ url_for('delete_memo', memo_id=memo.id) }}" style="display:inline; margin-left: 10px;">
+                    <input type="submit" value="Delete" class="text-button">
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    <button onclick="toggleForm('memo-form', 'memo-toggle')" id="memo-toggle" class="text-button">Add Memo</button>
+    <form method="POST" action="{{ url_for('create_memo', project_id=project.id) }}" class="flex-form" id="memo-form" style="display: none;">
+        <textarea name="content" placeholder="New memo content" required></textarea>
+        <input type="submit" value="Add" class="text-button">
+    </form>
+
+    <h2>Links</h2>
+    <ul style="list-style-type: none; padding: 0;">
+        {% for link in project.links %}
+        <li style="display: flex; align-items: center;">
+            <a href="{{ link.url }}">{{ link.description }}</a>
+            <a href="{{ url_for('edit_link', link_id=link.id) }}" class="text-button">Edit</a>
+            <form method="POST" action="{{ url_for('delete_link', link_id=link.id) }}" style="display:inline; margin-left: 10px;">
+                <input type="submit" value="Delete" class="text-button">
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+    <button onclick="toggleForm('link-form', 'link-toggle')" id="link-toggle" class="text-button">Add Link</button>
+    <form method="POST" action="{{ url_for('create_link', project_id=project.id) }}" class="flex-form" id="link-form" style="display: none;">    
+        <input type="url" name="url" placeholder="URL" required>
+        <input type="text" name="description" placeholder="Description" required>
+        <input type="submit" value="Add" class="text-button">
+    </form>
+
+    <h2>Related Products</h2>
+    <ul>
+    {% for product in project.products %}
+        <li>
+            <a href="{{ url_for('product_detail', product_id=product.id) }}">{{ product.name }}</a>
+        </li>
+    {% endfor %}
+    </ul>
+    <button onclick="toggleForm('product-add-form', 'product-add-toggle')" id="product-add-toggle" class="text-button">Add Product</button>
+    <form action="{{ url_for('add_product_to_project', project_id=project.id) }}" method="post" class="flex-form" id="product-add-form" style="display: none;">
+        <select name="product_id">
+            {% for product in products %}
+                <option value="{{ product.id }}">{{ product.name }}</option>
+            {% endfor %}
+        </select>
+        <input type="submit" value="Add" class="text-button">
+    </form>
+
+</div>
+
+<script>
+function toggleEdit() {
+    var description = document.getElementById('description');
+    var editForm = document.getElementById('edit-form');
+    if (editForm.style.display === 'none') {
+        description.style.display = 'none';
+        editForm.style.display = 'block';
+    } else {
+        description.style.display = 'block';
+        editForm.style.display = 'none';
+    }
+}
+
+function toggleForm(formId, toggleButtonId) {
+    var form = document.getElementById(formId);
+    var toggleButton = document.getElementById(toggleButtonId);
+    if (form.style.display === 'none') {
+        form.style.display = 'flex';
+        toggleButton.textContent = 'Hide Form';
+    } else {
+        form.style.display = 'none';
+        toggleButton.textContent = 'Show Form';
+    }
+}
+</script>
+{% endblock %}

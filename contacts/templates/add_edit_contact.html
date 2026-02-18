@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %}연락처 수정{% endblock %}
+{% block content %}
+
+<style>
+    /* 로컬 스타일: 이 페이지 전용 스타일 */
+    
+    /* 체크박스 스타일 */
+    .favorite-checkbox {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+        padding: 10px 0;
+    }
+    .favorite-checkbox input {
+        width: 18px; height: 18px; margin-right: 10px; cursor: pointer;
+        accent-color: var(--highlight, #e64980);
+    }
+    .favorite-checkbox label {
+        margin-bottom: 0; cursor: pointer; font-weight: 500; color: var(--text-color);
+    }
+
+    /* 버튼 그룹 */
+    .button-group {
+        display: flex; justify-content: space-between; gap: 15px; margin-top: 30px;
+    }
+    .btn-submit { background-color: #e64980; color: white; border: none; flex: 1; }
+    .btn-back { background-color: var(--stripe-bg); color: var(--text-secondary); border: 1px solid var(--border-color); flex: 1; }
+
+    /* 삭제 링크 스타일 */
+    .delete-section {
+        margin-top: 30px;
+        border-top: 1px solid var(--border-color);
+        padding-top: 20px;
+        text-align: center;
+    }
+    .delete-link {
+        color: var(--danger-color);
+        text-decoration: none;
+        font-size: 14px;
+        cursor: pointer;
+        font-weight: 500;
+    }
+    .delete-link:hover { text-decoration: underline; }
+
+    /* 삭제 확인 박스 (다크모드 대응) */
+    .custom-delete-confirm {
+        display: none;
+        background-color: var(--stripe-bg); /* 다크모드 대응 배경 */
+        border: 1px solid var(--danger-color);
+        color: var(--danger-color);
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 15px;
+        text-align: center;
+        animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .confirm-buttons {
+        display: flex; justify-content: center; gap: 10px; margin-top: 15px;
+    }
+    .btn-confirm-delete {
+        background-color: var(--danger-color); color: white; border: none;
+        padding: 8px 16px; border-radius: 4px; text-decoration: none; font-size: 14px;
+    }
+    .btn-cancel-delete {
+        background-color: transparent; color: var(--text-color); border: 1px solid var(--border-color);
+        padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;
+    }
+
+    /* 모바일 대응 */
+    @media (max-width: 480px) {
+        .button-group { flex-direction: column-reverse; }
+        .confirm-buttons { flex-direction: column; }
+    }
+</style>
+
+<div class="modern-container">
+    <div class="form-card" style="max-width: 600px; margin: 0 auto;">
+        
+        <h1 class="title" style="justify-content: center; margin-bottom: 30px; color: #e64980;">
+            연락처 수정
+        </h1>
+        
+        <form method="POST">
+            <div class="form-group">
+                <label for="name" class="form-label">이름</label>
+                <input type="text" id="name" name="name" class="form-input" value="{{ contact.name }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="position" class="form-label">직급</label>
+                <input type="text" id="position" name="position" class="form-input" value="{{ contact.position }}" list="position-suggestions" required>
+                <datalist id="position-suggestions">
+                    {% for pos in unique_positions %}
+                    <option value="{{ pos }}">
+                    {% endfor %}
+                </datalist>
+            </div>
+            
+            <div class="form-group">
+                <label for="department" class="form-label">부서</label>
+                <input type="text" id="department" name="department" class="form-input" value="{{ contact.department }}" list="department-suggestions" required>
+                <datalist id="department-suggestions">
+                    {% for dept in unique_departments %}
+                    <option value="{{ dept }}">
+                    {% endfor %}
+                </datalist>
+            </div>
+            
+            <div class="form-group">
+                <label for="phone" class="form-label">연락처</label>
+                <input type="text" id="phone" name="phone" class="form-input" value="{{ contact.phone }}" placeholder="000-0000-0000" maxlength="13" required oninput="formatPhoneNumber(this)">
+            </div>
+            
+            <div class="form-group">
+                <label for="extension" class="form-label">내선</label>
+                <input type="text" id="extension" name="extension" class="form-input" value="{{ contact.extension }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="email" class="form-label">이메일</label>
+                <input type="email" id="email" name="email" class="form-input" value="{{ contact.email }}">
+            </div>
+
+            <div class="form-group">
+                <label for="priority_score" class="form-label">우선순위 점수 (가중치: 0.0-10.0)</label>
+                <input type="number" id="priority_score" name="priority_score" 
+                       class="form-input"
+                       value="{{ contact.priority_score | default(0.0) }}" 
+                       required min="0" max="10" step="0.1">
+            </div>
+            
+            <div class="favorite-checkbox">
+                <input type="checkbox" id="is_favorite" name="is_favorite" {% if contact.is_favorite %}checked{% endif %}>
+                <label for="is_favorite">즐겨찾기에 추가 ⭐</label>
+            </div>
+            
+            <div class="button-group">
+                <a href="{{ url_for('contact.all_contacts') }}" class="btn btn-back">뒤로 가기</a>
+                <button type="submit" class="btn btn-submit">저장</button>
+            </div>
+        </form>
+        
+        <div class="delete-section">
+            <a href="javascript:void(0);" id="delete-trigger" class="delete-link">이 연락처 삭제하기</a>
+
+            <div id="delete-confirm-box" class="custom-delete-confirm">
+                <p style="margin: 0 0 10px 0; font-weight: bold;">정말 이 연락처를 삭제하시겠습니까?</p>
+                <p style="margin: 0; font-size: 0.9em; opacity: 0.8;">삭제된 데이터는 복구할 수 없습니다.</p>
+                <div class="confirm-buttons">
+                    <a href="{{ url_for('contact.delete_contact', contact_id=contact.id) }}" class="btn-confirm-delete">예, 삭제합니다</a>
+                    <button type="button" id="cancel-delete-button" class="btn-cancel-delete">아니오, 취소</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 전화번호 자동 포맷팅 함수
+    function formatPhoneNumber(input) {
+        let value = input.value.replace(/-/g, '');
+        value = value.replace(/\D/g, '');
+        
+        if (!value) {
+            input.value = '';
+            return;
+        }
+        
+        if (value.length <= 3) {
+            input.value = value;
+        } else if (value.length <= 7) {
+            input.value = value.slice(0, 3) + '-' + value.slice(3);
+        } else {
+            input.value = value.slice(0, 3) + '-' + value.slice(3, 7) + '-' + value.slice(7, 11);
+        }
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // 1. 전화번호 초기 포맷팅 적용
+        const phoneInput = document.getElementById('phone');
+        if (phoneInput && phoneInput.value) {
+            formatPhoneNumber(phoneInput);
+        }
+
+        // 2. 삭제 확인 로직
+        const deleteTrigger = document.getElementById('delete-trigger');
+        const deleteConfirmBox = document.getElementById('delete-confirm-box');
+        const cancelDeleteButton = document.getElementById('cancel-delete-button');
+
+        // '이 연락처 삭제하기' 클릭 시 확인 박스 표시
+        deleteTrigger.addEventListener('click', function(event) {
+            event.preventDefault(); 
+            deleteConfirmBox.style.display = 'block';
+            this.style.display = 'none'; 
+        });
+
+        // '아니오, 취소' 클릭 시 확인 박스 숨기기
+        cancelDeleteButton.addEventListener('click', function() {
+            deleteConfirmBox.style.display = 'none';
+            deleteTrigger.style.display = 'inline-block'; 
+        });
+    });
+</script>
+{% endblock %}

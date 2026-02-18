@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="width: 60%; margin: 0 auto;">
+    <h1>Create New Product</h1>
+    <style>
+        /* 숨김 처리 - 체크박스만 숨김 */
+        .toggle-checkbox {
+            display: none !important;
+        }
+
+        /* 라벨 스타일 (버튼처럼 보이게) - 명시적 색상 사용 */
+        .toggle-btn {
+            display: inline-block !important;
+            padding: 8px 16px;
+            border: 2px solid #4a5568;
+            border-radius: 20px;
+            background-color: #2d3748;
+            color: #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+            user-select: none;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        /* 마우스 오버 시 */
+        .toggle-btn:hover {
+            background-color: #4a5568;
+            border-color: #5a67d8;
+        }
+
+        /* 체크되었을 때 스타일 */
+        .toggle-checkbox:checked+.toggle-btn {
+            background-color: #5a67d8 !important;
+            color: white !important;
+            border-color: #5a67d8 !important;
+            font-weight: bold;
+        }
+    </style>
+
+    <form method="post">
+        <div class="form-group">
+            <label for="name">Name:</label>
+            <input type="text" class="form-control" id="name" name="name" required>
+        </div>
+        <div class="form-group">
+            <label for="description">Description:</label>
+            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+        </div>
+
+        <div class="form-group" style="margin-top: 15px;">
+            <label>Category:</label>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 5px;">
+                {% for cat in allowed_categories %}
+                <div>
+                    <input type="checkbox" id="cat_{{ loop.index }}" name="category" value="{{ cat }}"
+                        class="toggle-checkbox">
+                    <label for="cat_{{ loop.index }}" class="toggle-btn">{{ cat }}</label>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 15px;">
+            <label>API:</label>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 5px;">
+                {% for api in allowed_apis %}
+                <div>
+                    <input type="checkbox" id="api_{{ loop.index }}" name="api" value="{{ api }}"
+                        class="toggle-checkbox">
+                    <label for="api_{{ loop.index }}" class="toggle-btn">{{ api }}</label>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div style="margin-top: 20px;">
+            <button type="submit" class="btn btn-primary">Create Product</button>
+            <a href="{{ url_for('product_list') }}" class="btn btn-secondary" style="margin-left: 10px;">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

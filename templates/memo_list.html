@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+{% block title %}
+{{ project.title }}-메모검색
+{% endblock %}
+{% block content %}
+<div class="memo-list-container" style="width: 90%; margin: 0 auto; text-align: center;">
+    <!-- 메모 검색 섹션 -->
+    <div style="margin-bottom: 20px; text-align: left;">
+        <label for="search" style="font-size: 24px;">
+            {% if project and project.id %}
+            <a href="{{ url_for('project', project_id=project.id) }}" style="color: inherit; text-decoration: underline;">
+                {{ project.title }}
+            </a>
+            {% else %}
+            <span>Unknown Project</span>
+            {% endif %}
+            - 메모 검색:
+        </label>
+        <div style="display: flex; align-items: center; margin-top: 10px; gap: 10px;">
+            <input type="text" id="search" placeholder="Search for memos..." 
+                   style="width: 50%; padding: 5px; border: 1px solid #ccc;" 
+                   onkeyup="handleKeyPress(event)">
+            
+            <!-- 태그 선택 폼 -->
+            <select id="tag-filter" style="width: 15%; padding: 5px;" onchange="searchMemos()">
+                <option value="">All Tags</option>
+                {% for tag in tags %}
+                <option value="{{ tag.name }}">{{ tag.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button onclick="searchMemos()" class="btn-search">Search</button>
+        <button onclick="resetSearch()" class="btn-reset">Reset</button>
+    </div>
+
+    <!-- 검색 결과 섹션 -->
+    <div id="search-results" style="margin-bottom: 20px; text-align: left;">
+        <!-- 검색 결과는 여기에 표시됩니다. -->
+    </div>
+
+    <!-- 메모 목록 섹션 -->
+    <div id="noteView" style="margin-bottom: 20px; text-align: left;">
+        <h3>All Memos</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 100px; min-width: 120px;">Date</th>
+                    <th style="width: 50px; min-width: 80px; text-align: center;">Tag</th>
+                    <th style="width: auto;">Content</th>
+                </tr>
+            </thead>
+            <!-- 'Pin' 태그가 있는 메모를 먼저 표시하고, 스타일을 다르게 적용 -->
+            {% for memo in memos if memo.tag and memo.tag.name == 'Pin' %}
+                <tr data-memo-id="{{ memo.id }}" onclick="viewMemo({{ memo.id }})" class="pin-memo-row" style="cursor: pointer;">
+                    <td>{{ memo.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td style="font-size: 14px; color: #F44336; text-align: center;">{{ memo.tag.name }}</td>
+                    <td>
+                        <span class="ellipsis" data-content="{{ memo.content }}">
+                            {{ memo.content }}
+                        </span>
+                        <span class="file-icons">
+                            {% if memo.image_filename %}
+                            <i class="fas fa-file-image"></i>
+                            {% endif %}
+                            {% if memo.pdf_filename %}
+                            <i class="fas fa-file-pdf"></i>
+                            {% endif %}
+                            {% if memo.excel_filename %}
+                            <i class="fas fa-file-excel"></i>
+                            {% endif %}
+                            {% if memo.ppt_filename %}
+                            <i class="fas fa-file-powerpoint"></i>
+                            {% endif %}
+                            {% if memo.md_filename %}
+                            <i class="fas fa-file-alt"></i>
+                            {% endif %}
+                            {% if memo.html_filename %}
+                            <i class="fas fa-file-code"></i>
+                            {% endif %}
+                        </span>
+                    </td>
+                </tr>
+            {% endfor %}
+            
+            <!-- 나머지 메모들을 표시 -->
+            {% for memo in memos if not (memo.tag and memo.tag.name == 'Pin') %}
+                <tr data-memo-id="{{ memo.id }}" onclick="viewMemo({{ memo.id }})" style="cursor: pointer;">
+                    <td>{{ memo.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td style="font-size: 14px; color: #F44336; text-align: center;">{% if memo.tag %}{{ memo.tag.name }}{% else %}&nbsp;{% endif %}</td>
+                    <td>
+                        <span class="ellipsis" data-content="{{ memo.content }}">
+                            {{ memo.content }}
+                        </span>
+                        <span class="file-icons">
+                            {% if memo.image_filename %}
+                            <i class="fas fa-file-image"></i>
+                            {% endif %}
+                            {% if memo.pdf_filename %}
+                            <i class="fas fa-file-pdf"></i>
+                            {% endif %}
+                            {% if memo.excel_filename %}
+                            <i class="fas fa-file-excel"></i>
+                            {% endif %}
+                            {% if memo.ppt_filename %}
+                            <i class="fas fa-file-powerpoint"></i>
+                            {% endif %}
+                            {% if memo.md_filename %}
+                            <i class="fas fa-file-alt"></i>
+                            {% endif %}
+                            {% if memo.html_filename %}
+                            <i class="fas fa-file-code"></i>
+                            {% endif %}
+                        </span>
+                    </td>
+                </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <div id="tableView" class="hidden">
+        <!-- 테이블 뷰 컨텐츠를 여기에 추가합니다 -->
+    </div>
+</div>
+
+<script>
+    // 페이지 로드 시 세션에 저장된 view_mode를 불러와서 적용
+    document.addEventListener('DOMContentLoaded', function() {
+        fetch('/get_view_mode')
+            .then(response => response.json())
+            .then(data => {
+                const mode = data.view_mode || 'note';  // 기본값은 'note'
+                toggleViewMode(mode);
+            });
+    });
+
+    function toggleViewMode(mode) {
+        if (mode === 'table') {
+            document.getElementById('noteView').classList.add('hidden');
+            document.getElementById('tableView').classList.remove('hidden');
+        } else {
+            document.getElementById('noteView').classList.remove('hidden');
+            document.getElementById('tableView').classList.add('hidden');
+        }
+
+        fetch('/set_view_mode', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ view_mode: mode }),
+        }).then(response => {
+            if (!response.ok) {
+                console.error('Failed to save view mode');
+            }
+        });
+    }
+
+    function searchMemos() {
+        var searchQuery = document.getElementById('search').value.toLowerCase();
+        var selectedTag = document.getElementById('tag-filter').value.toLowerCase();
+        var memos = document.querySelectorAll('tr[data-memo-id]');
+        var resultsContainer = document.getElementById('search-results');
+        var pinResultsHTML = '';
+        var otherResultsHTML = '';
+    
+        memos.forEach(function(memo) {
+            var content = memo.querySelector('.ellipsis').textContent.toLowerCase();
+            var tag = memo.querySelector('td:nth-child(2)').textContent.trim().toLowerCase();
+            var matchesSearch = content.includes(searchQuery);
+            var matchesTag = selectedTag === "" || tag === selectedTag;
+    
+            if (matchesSearch && matchesTag) {
+                var fileIcons = memo.querySelector('.file-icons').innerHTML;
+                var isPinMemo = tag === 'pin';
+                var rowClass = isPinMemo ? 'class="pin-memo-row"' : '';
+                
+                
+                var memoHTML = `
+                    <tr ${rowClass} onclick="viewMemo(${memo.dataset.memoId})" style="cursor: pointer;">
+                        <td>${memo.querySelector('td:nth-child(1)').innerHTML}</td>
+                        <td style="font-size: 14px; color: #F44336; text-align: center;">${tag || '&nbsp;'}</td>
+                        <td>
+                            <span class="ellipsis">
+                                ${memo.querySelector('.ellipsis').innerHTML}
+                            </span>
+                            <span class="file-icons">
+                                ${fileIcons.replace(/style="[^"]*"/g, '')}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+    
+                if (isPinMemo) {
+                    pinResultsHTML += memoHTML;
+                } else {
+                    otherResultsHTML += memoHTML;
+                }
+            }
+        });
+    
+        var resultsHTML = pinResultsHTML + otherResultsHTML;
+    
+        if (resultsHTML) {
+            resultsContainer.innerHTML = `
+                <h3>Search Results</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 120px; min-width: 120px;">Date</th>
+                            <th style="width: 80px; min-width: 80px; text-align: center;">Tag</th>
+                            <th style="width: auto;">Content</th>
+                        </tr>
+                    </thead>
+                    ${resultsHTML}
+                </table>
+            `;
+        } else {
+            resultsContainer.innerHTML = '<p>No results found</p>';
+        }
+    }
+
+    function resetSearch() {
+        document.getElementById('search').value = '';
+        document.getElementById('tag-filter').value = '';
+        document.getElementById('search-results').innerHTML = '';
+    }
+
+    function handleKeyPress(event) {
+        if (event.key === 'Enter') {
+            searchMemos();
+        }
+    }
+
+    function viewMemo(memoId) {
+        window.location.href = "/view_memo/" + memoId;
+    }
+</script>
+
+<style>
+    /* ★ 중요: 색상, 배경, 테두리 등 디자인 요소는 모두 제거했습니다.
+       이제 static/style.css의 전역 설정(다크모드 포함)을 자동으로 따릅니다.
+       여기에는 이 페이지의 '레이아웃(너비, 배치)' 관련 설정만 남겼습니다.
+    */
+    
+    /* 입력 폼 레이아웃 */
+    #search {
+        width: 60%;
+        margin-right: 10px;
+    }
+    #tag-filter {
+        width: 20%;
+    }
+    
+    /* 태그 및 파일 아이콘 위치 조정 */
+    .tag-cell {
+        font-size: 14px;
+        /* 색상은 style.css의 var(--danger-color) 등을 따름 */
+    }
+    
+    .file-icons {
+        display: inline-block;
+        vertical-align: bottom;
+        margin-left: 5px;
+    }
+    
+    /* 테이블 폰트 및 스타일 */
+    th {
+        font-size: 1.05em;
+    }
+    
+    .ellipsis {
+        display: inline-block;
+        max-width: calc(100% - 30px);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: bottom;
+        font-size: 1.05em;
+    }
+
+    /* 파일 아이콘 색상 (Light Mode) */
+    .memo-list-container .fa-file-pdf { color: #CC0000; }
+    .memo-list-container .fa-file-image { color: #0066CC; }
+    .memo-list-container .fa-file-excel { color: #006600; }
+    .memo-list-container .fa-file-powerpoint { color: #CC6600; }
+    .memo-list-container .fa-file-alt { color: #660066; }
+    .memo-list-container .fa-file-code { color: #CC6600; }
+
+    /* 파일 아이콘 색상 (Dark Mode) */
+    body.dark-mode .memo-list-container .fa-file-pdf { color: #A65252 !important; }
+    body.dark-mode .memo-list-container .fa-file-image { color: #5C85AD !important; }
+    body.dark-mode .memo-list-container .fa-file-excel { color: #5B8C5B !important; }
+    body.dark-mode .memo-list-container .fa-file-powerpoint { color: #A67C52 !important; }
+    body.dark-mode .memo-list-container .fa-file-alt { color: #8E6B8E !important; }
+    body.dark-mode .memo-list-container .fa-file-code { color: #A68A52 !important; }
+    
+    /* === 모바일 대응 (레이아웃만 조정) === */
+    @media screen and (max-width: 768px) {
+        .memo-list-container { 
+            width: 100% !important; 
+            padding: 0 !important; 
+            margin: 0 !important; 
+        }
+        
+        /* 검색창 모바일 너비 */
+        #search, #tag-filter { 
+            width: 80% !important; 
+            margin-bottom: 10px !important; 
+            box-sizing: border-box !important; 
+        }
+        #search { 
+            font-size: 16px !important; 
+            padding: 8px; 
+        }        
+        /* 상단 네비 검색창 숨김 (중복 방지) */
+        .nav-search-form { display: none !important; }
+        
+        /* 테이블 컬럼 너비 조정 */
+        table th:first-child, table td:first-child { 
+            width: 20% !important; /* 날짜 */
+            min-width: 90px !important;
+            white-space: nowrap !important;
+            
+        }        
+        table th:nth-child(2), table td:nth-child(2) { 
+            display: none !important; 
+        }
+        table th:nth-child(3), table td:nth-child(3) { 
+            width: auto !important;
+            display: table-cell; 
+        }
+        
+        .ellipsis { max-width: calc(100% - 40px) !important; }
+    }
+    
+    </style>
+{% endblock %}

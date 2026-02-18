@@ -1,0 +1,2077 @@
+{% extends "base.html" %}
+
+{% block title %}Todo{% endblock %}
+
+{% block content %}
+<style>
+    /* Todo 페이지에서는 main의 padding 제거 */
+    main {
+        padding-top: 0 !important;
+    }
+
+    /* Todo App Specific Styles */
+    .todo-container {
+        display: flex;
+        position: fixed;
+        top: 60px; /* navbar 높이 */
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #f5f5f5;
+        overflow: hidden;
+    }
+    
+    body.dark-mode .todo-container {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+    }
+
+    /* Fix for detail panel overflow and scrollbar */
+    html, body {
+        margin: 0;
+        padding: 0;
+    }
+
+    /* Sidebar */
+    .todo-sidebar {
+        width: 260px;
+        background-color: var(--bg-color); /* Light mode uses var(--bg-color) = white */
+        border-right: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        padding-top: 20px;
+    }
+    
+    body.dark-mode .todo-sidebar {
+        background-color: var(--bg-color);
+        border-color: var(--border-color);
+    }
+
+    .sidebar-menu {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .sidebar-item {
+        padding: 10px 20px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 1rem;
+        color: #333;
+        transition: background-color 0.2s;
+    }
+    
+    body.dark-mode .sidebar-item {
+        color: var(--text-color);
+    }
+
+    .sidebar-item:hover {
+        background-color: #f0f0f0;
+    }
+    
+    body.dark-mode .sidebar-item:hover {
+        background-color: var(--dropdown-hover-bg);
+    }
+
+    .sidebar-item.active {
+        background-color: #e3f2fd; /* Light Blue */
+        color: #1976d2;
+        font-weight: 500;
+    }
+    
+    body.dark-mode .sidebar-item.active {
+        background-color: var(--link-color);
+        color: white;
+    }
+
+    .sidebar-icon {
+        width: 20px;
+        text-align: center;
+    }
+    
+    .sidebar-count {
+        margin-left: auto;
+        font-size: 0.9em;
+        color: #888;
+    }
+
+    .divider {
+        height: 1px;
+        background-color: var(--border-color);
+        margin: 10px 0;
+    }
+    
+    body.dark-mode .divider {
+        background-color: var(--border-color);
+    }
+
+    .new-list-btn {
+        padding: 10px 20px;
+        color: var(--link-color);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    body.dark-mode .new-list-btn {
+        color: var(--link-color);
+    }
+
+    /* Main Content */
+    .todo-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background-image: url('https://images.unsplash.com/photo-1542272454315-4c01d7abdf4a?auto=format&fit=crop&q=80&w=2000'); /* Example bg */
+        background-size: cover;
+        background-position: center;
+        position: relative;
+    }
+    
+    /* Overlay for readability */
+    .todo-main::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: rgba(255, 255, 255, 0.5);
+    }
+    body.dark-mode .todo-main::before {
+        background-color: var(--panel-overlay);
+    }
+
+    .todo-content {
+        position: relative;
+        z-index: 1;
+        padding: 40px;
+        max-width: 800px;
+        width: 100%;
+        margin: 0 auto;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box; /* Important for padding */
+    }
+
+    .list-header {
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .list-title {
+        font-size: 2rem;
+        font-weight: bold;
+        color: var(--text-color);
+        text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+    }
+    body.dark-mode .list-title {
+        color: var(--text-color);
+        text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+    }
+    
+    .current-date {
+        font-size: 1.1rem;
+        color: #555;
+    }
+    body.dark-mode .current-date {
+        color: #ccc;
+    }
+
+    /* Task List */
+    .task-list-container {
+        flex: 1;
+        overflow-y: auto;
+        margin-bottom: 0; /* Removed bottom margin since add-task form is gone */
+    }
+    
+    /* Scrollbar Styling */
+    .task-list-container::-webkit-scrollbar {
+        width: 8px;
+    }
+    .task-list-container::-webkit-scrollbar-thumb {
+        background-color: rgba(0,0,0,0.2);
+        border-radius: 4px;
+    }
+
+    .task-item {
+        background-color: var(--bg-color); /* Was white */
+        border: 1px solid var(--border-color); /* Added border to match theme */
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        cursor: pointer;
+        transition: transform 0.1s, box-shadow 0.1s;
+    }
+    
+    body.dark-mode .task-item {
+        background-color: var(--input-bg); /* Use input-bg for card-like items in dark mode */
+        border-color: var(--border-color);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    .task-item:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .task-checkbox {
+        width: 20px;
+        height: 20px;
+        border: 2px solid var(--border-color);
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: border-color 0.2s, background-color 0.2s;
+    }
+    
+    .task-checkbox:hover {
+        border-color: #1976d2;
+    }
+
+    .task-checkbox.completed {
+        background-color: #1976d2;
+        border-color: #1976d2;
+    }
+    
+    .task-checkbox.completed::after {
+        content: '✔';
+        color: white;
+        font-size: 12px;
+    }
+
+    .task-content-text {
+        flex: 1;
+        font-size: 1rem;
+        color: var(--text-color);
+    }
+    
+    body.dark-mode .task-content-text {
+        color: var(--text-color);
+    }
+
+    .task-item.completed .task-content-text {
+        text-decoration: line-through;
+        color: #999;
+    }
+
+    .task-meta {
+        display: flex;
+        gap: 8px;
+        font-size: 0.8rem;
+        color: #777;
+    }
+
+    .star-btn {
+        cursor: pointer;
+        color: #ccc;
+        transition: color 0.2s;
+    }
+    
+    .star-btn.important {
+        color: #ff9800; /* Orange */
+    }
+
+    .star-btn:hover {
+        color: #ffb74d;
+    }
+
+    /* Add Task Input */
+    .add-task-container {
+        background-color: var(--input-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        cursor: text;
+    }
+    
+    body.dark-mode .add-task-container {
+        background-color: var(--input-bg);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+
+    .add-task-input {
+        border: none;
+        background: transparent;
+        flex: 1;
+        font-size: 1rem;
+        outline: none;
+        color: var(--input-text);
+    }
+    
+    body.dark-mode .add-task-input {
+        color: var(--input-text);
+    }
+    
+    .add-task-placeholder {
+        color: #888;
+    }
+
+    /* Create Task Modal */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 2000;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .task-modal {
+        background: var(--bg-color);
+        width: 500px;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        border: 1px solid var(--border-color); /* Added border */
+    }
+    
+    body.dark-mode .task-modal {
+        background: var(--bg-color);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+
+    .modal-title-input {
+        border: none;
+        font-size: 1.4rem;
+        width: 100%;
+        outline: none;
+        background: transparent;
+        color: var(--text-color);
+    }
+    
+    body.dark-mode .modal-title-input {
+        color: var(--text-color);
+    }
+
+    .modal-options {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .modal-option-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--text-color);
+    }
+    
+    body.dark-mode .modal-option-row {
+        color: var(--text-color);
+    }
+
+    .modal-btn-group {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 10px;
+    }
+    
+    .btn-primary {
+        background-color: #1976d2;
+        color: white;
+        border: none;
+        padding: 8px 20px;
+        border-radius: 20px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    
+    .btn-cancel {
+        background-color: transparent;
+        color: var(--secondary-text);
+        border: none;
+        padding: 8px 16px;
+        cursor: pointer;
+    }
+    
+    body.dark-mode .btn-cancel {
+        color: var(--secondary-text);
+    }
+    
+    .date-picker-btn {
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 5px 10px;
+        background: var(--input-bg);
+        cursor: pointer;
+        font-family: inherit;
+        color: var(--input-text);
+    }
+    
+    body.dark-mode .date-picker-btn {
+        background: var(--input-bg);
+        border-color: var(--border-color);
+        color: var(--input-text);
+    }
+    
+    /* Right Detail Panel (Slide-in) */
+    .detail-panel {
+        position: fixed;
+        right: -365px;
+        top: 60px; /* navbar height */
+        bottom: 0;
+        width: 365px;
+        background: var(--bg-color);
+        border-left: 1px solid var(--border-color);
+        box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+        transition: right 0.3s ease;
+        z-index: 1000;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        /* 이 부분 추가 */
+        box-sizing: border-box;
+        overflow-y: auto;
+        overflow-x: hidden;        
+    }
+    
+    body.dark-mode .detail-panel {
+        background: var(--bg-color);
+        border-color: var(--border-color);
+    }
+    
+    .detail-panel.open {
+        right: 0;
+    }
+    
+    .detail-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .detail-content-edit {
+        font-size: 1.2rem;
+        border: none;
+        background: transparent;
+        width: 100%;
+        outline: none;
+        color: var(--text-color);
+        font-weight: bold;
+    }
+    body.dark-mode .detail-content-edit { color: var(--text-color); }
+    
+    .step-list {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        margin-top: 10px;
+    }
+    
+    .step-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+        cursor: pointer; /* Clickable row */
+    }
+    
+    .step-icon {
+        color: #ccc;
+        font-size: 1.1rem;
+        transition: color 0.2s;
+    }
+    
+    .step-icon:hover {
+        color: #1976d2;
+    }
+    
+    .step-item.completed .step-icon {
+        color: #1976d2;
+    }
+    
+    .step-input {
+        border: none;
+        border-bottom: 1px solid transparent;
+        background: transparent;
+        flex: 1;
+        outline: none;
+        color: var(--text-color);
+        padding: 4px 0;
+    }
+    body.dark-mode .step-input { color: var(--text-color); }
+    .step-input:focus { border-bottom-color: #1976d2; }
+    
+    .step-item.completed .step-input {
+        text-decoration: line-through;
+        color: #888;
+    }
+
+    .detail-section {
+        background: var(--input-bg); /* Use input background for sections */
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color); /* Added border for clarity */
+    }
+    body.dark-mode .detail-section { background: var(--input-bg); }
+
+    /* New Create Button */
+    .create-task-btn {
+        margin: 10px 15px 10px 15px;
+        background-color: var(--bg-color);
+        color: #1976d2;
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 10px 20px;
+        font-size: 1rem;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        cursor: pointer;
+        transition: box-shadow 0.2s, background-color 0.2s;
+        width: fit-content;
+    }
+    
+    body.dark-mode .create-task-btn {
+        background-color: var(--input-bg);
+        color: var(--text-color);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+    
+    .create-task-btn:hover {
+         box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+         background-color: #f9f9f9;
+        transform: translateY(-1px);
+    }
+    body.dark-mode .create-task-btn:hover {
+         background-color: var(--dropdown-hover-bg);
+    }
+
+    /* Completed Section */
+    .completed-section {
+        margin-top: 20px;
+        border-top: 1px solid rgba(0,0,0,0.1);
+        padding-top: 10px;
+    }
+    body.dark-mode .completed-section {
+        border-top-color: rgba(255,255,255,0.1);
+    }
+
+    .completed-header {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        padding: 8px 0;
+        font-size: 0.9rem;
+        color: #777;
+        font-weight: 500;
+        transition: color 0.2s;
+    }
+    .completed-header:hover {
+        color: var(--text-color);
+    }
+    
+    .completed-content {
+        display: none;
+    }
+    .completed-content.open {
+        display: block;
+    }
+    
+    .arrow-icon {
+        margin-right: 8px;
+        transition: transform 0.2s;
+        font-size: 0.8rem;
+    }
+    .arrow-icon.open {
+        transform: rotate(90deg);
+    }
+
+    /* List Options Menu (Three Dots) */
+    .list-menu-dropdown {
+        position: absolute;
+        top: 50px;
+        right: 40px;
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        min-width: 200px;
+        z-index: 1500;
+        display: none;
+        padding: 8px 0;
+    }
+    body.dark-mode .list-menu-dropdown {
+        background: var(--input-bg);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    .list-menu-dropdown.show {
+        display: block;
+    }
+    .list-menu-item {
+        padding: 10px 16px;
+        cursor: pointer;
+        color: var(--text-color);
+        font-size: 0.9rem;
+        transition: background-color 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .list-menu-item:hover {
+        background-color: var(--dropdown-hover-bg);
+    }
+    .list-menu-item.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .list-menu-item.disabled:hover {
+        background-color: transparent;
+    }
+
+    /* Toast Message */
+    .toast-message {
+        position: fixed;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%) translateY(100px);
+        background: #323232;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        z-index: 9999;
+        opacity: 0;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .toast-message.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+    .toast-message.error {
+        background: #f44336;
+    }
+    .list-menu-divider {
+        height: 1px;
+        background-color: var(--border-color);
+        margin: 4px 0;
+    }
+    .list-menu-item-subtitle {
+        font-size: 0.75rem;
+        color: #888;
+        margin-top: 2px;
+    }
+
+    /* Task Context Menu (Three Dots on Each Task) */
+    .task-menu-btn {
+        opacity: 0;
+        transition: opacity 0.2s;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--text-color);
+        padding: 4px 8px;
+    }
+    .task-item:hover .task-menu-btn {
+        opacity: 1;
+    }
+    .task-menu-dropdown {
+        position: absolute;
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        min-width: 180px;
+        z-index: 2000;
+        display: none;
+        padding: 8px 0;
+    }
+    body.dark-mode .task-menu-dropdown {
+        background: var(--input-bg);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    .task-menu-dropdown.show {
+        display: block;
+    }
+
+</style>
+
+<div class="todo-container">
+    <!-- Sidebar -->
+    <div class="todo-sidebar">
+        <div class="create-task-btn" onclick="openAddTaskModal()">
+            <i class="fas fa-plus"></i> <span style="font-size: 14px;">만들기</span>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="sidebar-item active" onclick="loadList('my_day')">
+                <div class="sidebar-icon"><i class="fas fa-sun"></i></div>
+                <span>오늘 할 일</span>
+                <span class="sidebar-count" id="count-my_day"></span>
+            </li>
+            <li class="sidebar-item" onclick="loadList('important')">
+                <div class="sidebar-icon"><i class="far fa-star"></i></div>
+                <span>중요</span>
+                <span class="sidebar-count" id="count-important"></span>
+            </li>
+            <li class="sidebar-item" onclick="loadList('planned')">
+                <div class="sidebar-icon"><i class="far fa-calendar-alt"></i></div>
+                <span>계획된 일정</span>
+                <span class="sidebar-count" id="count-planned"></span>
+            </li>
+            <li class="sidebar-item" onclick="loadList('tasks')">
+                <div class="sidebar-icon"><i class="fas fa-home"></i></div>
+                <span>Tasks</span>
+                <span class="sidebar-count" id="count-tasks"></span>
+            </li>
+            <li class="sidebar-item" onclick="loadList('project_tasks')">
+                <div class="sidebar-icon"><i class="fas fa-project-diagram"></i></div>
+                <span>프로젝트 작업</span>
+            </li>
+        </ul>
+        
+        <div class="divider"></div>
+        
+        <ul class="sidebar-menu" id="custom-lists">
+            <!-- Used created lists will go here -->
+        </ul>
+        
+        <div class="new-list-btn" onclick="createNewList()">
+            <div class="sidebar-icon"><i class="fas fa-plus"></i></div>
+            <span>새 목록</span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="todo-main" id="main-bg">
+        <div class="todo-content">
+            <div class="list-header">
+                <div>
+                    <div class="list-title" id="current-list-title">오늘 할 일</div>
+                    <div class="current-date" id="current-date-display">1월 17일 금요일</div>
+                </div>
+                <button style="background:none; border:none; cursor:pointer; color:inherit;" onclick="toggleListMenu(event)">
+                    <i class="fas fa-ellipsis-h" style="font-size: 1.2rem;"></i>
+                </button>
+            </div>
+
+            <!-- List Options Menu -->
+            <div class="list-menu-dropdown" id="listMenuDropdown">
+                <div style="padding: 8px 16px; color: #888; font-size: 0.85rem; font-weight: 500;">정렬 기준</div>
+                
+                <div class="list-menu-item" onclick="setSortOrder('custom')">
+                    <i class="fas fa-check" id="sort-custom-check" style="font-size:0.8rem; color:#1976d2;"></i>
+                    <span>내가 정렬한 대로</span>
+                </div>
+                <div class="list-menu-item" onclick="setSortOrder('date')">
+                    <i class="fas fa-check" id="sort-date-check" style="font-size:0.8rem; color:transparent;"></i>
+                    <span>날짜</span>
+                </div>
+                <div class="list-menu-item" onclick="setSortOrder('due')">
+                    <i class="fas fa-check" id="sort-due-check" style="font-size:0.8rem; color:transparent;"></i>
+                    <span>기한</span>
+                </div>
+                <div class="list-menu-item" onclick="setSortOrder('starred')">
+                    <i class="fas fa-check" id="sort-starred-check" style="font-size:0.8rem; color:transparent;"></i>
+                    <span>최근 별표표시한 항목</span>
+                </div>
+                <div class="list-menu-item" onclick="setSortOrder('title')">
+                    <i class="fas fa-check" id="sort-title-check" style="font-size:0.8rem; color:transparent;"></i>
+                    <span>제목</span>
+                </div>
+                
+                <div class="list-menu-divider"></div>
+                
+                <div class="list-menu-item" id="renameListMenuItem" onclick="renameCurrentList()">
+                    <span>목록 이름 변경</span>
+                </div>
+                <div class="list-menu-item" id="deleteListMenuItem" onclick="deleteCurrentList()">
+                    <span>목록 삭제</span>
+                    <div class="list-menu-item-subtitle" id="deleteListSubtitle">기본 목록은 삭제할 수 없음</div>
+                </div>
+                
+                <div class="list-menu-divider"></div>
+                
+                <div class="list-menu-item disabled">
+                    <span>목록 인쇄</span>
+                </div>
+                <div class="list-menu-item" onclick="deleteCompletedTasks()">
+                    <span>완료된 할 일 모두 삭제</span>
+                </div>
+                <div class="list-menu-item disabled">
+                    <span>오래된 할 일 정리</span>
+                </div>
+            </div>
+
+            <div class="task-list-container" id="task-list-area">
+                <!-- Tasks will be injected here -->
+            </div>
+
+            <!-- Task Context Menu -->
+            <div class="task-menu-dropdown" id="taskMenuDropdown">
+                <div class="list-menu-item" onclick="deleteTaskFromMenu()">
+                    <i class="far fa-trash-alt" style="font-size:0.9rem;"></i>
+                    <span>삭제</span>
+                </div>
+                <div class="list-menu-divider"></div>
+                <div style="padding: 8px 16px; color: #888; font-size: 0.85rem; font-weight: 500;">목록으로 이동</div>
+                <div id="taskMenuMoveToList">
+                    <!-- Populated dynamically -->
+                </div>
+                <div class="list-menu-item" onclick="showToast('새 목록 생성 기능은 추후 구현 예정입니다')">
+                    <i class="fas fa-plus" style="font-size:0.8rem;"></i>
+                    <span>새 목록</span>
+                </div>
+            </div>
+            
+            
+            <!-- In-place Add Task (Removed) -->
+            <!-- <div class="add-task-container" onclick="openAddTaskModal()">
+                <i class="fas fa-plus" style="color: #1976d2;"></i>
+                <input type="text" class="add-task-input" placeholder="작업 추가" readonly>
+            </div> -->
+        </div>
+    </div>
+</div>
+
+<!-- Add Task Modal -->
+<div class="modal-overlay" id="addTaskModal">
+    <div class="task-modal">
+        <div style="display:flex; justify-content:space-between;">
+            <h3>할 일 추가</h3>
+            <button class="btn-cancel" onclick="closeAddTaskModal()">✕</button>
+        </div>
+        
+        <input type="text" class="modal-title-input" id="newTaskContent" placeholder="제목 추가" autofocus>
+        
+        <div class="modal-options">
+            <div class="modal-option-row">
+                <i class="far fa-clock" style="color:#1976d2;"></i>
+                <div style="display:flex; flex-direction:column; gap:8px; flex:1;">
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <input type="date" class="date-picker-btn" id="newTaskDate" style="flex:1;">
+                        <input type="time" class="date-picker-btn" id="newTaskTime" style="flex:1;">
+                    </div>
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:5px;">
+                        <input type="checkbox" id="newTaskAllDay" onchange="toggleTimeInput()"> 종일
+                    </label>
+                </div>
+            </div>
+             <div class="modal-option-row">
+                <i class="far fa-sun"></i>
+                <label style="cursor:pointer; display:flex; align-items:center; gap:5px;">
+                    <input type="checkbox" id="newTaskMyDay"> 오늘 할 일에 추가
+                </label>
+            </div>
+            <div class="modal-option-row">
+               <textarea id="newTaskMemo" placeholder="설명 추가" style="width:100%; border:1px solid #ddd; background:transparent; color:inherit; resize:none; height:60px; padding:5px;"></textarea>
+            </div>
+             <div class="modal-option-row">
+                <i class="fas fa-list"></i>
+                <select id="newTaskTodoList" class="date-picker-btn" style="width:100%;">
+                    <!-- Options populated by JS -->
+                </select>
+            </div>
+        </div>
+        
+        <div class="modal-btn-group">
+            <button class="btn-primary" onclick="submitNewTask()">저장</button>
+        </div>
+    </div>
+</div>
+
+<!-- Task Detail Panel -->
+<div class="detail-panel" id="detailPanel">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div class="detail-header" style="flex:1;">
+            <div class="task-checkbox" id="detail-checkbox" onclick="toggleDetailComplete()"></div>
+            <input type="text" class="detail-content-edit" id="detailContent" onchange="updateDetailContent()">
+        </div>
+        <button class="star-btn" id="detailStar" onclick="toggleDetailImportant()"><i class="far fa-star"></i></button>
+    </div>
+    
+    <div class="detail-section">
+        <label style="display:flex; align-items:center; gap:10px; cursor:pointer;" onclick="toggleDetailMyDay()">
+            <i class="far fa-sun" id="detailMyDayIcon" style="color:#1976d2;"></i>
+            <span id="detailMyDayText">오늘 할 일에 추가됨</span>
+        </label>
+    </div>
+    
+    <div class="detail-section">
+        <div style="display:flex; align-items:center; width:100%; margin-bottom:8px;">
+            <i class="far fa-calendar-alt" style="color:#1976d2;"></i>
+            <input type="datetime-local" class="date-picker-btn" style="flex:1; margin-left:10px; border:none; background:transparent;" id="detailDueDate">
+        </div>
+        <div style="display:flex; justify-content:flex-end; align-items:center; gap:10px;">
+            <label style="display:flex; align-items:center; gap:5px; font-size:0.85rem; color:#888; cursor:pointer;">
+                <input type="checkbox" id="detailAllDay" onchange="toggleDetailAllDay()">
+                <span>종일</span>
+            </label>
+            <button id="dueDateSaveBtn" onclick="updateDetailDate()" style="background:#1976d2; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:0.85rem; transition:background 0.3s; display:flex; align-items:center; justify-content:center; gap:5px;">
+                <i class="fas fa-save"></i> 저장
+            </button>
+        </div>
+    </div>
+
+    <div class="detail-section" id="calendarSyncSection" style="display:none; cursor:pointer;" onclick="toggleCalendarSync()">
+        <div style="display:flex; align-items:center; gap:10px;">
+            <i class="far fa-calendar-plus" id="calendarSyncIcon" style="color:#1976d2;"></i>
+            <span id="calendarSyncText">캘린더에 추가</span>
+        </div>
+    </div>
+    
+    <div class="detail-section">
+        <label style="font-size:0.9rem; color:#888; display:block; margin-bottom:5px;">하위 할 일</label>
+        <div id="step-list-container" class="step-list">
+            <!-- Steps injected here -->
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+            <i class="fas fa-plus" style="font-size:0.8rem; color:#1976d2;"></i>
+            <input type="text" id="newStepInput" placeholder="단계 추가" style="border:none; background:transparent; outline:none; font-size:0.9rem; flex:1;" onkeydown="handleNewStep(event)">
+        </div>
+    </div>
+    
+    
+    <div class="detail-section" style="display:flex; flex-direction:column;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <label style="font-size:0.9rem; color:#888;">노트</label>
+            <button id="memoSaveBtn" onclick="updateDetailMemo()" style="background:#1976d2; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-size:1rem; transition:background 0.3s; display:flex; align-items:center; justify-content:center;">
+                <i class="fas fa-save"></i>
+            </button>
+        </div>
+        <textarea id="detailMemo" placeholder="노트 추가" style="width:100%; min-height:120px; max-height:200px; border:none; background:transparent; resize:vertical; font-family:inherit; color:inherit;"></textarea>
+    </div>
+    
+    <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:#888;">
+        <span id="detailCreated">생성일: </span>
+        <button onclick="deleteCurrentTask()" style="color:#f44336; background:none; border:none; cursor:pointer;"><i class="fas fa-trash"></i> 삭제</button>
+    </div>
+    
+     <button class="btn-cancel" onclick="closeDetailPanel()" style="align-self: flex-start;">닫기</button>
+</div>
+
+<!-- Toast Message -->
+<div class="toast-message" id="toastMessage"></div>
+
+<script>
+    // Toast message function
+    function showToast(message, duration = 2000, isError = false) {
+        const toast = document.getElementById('toastMessage');
+        toast.textContent = message;
+        toast.className = 'toast-message' + (isError ? ' error' : '');
+        toast.classList.add('show');
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, duration);
+    }
+
+    // State
+    let currentFilter = 'my_day';
+    let currentListId = null;
+    let allLists = [];
+    let currentTask = null; // For detail view
+    let showCompleted = false; // Toggle state for completed tasks
+
+    // Helper: Check if task's my_day_date is today
+    function isMyDayToday(task) {
+        if (!task.is_my_day) return false;
+        if (!task.my_day_date) return false;
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const today = `${year}-${month}-${day}`; // YYYY-MM-DD
+        return task.my_day_date === today;
+    }
+
+    // Init
+    document.addEventListener('DOMContentLoaded', () => {
+        const today = new Date();
+        const options = { weekday: 'long', month: 'long', day: 'numeric' };
+        document.getElementById('current-date-display').textContent = today.toLocaleDateString('ko-KR', options);
+        
+        loadLists();
+        loadList('my_day'); // Default
+
+        // Click outside to close detail panel
+        document.addEventListener('click', (e) => {
+            const panel = document.getElementById('detailPanel');
+            // If panel is open, and click target is NOT inside panel, and NOT a task item (which handles opening)
+            if (panel.classList.contains('open') && 
+                !panel.contains(e.target) && 
+                !e.target.closest('.task-item')) {
+                closeDetailPanel();
+            }
+        });
+    });
+
+    // === Lists ===
+    async function loadLists() {
+        try {
+            const res = await fetch('/todo/api/lists');
+            allLists = await res.json();
+            
+            const customListContainer = document.getElementById('custom-lists');
+            customListContainer.innerHTML = '';
+            
+            const select = document.getElementById('newTaskTodoList');
+            select.innerHTML = '<option value="">Tasks (기본)</option>'; // Reset
+            
+            allLists.forEach(list => {
+                // Sidebar
+                const li = document.createElement('li');
+                li.className = 'sidebar-item';
+                li.innerHTML = `
+                   <div class="sidebar-icon"><i class="fas fa-list-ul"></i></div>
+                   <span>${list.title}</span>
+                   <span class="sidebar-count">${list.count || 0}</span>
+                `;
+                li.onclick = () => loadList(null, list.id, list.title);
+                customListContainer.appendChild(li);
+                
+                // Modal Select
+                const opt = document.createElement('option');
+                opt.value = list.id;
+                opt.textContent = list.title;
+                select.appendChild(opt);
+            });
+            
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function createNewList() {
+        const title = prompt("새 목록 이름:");
+        if (title) {
+            await fetch('/todo/api/lists', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({title})
+            });
+            loadLists();
+        }
+    }
+
+    // === Tasks ===
+    async function loadList(filter, listId = null, title = null) {
+        currentFilter = filter;
+        currentListId = listId;
+        
+        // Reset sort order when switching views
+        setSortOrder('custom');
+        
+        // UI Update
+        document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+        // (Simple active state logic matching is hard without unique IDs on sidebar items, skipping visual highlight for custom lists simpler for now or add IDs)
+        
+        // Title
+        const titleEl = document.getElementById('current-list-title');
+        let queryStr = '';
+
+        
+        if (filter === 'project_tasks') {
+            titleEl.textContent = '프로젝트 작업';
+            // alert('Loading project tasks... (Debug)'); 
+            
+            try {
+                const res = await fetch('/todo/api/project/tasks');
+                if (!res.ok) {
+                    throw new Error(`API Error: ${res.status}`);
+                }
+                const projectTasks = await res.json();
+                
+                if (!Array.isArray(projectTasks)) {
+                    console.error('Invalid format:', projectTasks);
+                    showToast('데이터 형식이 올바르지 않습니다', 3000, true);
+                    return;
+                }
+                
+                // Normalize for render
+                const tasks = projectTasks.map(t => ({
+                    id: t.id,
+                    content: t.title,
+                    completed: false, 
+                    is_project_task: true,
+                    project_title: t.project_title,
+                    due_date: t.due_date,
+                    original_data: t
+                }));
+                renderTasks(tasks);
+            } catch (err) {
+                console.error(err);
+                showToast('오류 발생: ' + err.message, 3000, true);
+            }
+            return;
+        } else if (filter) {
+            if (filter === 'my_day') titleEl.textContent = '오늘 할 일';
+            if (filter === 'important') titleEl.textContent = '중요';
+            if (filter === 'planned') titleEl.textContent = '계획된 일정';
+            if (filter === 'tasks') titleEl.textContent = 'Tasks';
+            queryStr = `?filter=${filter}`;
+        } else if (listId) {
+            titleEl.textContent = title;
+            queryStr = `?list_id=${listId}`;
+        }
+
+        // Show date only in "My Day" view
+        const dateDisplay = document.getElementById('current-date-display');
+        if (filter === 'my_day') {
+            dateDisplay.style.display = 'block';
+        } else {
+            dateDisplay.style.display = 'none';
+        }
+
+        // Bg customization could go here based on list type
+
+        const res = await fetch(`/todo/api/items${queryStr}`);
+        const tasks = await res.json();
+        
+        renderTasks(tasks);
+    }
+
+    function renderTasks(tasks) {
+        const container = document.getElementById('task-list-area');
+        container.innerHTML = '';
+        
+        if (tasks.length === 0) {
+            container.innerHTML = '<div style="text-align:center; color:#888; margin-top:50px;">할 일이 없습니다.</div>';
+            return;
+        }
+
+        const activeTasks = tasks.filter(t => !t.completed);
+        const completedTasks = tasks.filter(t => t.completed);
+
+        // Utility to create task element
+        const createTaskElement = (task) => {
+            const div = document.createElement('div');
+            div.className = `task-item ${task.completed ? 'completed' : ''}`;
+            
+            if (task.is_project_task) {
+                 div.style.cursor = 'default';
+                 div.innerHTML = `
+                    <div style="width:20px; text-align:center; color:#1976d2; cursor:pointer;" onclick="importProjectTask(event, '${task.original_data.title.replace(/'/g, "\\'")}', '${task.due_date}', '${task.project_title}')" title="내 할 일에 추가">
+                        <i class="fas fa-plus-circle"></i>
+                    </div>
+                    <div class="task-content-text">
+                        ${task.content}
+                        <span style="font-size:0.8rem; background:#e3f2fd; color:#1976d2; padding:2px 8px; border-radius:10px; margin-left:8px;">${task.project_title}</span>
+                    </div>
+                    <div class="task-meta">
+                         ${task.due_date ? `<span>${new Date(task.due_date).toLocaleDateString()}</span>` : ''}
+                    </div>
+                `;
+            } else {
+                div.onclick = (e) => openDetailPanel(task.id);
+                
+                // Calculate step counts
+                const stepCount = task.steps ? task.steps.length : 0;
+                const completedSteps = task.steps ? task.steps.filter(s => s.completed).length : 0;
+                const stepIndicator = stepCount > 0 ? `<span style="font-size:0.75rem; color:#888; margin-left:4px;">${completedSteps}/${stepCount}</span>` : '';
+                
+                div.innerHTML = `
+                    <div class="task-checkbox ${task.completed ? 'completed' : ''}" onclick="toggleTaskComplete(event, ${task.id}, ${!task.completed})"></div>
+                    <div class="task-content-text">${task.content}${stepIndicator}</div>
+                    <div class="task-meta">
+                        ${isMyDayToday(task) ? '<i class="far fa-sun" style="font-size:0.8em; margin-top:2px;"></i>' : ''}
+                        ${currentFilter !== 'my_day' && task.due_date ? `<span>${new Date(task.due_date).toLocaleDateString()}</span>` : ''}
+                    </div>
+                    <button class="task-menu-btn" onclick="openTaskMenu(event, ${task.id})">
+                        <i class="fas fa-ellipsis-v" style="font-size:0.9rem;"></i>
+                    </button>
+                    <div class="star-btn ${task.is_important ? 'important' : ''}" onclick="toggleTaskImportant(event, ${task.id}, ${!task.is_important})">
+                        <i class="${task.is_important ? 'fas' : 'far'} fa-star"></i>
+                    </div>
+                `;
+            }
+            return div;
+        };
+
+        // Group by due date if sorting by 'due'
+        if (currentSortOrder === 'due') {
+            // Group active tasks by due date
+            const grouped = {};
+            const noDueDate = [];
+            
+            activeTasks.forEach(task => {
+                if (task.due_date) {
+                    const dateKey = new Date(task.due_date).toLocaleDateString('ko-KR', { 
+                        month: 'long', 
+                        day: 'numeric', 
+                        weekday: 'short' 
+                    });
+                    if (!grouped[dateKey]) grouped[dateKey] = [];
+                    grouped[dateKey].push(task);
+                } else {
+                    noDueDate.push(task);
+                }
+            });
+            
+            // Render groups in order
+            const sortedDates = Object.keys(grouped).sort((a, b) => {
+                const taskA = grouped[a][0];
+                const taskB = grouped[b][0];
+                return new Date(taskA.due_date) - new Date(taskB.due_date);
+            });
+            
+            sortedDates.forEach(dateKey => {
+                // Date header
+                const header = document.createElement('div');
+                header.style.cssText = 'padding: 12px 0 8px 0; color: var(--text-color); font-size: 0.9rem; font-weight: 500;';
+                header.textContent = `기한: ${dateKey}`;
+                container.appendChild(header);
+                
+                // Tasks for this date
+                grouped[dateKey].forEach(task => {
+                    container.appendChild(createTaskElement(task));
+                });
+            });
+            
+            // No due date section
+            if (noDueDate.length > 0) {
+                const header = document.createElement('div');
+                header.style.cssText = 'padding: 12px 0 8px 0; color: var(--text-color); font-size: 0.9rem; font-weight: 500; margin-top: 8px;';
+                header.textContent = '기한 없음';
+                container.appendChild(header);
+                
+                noDueDate.forEach(task => {
+                    container.appendChild(createTaskElement(task));
+                });
+            }
+        } else {
+            // Render Active Tasks normally
+            activeTasks.forEach(task => {
+                container.appendChild(createTaskElement(task));
+            });
+        }
+
+        // Render Completed Tasks Section
+        if (completedTasks.length > 0) {
+            const section = document.createElement('div');
+            section.className = 'completed-section';
+            
+            const header = document.createElement('div');
+            header.className = 'completed-header';
+            header.onclick = () => {
+                showCompleted = !showCompleted;
+                renderTasksSync(tasks); // Re-render preserving state
+            };
+            
+            header.innerHTML = `
+                <i class="fas fa-chevron-right arrow-icon ${showCompleted ? 'open' : ''}"></i>
+                <span>완료됨 (${completedTasks.length})</span>
+            `;
+            
+            const content = document.createElement('div');
+            content.className = `completed-content ${showCompleted ? 'open' : ''}`;
+            
+            completedTasks.forEach(task => {
+                content.appendChild(createTaskElement(task));
+            });
+            
+            section.appendChild(header);
+            section.appendChild(content);
+            container.appendChild(section);
+        }
+    }
+    
+    // Helper to request re-render without fetching if possible, but for now we re-use renderTasks
+    function renderTasksSync(tasks) {
+        // We need to keep the same tasks array to avoid refetch flicker, 
+        // relying on current global behavior or just passing 'tasks' recursively.
+        // We'll just call renderTasks.
+        renderTasks(tasks); 
+    }
+
+    // === Actions ===
+    function openAddTaskModal() {
+        document.getElementById('addTaskModal').style.display = 'flex';
+        document.getElementById('newTaskContent').focus();
+        // Default list selection
+        document.getElementById('newTaskTodoList').value = currentListId || "";
+        
+        // Auto check my day if in my day view
+        document.getElementById('newTaskMyDay').checked = (currentFilter === 'my_day');
+        
+        // Reset all-day checkbox and show time input
+        document.getElementById('newTaskAllDay').checked = false;
+        document.getElementById('newTaskTime').style.display = 'block';
+    }
+    
+    function toggleTimeInput() {
+        const allDayChecked = document.getElementById('newTaskAllDay').checked;
+        const timeInput = document.getElementById('newTaskTime');
+        if (allDayChecked) {
+            timeInput.style.display = 'none';
+            timeInput.value = ''; // Clear time value
+        } else {
+            timeInput.style.display = 'block';
+        }
+    }
+
+    function closeAddTaskModal() {
+        document.getElementById('addTaskModal').style.display = 'none';
+        document.getElementById('newTaskContent').value = '';
+        document.getElementById('newTaskMemo').value = '';
+        document.getElementById('newTaskDate').value = '';
+        document.getElementById('newTaskTime').value = '';
+        document.getElementById('newTaskAllDay').checked = false;
+    }
+
+    async function submitNewTask() {
+        const content = document.getElementById('newTaskContent').value;
+        if (!content) return;
+        
+        let listId = document.getElementById('newTaskTodoList').value;
+        if (!listId) {
+            // Find 'Tasks' list or Create default if not exists?
+            // For now, let's assume we pass list_id=1 for 'Tasks' if we had one.
+            // Or backend handles null list_id? Backend requires list_id.
+            // Simplified: If no list selected, use first available list.
+            if (allLists.length > 0) listId = allLists[0].id;
+            else {
+                 showToast("목록을 먼저 생성해주세요", 3000, true);
+                 return;
+            }
+        }
+
+        const dateVal = document.getElementById('newTaskDate').value;
+        const timeVal = document.getElementById('newTaskTime').value;
+        const allDay = document.getElementById('newTaskAllDay').checked;
+        
+        // Combine date and time if both are provided
+        let dueDate = null;
+        if (dateVal) {
+            if (allDay || !timeVal) {
+                // All-day or no time specified: use date only
+                dueDate = dateVal + 'T00:00';
+            } else {
+                // Combine date and time
+                dueDate = dateVal + 'T' + timeVal;
+            }
+        }
+
+        const isMyDay = document.getElementById('newTaskMyDay').checked;
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const localDate = `${year}-${month}-${day}`;
+
+        const body = {
+            content,
+            list_id: listId,
+            is_my_day: isMyDay,
+            my_day_date: isMyDay ? localDate : null,
+            is_all_day: allDay,
+            due_date: dueDate,
+            memo: document.getElementById('newTaskMemo').value
+        };
+
+        await fetch('/todo/api/items', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body)
+        });
+        
+        closeAddTaskModal();
+        refreshCurrentView();
+    }
+
+    async function toggleTaskComplete(e, id, status) {
+        e.stopPropagation();
+        await fetch(`/todo/api/items/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({completed: status})
+        });
+        refreshCurrentView();
+    }
+
+    async function toggleTaskImportant(e, id, status) {
+        e.stopPropagation();
+        await fetch(`/todo/api/items/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({is_important: status})
+        });
+        refreshCurrentView();
+    }
+    
+    function refreshCurrentView() {
+        loadList(currentFilter, currentListId, document.getElementById('current-list-title').textContent);
+        loadLists(); // Refresh sidebar counts
+    }
+
+    // === Detail Panel ===
+    async function openDetailPanel(id) {
+        // Fetch full detail
+        // We can find in current list or fetch again. Let's fetch local for now or simple find.
+        // Assuming we need fresh data.
+        // Since we don't have get_item(id) API exposed in route (only lists/items query), 
+        // we might rely on the data we have if we stored it, or add GET /api/items/<id>.
+        // I didn't verify GET /api/items/<id> exists in routes.py.
+        // Checking routes.py... It has PUT and DELETE for item_id, but not GET item_id.
+        // So I rely on passing data or finding in current loaded list (if I saved it).
+        // Let's assume I find it in DOM or better: I'll add GET /items/<id> or just use PUT to update.
+        // Wait, for Viewing, I need data.
+        
+        // Quick fix: Add GET /api/items/<id> OR just iterate current tasks array if I kept it.
+        // I didn't keep tasks in global variable.
+        // Let's use PUT to "get" (bad practice) or just rely on what we rendered? No, details might be hidden.
+        // I will implement GET /api/items/<id> quickly or just fix the route in next step?
+        // Actually, user is waiting. I will just use the fields I have or fetch list again?
+        // Okay, I'll modify routes.py to add GET specific item? 
+        // Or simply, I will fetch list, find item. "details" (memo, steps) might be large.
+        
+        // Let's implement GET /todo/api/items/<id> on the fly in routes or use existing? 
+        // I will just fetch ALL items again and find it? Inefficient.
+        
+        // Since I can't change routes.py in this file write, I will use a hack or just don't have GET.
+        // Actually, I can render data attributes in HTML.
+        // But memo is Text.
+        
+        // OK, I will add a method to `todo/routes.py` in next turn if needed.
+        // For now, I will use the `renderTasks` logic to store `tasks` in a global variable `currentTasks`.
+        
+        // Updating `renderTasks` to save `currentTasks`.
+        // I will do that in the script block below.
+        
+        const task = currentTasks.find(t => t.id === id);
+        if (!task) return;
+        
+        currentTask = task;
+        
+        const panel = document.getElementById('detailPanel');
+        panel.classList.add('open');
+        
+        document.getElementById('detailContent').value = task.content;
+        document.getElementById('detail-checkbox').className = `task-checkbox ${task.completed ? 'completed' : ''}`;
+        document.getElementById('detailStar').className = `star-btn ${task.is_important ? 'important' : ''}`;
+        const isTodayMyDay = isMyDayToday(task);
+        document.getElementById('detailMyDayIcon').className = isTodayMyDay ? 'fas fa-sun' : 'far fa-sun';
+        document.getElementById('detailMyDayText').textContent = isTodayMyDay ? '오늘 할 일에 추가됨' : '오늘 할 일에 추가';
+        document.getElementById('detailMyDayText').style.color = isTodayMyDay ? '#1976d2' : '#555';
+        
+        // Due date and all-day checkbox
+        const allDayCheckbox = document.getElementById('detailAllDay');
+        const dueDateInput = document.getElementById('detailDueDate');
+
+        if (task.due_date) {
+            const serverDate = new Date(task.due_date);
+
+            if (task.is_all_day) {
+                // All-day: show only date
+                const year = serverDate.getFullYear();
+                const month = String(serverDate.getMonth() + 1).padStart(2, '0');
+                const day = String(serverDate.getDate()).padStart(2, '0');
+                dueDateInput.type = 'date';
+                dueDateInput.value = `${year}-${month}-${day}`;
+                allDayCheckbox.checked = true;
+            } else {
+                // With time
+                const year = serverDate.getFullYear();
+                const month = String(serverDate.getMonth() + 1).padStart(2, '0');
+                const day = String(serverDate.getDate()).padStart(2, '0');
+                const hours = String(serverDate.getHours()).padStart(2, '0');
+                const minutes = String(serverDate.getMinutes()).padStart(2, '0');
+                dueDateInput.type = 'datetime-local';
+                dueDateInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+                allDayCheckbox.checked = false;
+            }
+        } else {
+            dueDateInput.type = 'datetime-local';
+            dueDateInput.value = '';
+            allDayCheckbox.checked = false;
+        }
+
+        // Calendar sync option
+        const calendarSection = document.getElementById('calendarSyncSection');
+        const calendarIcon = document.getElementById('calendarSyncIcon');
+        const calendarText = document.getElementById('calendarSyncText');
+
+        if (task.due_date) {
+            calendarSection.style.display = 'block';
+
+            if (task.google_event_id) {
+                calendarIcon.className = 'fas fa-calendar-check';
+                calendarIcon.style.color = '#1976d2';
+                calendarText.textContent = '캘린더에 추가됨';
+                calendarText.style.color = '#1976d2';
+            } else {
+                calendarIcon.className = 'far fa-calendar-plus';
+                calendarIcon.style.color = '#888';
+                calendarText.textContent = '캘린더에 추가';
+                calendarText.style.color = 'inherit';
+            }
+        } else {
+            calendarSection.style.display = 'none';
+        }
+
+        document.getElementById('detailMemo').value = task.memo || '';
+        document.getElementById('detailCreated').textContent = 'Created: ' + new Date(task.created_at).toLocaleDateString();
+
+        renderStepsUI(task.steps || []);
+    }
+    
+    function closeDetailPanel() {
+        document.getElementById('detailPanel').classList.remove('open');
+        currentTask = null;
+    }
+    
+    // Global variable hack
+    let currentTasks = [];
+    const originalRender = renderTasks;
+    renderTasks = function(tasks) {
+        currentTasks = tasks;
+        originalRender(tasks);
+    }
+    
+    // Update methods for detail panel (similar to toggle)
+    async function updateDetailContent() {
+        if(!currentTask) return;
+        const val = document.getElementById('detailContent').value;
+        await fetch(`/todo/api/items/${currentTask.id}`, {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({content: val})});
+        refreshCurrentView();
+    }
+    
+    async function toggleDetailComplete() {
+         if(!currentTask) return;
+         await toggleTaskComplete({stopPropagation:()=>{}}, currentTask.id, !currentTask.completed);
+         // update checkbox UI immediately for responsiveness
+         const next = !currentTask.completed;
+         currentTask.completed = next;
+         document.getElementById('detail-checkbox').className = `task-checkbox ${next ? 'completed' : ''}`;
+    }
+    
+    async function toggleDetailImportant() {
+        if(!currentTask) return;
+        const next = !currentTask.is_important;
+        await toggleTaskImportant({stopPropagation:()=>{}}, currentTask.id, next);
+        currentTask.is_important = next;
+        document.getElementById('detailStar').className = `star-btn ${next ? 'important' : ''}`;
+    }
+    
+    async function toggleDetailMyDay() {
+        if(!currentTask) return;
+        const next = !currentTask.is_my_day;
+        
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${year}-${month}-${day}`;
+        
+        await fetch(`/todo/api/items/${currentTask.id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                is_my_day: next,
+                my_day_date: next ? todayStr : null
+            })
+        });
+        refreshCurrentView();
+
+        currentTask.is_my_day = next;
+        currentTask.my_day_date = next ? todayStr : null;
+        document.getElementById('detailMyDayIcon').className = next ? 'fas fa-sun' : 'far fa-sun';
+        document.getElementById('detailMyDayText').textContent = next ? '오늘 할 일에 추가됨' : '오늘 할 일에 추가';
+        document.getElementById('detailMyDayText').style.color = next ? '#1976d2' : '#555';
+    }
+    
+    function toggleDetailAllDay() {
+        const checkbox = document.getElementById('detailAllDay');
+        const dateInput = document.getElementById('detailDueDate');
+
+        if (checkbox.checked) {
+            // 종일: date 타입으로 변경
+            const currentValue = dateInput.value;
+            if (currentValue) {
+                const dateOnly = currentValue.split('T')[0];
+                dateInput.type = 'date';
+                dateInput.value = dateOnly;
+            } else {
+                dateInput.type = 'date';
+            }
+        } else {
+            // 시간 포함: datetime-local 타입으로 변경
+            const currentValue = dateInput.value;
+            if (currentValue) {
+                dateInput.type = 'datetime-local';
+                dateInput.value = currentValue + 'T09:00';
+            } else {
+                dateInput.type = 'datetime-local';
+            }
+        }
+    }
+
+    async function toggleCalendarSync() {
+        if (!currentTask) return;
+
+        const calendarIcon = document.getElementById('calendarSyncIcon');
+        const calendarText = document.getElementById('calendarSyncText');
+
+        try {
+            if (currentTask.google_event_id) {
+                // 캘린더에서 제거
+                const res = await fetch(`/todo/api/items/${currentTask.id}/calendar`, {
+                    method: 'DELETE'
+                });
+
+                if (res.ok) {
+                    currentTask.google_event_id = null;
+                    calendarIcon.className = 'far fa-calendar-plus';
+                    calendarIcon.style.color = '#888';
+                    calendarText.textContent = '캘린더에 추가';
+                    calendarText.style.color = 'inherit';
+                    showToast('캘린더에서 제거되었습니다');
+                    refreshCurrentView();
+                } else {
+                    const error = await res.json();
+                    showToast(error.error || '캘린더 제거 실패', 3000, true);
+                }
+            } else {
+                // 캘린더에 추가
+                const res = await fetch(`/todo/api/items/${currentTask.id}/calendar`, {
+                    method: 'POST'
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    currentTask.google_event_id = data.event_id;
+                    calendarIcon.className = 'fas fa-calendar-check';
+                    calendarIcon.style.color = '#1976d2';
+                    calendarText.textContent = '캘린더에 추가됨';
+                    calendarText.style.color = '#1976d2';
+                    showToast('캘린더에 추가되었습니다');
+                    refreshCurrentView();
+                } else {
+                    const error = await res.json();
+                    showToast(error.error || '캘린더 추가 실패', 3000, true);
+                }
+            }
+        } catch (error) {
+            console.error('Calendar sync error:', error);
+            showToast('캘린더 동기화 오류', 3000, true);
+        }
+    }
+
+    async function updateDetailDate() {
+        if(!currentTask) return;
+        const val = document.getElementById('detailDueDate').value;
+        const allDayChecked = document.getElementById('detailAllDay').checked;
+        const btn = document.getElementById('dueDateSaveBtn');
+
+        // 빈 값이면 null로 전달 (기한 취소)
+        const dateValue = val ? val : null;
+
+        await fetch(`/todo/api/items/${currentTask.id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                due_date: dateValue,
+                is_all_day: allDayChecked
+            })
+        });
+
+        // Update current task object
+        currentTask.due_date = dateValue;
+        currentTask.is_all_day = allDayChecked;
+
+        // Update calendar sync visibility
+        const calendarSection = document.getElementById('calendarSyncSection');
+        if (dateValue) {
+            calendarSection.style.display = 'block';
+        } else {
+            calendarSection.style.display = 'none';
+        }
+
+        // Visual feedback: change button to green
+        btn.style.background = '#4caf50';
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+
+        setTimeout(() => {
+            btn.style.background = '#1976d2';
+            btn.innerHTML = '<i class="fas fa-save"></i>';
+        }, 1500);
+
+        // Refresh main view to show updated date
+        refreshCurrentView();
+    }
+    
+    async function updateDetailMemo() {
+        if(!currentTask) return;
+        const val = document.getElementById('detailMemo').value;
+        const btn = document.getElementById('memoSaveBtn');
+        
+        await fetch(`/todo/api/items/${currentTask.id}`, {
+            method: 'PUT', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({memo: val})
+        });
+        
+        // Update current task object
+        currentTask.memo = val;
+        
+        // Visual feedback: change button to green
+        btn.style.background = '#4caf50';
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+        
+        setTimeout(() => {
+            btn.style.background = '#1976d2';
+            btn.innerHTML = '<i class="fas fa-save"></i>';
+        }, 1500);
+    }
+    
+    // === Subtasks (Steps) Logic ===
+    function renderStepsUI(steps) {
+        const container = document.getElementById('step-list-container');
+        container.innerHTML = '';
+        
+        steps.forEach((step, index) => {
+            const div = document.createElement('div');
+            div.className = `step-item ${step.completed ? 'completed' : ''}`;
+            // Use FontAwesome icons instead of CSS shapes
+            div.innerHTML = `
+                <i class="step-icon ${step.completed ? 'fas fa-check-circle' : 'far fa-circle'}" onclick="toggleStep(event, ${index})"></i>
+                <input type="text" class="step-input" value="${step.text}" onchange="updateStepText(${index}, this.value)">
+                <button onclick="deleteStep(event, ${index})" style="border:none; background:none; color:#999; cursor:pointer;">✕</button>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    async function handleNewStep(e) {
+        if (e.key === 'Enter' && e.target.value.trim() !== '') {
+            const text = e.target.value.trim();
+            e.target.value = '';
+            
+            if (!currentTask.steps) currentTask.steps = [];
+            currentTask.steps.push({
+                id: Date.now(), // simple ID
+                text: text,
+                completed: false
+            });
+            
+            renderStepsUI(currentTask.steps);
+            await saveSteps();
+        }
+    }
+    
+    async function toggleStep(e, index) {
+        e.stopPropagation(); // Prevent panel closing
+        if (!currentTask || !currentTask.steps) return;
+        currentTask.steps[index].completed = !currentTask.steps[index].completed;
+        renderStepsUI(currentTask.steps);
+        await saveSteps();
+        // Refresh the main view to update step counter display
+        refreshCurrentView();
+    }
+    
+    async function updateStepText(index, text) {
+        if (!currentTask || !currentTask.steps) return;
+        currentTask.steps[index].text = text;
+        // renderStepsUI(currentTask.steps); // Removed to prevent focus loss
+        await saveSteps();
+    }
+    
+    async function deleteStep(e, index) {
+        e.stopPropagation(); // Prevent panel closing
+        if (!currentTask || !currentTask.steps) return;
+        currentTask.steps.splice(index, 1);
+        renderStepsUI(currentTask.steps);
+        await saveSteps();
+    }
+    
+    async function saveSteps() {
+        if (!currentTask) return;
+        await fetch(`/todo/api/items/${currentTask.id}`, {
+            method: 'PUT', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({steps: currentTask.steps})
+        });
+        // We probably don't need to refresh entire view for steps, but to be consistent with data model
+        // refreshCurrentView(); // Optional, avoiding flicker
+    }
+
+    async function deleteCurrentTask() {
+        if(!currentTask || !confirm('삭제하시겠습니까?')) return;
+        await fetch(`/todo/api/items/${currentTask.id}`, {method: 'DELETE'});
+        closeDetailPanel();
+        refreshCurrentView();
+    }
+
+    async function importProjectTask(e, title, dueDate, projectTitle) {
+        e.preventDefault();
+        
+        // Use first available list or Tasks list logic (similar to submitNewTask)
+        let listId = currentListId;
+        if (!listId && allLists.length > 0) listId = allLists[0].id;
+        
+        // Prepare content with project tag
+        const content = `${title} [${projectTitle}]`;
+        
+        const body = {
+            content: content,
+            list_id: listId,
+            due_date: (dueDate && dueDate !== 'null' && dueDate !== 'undefined') ? dueDate : null
+        };
+        
+        if (confirm(`'${title}' 작업을 내 할 일에 추가하시겠습니까?`)) {
+             await fetch('/todo/api/items', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body)
+            });
+            showToast('추가되었습니다');
+        }
+    }
+
+    function toggleListMenu(event) {
+        event.stopPropagation(); // Prevent click from bubbling
+        const menu = document.getElementById('listMenuDropdown');
+        menu.classList.toggle('show');
+        
+        // Update menu items based on current view
+        const renameItem = document.getElementById('renameListMenuItem');
+        const deleteItem = document.getElementById('deleteListMenuItem');
+        const deleteSubtitle = document.getElementById('deleteListSubtitle');
+        
+        // Disable rename/delete for default views (filters)
+        if (currentFilter || !currentListId) {
+            renameItem.classList.add('disabled');
+            deleteItem.classList.add('disabled');
+            deleteSubtitle.style.display = 'block';
+        } else {
+            renameItem.classList.remove('disabled');
+            deleteItem.classList.remove('disabled');
+            deleteSubtitle.style.display = 'none';
+        }
+    }
+
+    // Close menu when clicking outside
+    document.addEventListener('click', (e) => {
+        const menu = document.getElementById('listMenuDropdown');
+        if (menu && !menu.contains(e.target)) {
+            menu.classList.remove('show');
+        }
+    });
+
+    async function deleteCompletedTasks() {
+        if (!confirm('완료된 모든 할 일을 삭제하시겠습니까?')) return;
+        
+        // Get all completed tasks in current view
+        const completedTasks = currentTasks.filter(t => t.completed);
+        
+        for (const task of completedTasks) {
+            await fetch(`/todo/api/items/${task.id}`, {method: 'DELETE'});
+        }
+        
+        document.getElementById('listMenuDropdown').classList.remove('show');
+        refreshCurrentView();
+        showToast(`${completedTasks.length}개의 완료된 할 일이 삭제되었습니다`);
+    }
+
+    // Sort order state
+    let currentSortOrder = 'custom';
+
+    function setSortOrder(order) {
+        currentSortOrder = order;
+        
+        // Update check marks
+        ['custom', 'date', 'due', 'starred', 'title'].forEach(type => {
+            const check = document.getElementById(`sort-${type}-check`);
+            if (check) {
+                check.style.color = (type === order) ? '#1976d2' : 'transparent';
+            }
+        });
+        
+        // Close menu
+        document.getElementById('listMenuDropdown').classList.remove('show');
+        
+        // Re-render with new sort order
+        if (currentTasks && currentTasks.length > 0) {
+            const sorted = sortTasks([...currentTasks], order);
+            renderTasks(sorted);
+        }
+    }
+
+    function sortTasks(tasks, order) {
+        switch(order) {
+            case 'date':
+                return tasks.sort((a, b) => {
+                    const dateA = new Date(a.created_at || 0);
+                    const dateB = new Date(b.created_at || 0);
+                    return dateB - dateA; // Newest first
+                });
+            case 'due':
+                return tasks.sort((a, b) => {
+                    if (!a.due_date && !b.due_date) return 0;
+                    if (!a.due_date) return 1;
+                    if (!b.due_date) return -1;
+                    return new Date(a.due_date) - new Date(b.due_date);
+                });
+            case 'starred':
+                return tasks.sort((a, b) => {
+                    if (a.is_important === b.is_important) return 0;
+                    return a.is_important ? -1 : 1; // Important first
+                });
+            case 'title':
+                return tasks.sort((a, b) => {
+                    return (a.content || '').localeCompare(b.content || '');
+                });
+            case 'custom':
+            default:
+                return tasks; // Keep original order
+        }
+    }
+
+    // Task Context Menu
+    let currentTaskMenuId = null;
+
+    function openTaskMenu(event, taskId) {
+        event.stopPropagation();
+        event.preventDefault();
+        
+        currentTaskMenuId = taskId;
+        const menu = document.getElementById('taskMenuDropdown');
+        
+        // Position menu near click
+        const rect = event.target.getBoundingClientRect();
+        menu.style.position = 'fixed';
+        menu.style.top = `${rect.bottom + 5}px`;
+        menu.style.left = `${rect.left}px`;
+        
+        // Populate move-to-list options
+        const moveToContainer = document.getElementById('taskMenuMoveToList');
+        moveToContainer.innerHTML = '';
+        
+        allLists.forEach(list => {
+            const div = document.createElement('div');
+            div.className = 'list-menu-item';
+            div.onclick = () => moveTaskToList(taskId, list.id);
+            
+            // Check if current list
+            const task = currentTasks.find(t => t.id === taskId);
+            const isCurrentList = task && task.list_id === list.id;
+            
+            div.innerHTML = `
+                <i class="fas fa-check" style="font-size:0.8rem; color:${isCurrentList ? '#1976d2' : 'transparent'};"></i>
+                <span>${list.title}</span>
+            `;
+            moveToContainer.appendChild(div);
+        });
+        
+        menu.classList.add('show');
+    }
+
+    async function deleteTaskFromMenu() {
+        if (!currentTaskMenuId || !confirm('이 할 일을 삭제하시겠습니까?')) return;
+        
+        await fetch(`/todo/api/items/${currentTaskMenuId}`, {method: 'DELETE'});
+        document.getElementById('taskMenuDropdown').classList.remove('show');
+        currentTaskMenuId = null;
+        refreshCurrentView();
+    }
+
+    async function moveTaskToList(taskId, listId) {
+        await fetch(`/todo/api/items/${taskId}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({list_id: listId})
+        });
+        
+        document.getElementById('taskMenuDropdown').classList.remove('show');
+        currentTaskMenuId = null;
+        refreshCurrentView();
+    }
+
+    async function renameCurrentList() {
+        if (currentFilter || !currentListId) {
+            showToast('기본 목록은 이름을 변경할 수 없습니다', 3000, true);
+            return;
+        }
+        
+        const currentList = allLists.find(l => l.id === currentListId);
+        if (!currentList) return;
+        
+        const newName = prompt('새 목록 이름:', currentList.title);
+        if (!newName || newName === currentList.title) return;
+        
+        await fetch(`/todo/api/lists/${currentListId}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({title: newName})
+        });
+        
+        document.getElementById('listMenuDropdown').classList.remove('show');
+        document.getElementById('current-list-title').textContent = newName;
+        loadLists(); // Refresh sidebar
+    }
+
+    async function deleteCurrentList() {
+        if (currentFilter || !currentListId) {
+            showToast('기본 목록은 삭제할 수 없습니다', 3000, true);
+            return;
+        }
+        
+        const currentList = allLists.find(l => l.id === currentListId);
+        if (!currentList) return;
+        
+        if (!confirm(`'${currentList.title}' 목록을 삭제하시겠습니까?\n이 목록의 모든 할 일은 기본 목록으로 이동됩니다.`)) return;
+        
+        // Move all tasks to default list (first list)
+        const defaultList = allLists.length > 0 ? allLists[0] : null;
+        if (!defaultList) {
+            showToast('기본 목록을 찾을 수 없습니다', 3000, true);
+            return;
+        }
+        
+        // Get all tasks in this list
+        const tasksRes = await fetch(`/todo/api/items?list_id=${currentListId}`);
+        const tasks = await tasksRes.json();
+        
+        // Move each task to default list
+        for (const task of tasks) {
+            await fetch(`/todo/api/items/${task.id}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({list_id: defaultList.id})
+            });
+        }
+        
+        // Delete the list
+        await fetch(`/todo/api/lists/${currentListId}`, {method: 'DELETE'});
+        
+        document.getElementById('listMenuDropdown').classList.remove('show');
+        
+        // Navigate to default list
+        loadList(null, defaultList.id, defaultList.title);
+        loadLists(); // Refresh sidebar
+    }
+
+    // Close task menu when clicking outside
+    document.addEventListener('click', (e) => {
+        const taskMenu = document.getElementById('taskMenuDropdown');
+        if (taskMenu && !taskMenu.contains(e.target) && !e.target.closest('.task-menu-btn')) {
+            taskMenu.classList.remove('show');
+        }
+    });
+
+
+</script>
+{% endblock %}

@@ -1,0 +1,27 @@
+[
+    {
+        "icon": "fas fa-folder",
+        "name": "Projects",
+        "url": "/projects"
+    },
+    {
+        "icon": "fas fa-tasks",
+        "name": "Tasks",
+        "url": "/tasks"
+    },
+    {
+        "icon": "fas fa-th",
+        "name": "Flowchart",
+        "url": "/flowchart"
+    },
+    {
+        "icon": "fas fa-chart-bar",
+        "name": "LIMS",
+        "url": "/lims"
+    },
+    {
+        "icon": "fab fa-instagram",
+        "name": "Instagram",
+        "url": "https://www.instagram.com/stories/trattoria_conte/"
+    }
+]
