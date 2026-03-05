@@ -15,7 +15,7 @@ card_bp = Blueprint('card', __name__,
 
 # Google Sheets API 설정 (card 폴더 기준)
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-cred_path = os.path.join(os.path.dirname(__file__), 'credentials.json')
+cred_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'instance', 'google_key.json')
 credentials = Credentials.from_service_account_file(cred_path, scopes=scope)
 client = gspread.authorize(credentials)
 sheet = client.open('bizcard').sheet1

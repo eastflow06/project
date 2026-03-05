@@ -17,7 +17,7 @@ KEY_FILE = os.getenv('GOOGLE_SERVICE_ACCOUNT_KEY_FILE')
 if not KEY_FILE:
     # 절대 경로 대신 현재 파일 기준으로 설정
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    KEY_FILE = os.path.join(current_dir, 'service-account-key.json')
+    KEY_FILE = os.path.join(os.path.dirname(current_dir), 'instance', 'google_key.json')
 
 # 스코프 설정 - 읽기 및 쓰기 권한
 SCOPES = ['https://www.googleapis.com/auth/calendar']
