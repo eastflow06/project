@@ -203,13 +203,12 @@
 
                 <div class="dropdown-menu">
                     <a href="{{ url_for('statistics') }}">Statistics</a>
-                    <a href="{{ url_for('summary') }}">Summary</a>
                     <a href="{{ url_for('image_upload_gallery') }}">Gallery</a>
                     <a href="{{ url_for('contact.index') }}">Contacts</a>
                     <a href="{{ url_for('note.list_notes') }}">Notes</a>
                     <a href="{{ url_for('projects') }}">Projects</a>
                     <a href="{{ url_for('product_list') }}">Products</a>
-                    <a href="{{ url_for('card_index_route') }}" target="_blank">Card</a>
+                    <a href="{{ url_for('card.card_index') }}" target="_blank">Card</a>
                     <a href="{{ url_for('manage_tags') }}">Tags</a>
                     <a href="{{ url_for('all_tasks') }}">Tasks</a>
                     <a href="{{ url_for('tasks_timeline') }}">📊 Timeline</a>
@@ -350,7 +349,6 @@
                     if (event.code === 'KeyH') window.location.href = "{{ url_for('index') }}";
                     if (event.code === 'KeyM') window.location.href = "{{ url_for('search_memos') }}";
                     if (event.code === 'KeyL') window.location.href = "{{ url_for('infolinks') }}";
-                    if (event.code === 'KeyS') window.location.href = "{{ url_for('summary') }}";
                     if (event.code === 'KeyN') window.location.href = "{{ url_for('add_memo_mobile') }}";
                     if (event.code === 'KeyD') window.location.href = "{{ url_for('dashboard.index') }}";
                 }

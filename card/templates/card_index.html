@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>법인카드 - {{ year }}.{{ month }}</title>
         
-        <link rel="stylesheet" href="{{ url_for('card_static', filename='css/card.css') }}">
+        <link rel="stylesheet" href="{{ url_for('card.static', filename='css/card.css') }}">
     </head>
 <body>
 <div class="container">
@@ -45,18 +45,18 @@
                      <span id="theme-icon">🌙</span>
                 </button>
 
-                <a href="{{ url_for('card_add_route') }}">
-                    <img src="{{ url_for('card_static', filename='icons/card.png') }}" alt="추가" title="추가 (단축키: N)">
+                <a href="{{ url_for('card.card_add') }}">
+                    <img src="{{ url_for('card.static', filename='icons/card.png') }}" alt="추가" title="추가 (단축키: N)">
                 </a>
                 <a href="#" onclick="goToMonthlyViz(); return false;">
-                    <img src="{{ url_for('card_static', filename='icons/piechart.png') }}" alt="월별">
+                    <img src="{{ url_for('card.static', filename='icons/piechart.png') }}" alt="월별">
                 </a>
-                <a href="{{ url_for('card_yearly_viz_route') }}">
-                    <img src="{{ url_for('card_static', filename='icons/barchart.png') }}" alt="연도별" title="연도별">
+                <a href="{{ url_for('card.card_yearly_viz') }}">
+                    <img src="{{ url_for('card.static', filename='icons/barchart.png') }}" alt="연도별" title="연도별">
                 </a>
                
                 <a href="#" onclick="printView(); return false;">
-                    <img src="{{ url_for('card_static', filename='icons/print.png') }}" alt="프린트" title="프린트">
+                    <img src="{{ url_for('card.static', filename='icons/print.png') }}" alt="프린트" title="프린트">
                 </a>
             </div>
         </div>
@@ -279,7 +279,7 @@
         
         if (event.code === 'KeyN') {
             event.preventDefault();
-            window.location.href = "{{ url_for('card_add_route') }}";
+            window.location.href = "{{ url_for('card.card_add') }}";
         }
     });
 </script> 

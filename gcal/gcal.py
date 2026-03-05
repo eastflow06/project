@@ -48,27 +48,56 @@ def get_credentials():
         logger.error(f"자격 증명 가져오기 오류: {e}")
         raise
 
-def fetch_calendar_events(date=None, max_results=30, include_future=True):
+# 캘린더 이벤트 캐시 (간단한 in-memory 캐싱)
+_calendar_cache = {
+    'events': None,
+    'timestamp': None,
+    'ttl': 300  # 5분 (300초)
+}
+
+def clear_calendar_cache():
+    """캐시를 강제로 비웁니다."""
+    _calendar_cache['events'] = None
+    _calendar_cache['timestamp'] = None
+
+def get_cached_calendar_events():
+    """캐시된 캘린더 이벤트만 반환합니다. 없으면 빈 리스트를 반환합니다."""
+    return _calendar_cache.get('events') or []
+
+def fetch_calendar_events(date=None, max_results=30, include_future=True, force_refresh=False):
     """
     지정한 날짜가 속한 연도의 모든 이벤트를 가져옵니다.
-    날짜가 지정되지 않으면 현재 날짜를 사용합니다.
+    캐시가 유효하면 캐시된 데이터를 반환합니다.
     
     Args:
         date: datetime 객체 또는 'YYYY-MM-DD' 형식의 문자열
         max_results: 가져올 최대 이벤트 수
         include_future: 미래 이벤트 포함 여부
+        force_refresh: 캐시 무시하고 강제로 새로 가져올지 여부
         
     Returns:
         list: 이벤트 목록
     """
+    from datetime import datetime as dt
+    
+    # 1. 캐시 확인 (기본 날짜일 때만 캐시 적용)
+    if not force_refresh and date is None:
+        now = dt.now()
+        if (_calendar_cache['events'] is not None and 
+            _calendar_cache['timestamp'] is not None):
+            elapsed = (now - _calendar_cache['timestamp']).total_seconds()
+            if elapsed < _calendar_cache['ttl']:
+                logger.info(f"캘린더 이벤트 캐시 사용 (남은 시간: {int(_calendar_cache['ttl'] - elapsed)}초)")
+                return _calendar_cache['events']
+
     try:
         # 날짜가 지정되지 않으면 현재 날짜 사용
         if date is None:
-            date = datetime.now()
+            date = dt.now()
         elif isinstance(date, str):
             # 문자열 형식의 날짜를 datetime 객체로 변환 (YYYY-MM-DD 형식 예상)
             try:
-                date = datetime.strptime(date, '%Y-%m-%d')
+                date = dt.strptime(date, '%Y-%m-%d')
             except ValueError:
                 logger.error("날짜 형식이 올바르지 않습니다. YYYY-MM-DD 형식을 사용하세요.")
                 return []
@@ -77,8 +106,8 @@ def fetch_calendar_events(date=None, max_results=30, include_future=True):
         year = date.year
             
         # 시간 범위 설정 - 해당 연도의 1월 1일부터 12월 31일까지
-        time_min = datetime(year, 1, 1, 0, 0, 0).isoformat() + 'Z'
-        time_max = datetime(year, 12, 31, 23, 59, 59).isoformat() + 'Z'
+        time_min = dt(year, 1, 1, 0, 0, 0).isoformat() + 'Z'
+        time_max = dt(year, 12, 31, 23, 59, 59).isoformat() + 'Z'
         
         logger.info(f"'{date.strftime('%Y-%m-%d')}'의 연도({year}년)에 해당하는 이벤트를 가져옵니다.")
         
@@ -112,7 +141,7 @@ def fetch_calendar_events(date=None, max_results=30, include_future=True):
             # 하루종일 이벤트이고, 종료일이 시작일과 다른 경우 종료일 조정
             if is_all_day and end > start:
                 # 날짜 형식인 경우 날짜 객체로 변환 후 하루 빼기
-                end_date = datetime.strptime(end, '%Y-%m-%d')
+                end_date = dt.strptime(end, '%Y-%m-%d')
                 end_date = end_date - timedelta(days=1)
                 end = end_date.strftime('%Y-%m-%d')
             
@@ -124,12 +153,18 @@ def fetch_calendar_events(date=None, max_results=30, include_future=True):
                 'description': event.get('description', '')
             })
         
+        # 캐시 업데이트 (기본 호출일 때만)
+        if date is None or (isinstance(date, dt) and date.year == dt.now().year):
+            _calendar_cache['events'] = event_list
+            _calendar_cache['timestamp'] = dt.now()
+
         logger.info(f'{year}년 캘린더에서 가져온 이벤트 수: {len(events)}')
         return event_list
     
     except Exception as e:
         logger.error(f"이벤트 가져오기 오류: {e}")
         return []
+
 
 def create_calendar_event(summary, start_datetime, end_datetime, is_all_day=False, description=None, location=None, calendar_id=None):
     """

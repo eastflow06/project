@@ -474,6 +474,13 @@
                     <option value="unbundled-bezier">곡선 (Bezier)</option>
                 </select>
             </div>
+            <div class="fc-form-group">
+                <label>화살표</label>
+                <select id="edgeArrow">
+                    <option value="triangle">표시 (삼각형)</option>
+                    <option value="none">미표시</option>
+                </select>
+            </div>
             <button class="btn fc-btn-danger" onclick="deleteSelected()" style="margin-top: 10px;">🗑️ 연결선 삭제</button>
         </div>
 
@@ -627,7 +634,7 @@
                         'border-width': 0,
                         'width': 'label',
                         'height': 'label',
-                        'padding': '10px',
+                        'padding': '0px',
                         'shape': 'rectangle',
                         'text-wrap': 'wrap',
                         'text-max-width': '400px',
@@ -685,6 +692,16 @@
                     selector: 'node[nodeType="text"][textAlign]',
                     style: {
                         'text-justification': 'data(textAlign)'
+                    }
+                },
+                // 선택된 텍스트 노드 점선 스타일
+                {
+                    selector: 'node[nodeType="text"]:selected',
+                    style: {
+                        'border-width': 1,
+                        'border-color': '#333333',
+                        'border-style': 'dashed',
+                        'overlay-opacity': 0
                     }
                 },
                 // 기존 데이터 호환용 스타일
@@ -778,6 +795,12 @@
                     selector: 'edge[lineStyle]',
                     style: {
                         'line-style': 'data(lineStyle)'
+                    }
+                },
+                {
+                    selector: 'edge[targetArrowShape]',
+                    style: {
+                        'target-arrow-shape': 'data(targetArrowShape)'
                     }
                 },
                 {
@@ -952,10 +975,10 @@
             const nodeId = 'node' + nodeCounter++;
             const configs = {
                 start: { label: 'Start', nodeType: 'start' },
-                state: { label: '새 상태', nodeType: 'state' },
+                state: { label: '', nodeType: 'state' },
                 decision: { label: '조건?', nodeType: 'decision' },
                 end: { label: 'End', nodeType: 'end' },
-                text: { label: '텍스트를 입력하세요', nodeType: 'text' }
+                text: { label: '', nodeType: 'text' }
             };
             const config = configs[type] || configs.state;
 
@@ -1028,7 +1051,16 @@
         // 노드 더블클릭 - 이름 편집
         cy.on('dblclick', 'node', function(evt) {
             editingNode = evt.target;
-            document.getElementById('editNodeName').value = editingNode.data('label');
+            const isText = editingNode.data('nodeType') === 'text';
+            let currentContent = isText ? (editingNode.data('memo') || '') : (editingNode.data('label') || '');
+            
+            // "새 상태" 또는 "새상태"인 경우 빈 칸으로 표시
+            if (!isText && (currentContent === '새 상태' || currentContent === '새상태')) {
+                currentContent = '';
+            }
+            
+            document.querySelector('#editModal h3').textContent = isText ? '텍스트 편집' : '노드 이름 편집';
+            document.getElementById('editNodeName').value = currentContent;
             document.getElementById('editModal').classList.add('show');
             document.getElementById('editNodeName').focus();
         });
@@ -1036,9 +1068,18 @@
         // 노드 선택 - 사이드바 업데이트
         cy.on('select', 'node', function(evt) {
             const node = evt.target;
+            let currentLabel = node.data('label') || '';
+            
+            // "새 상태" 또는 "새상태"인 경우 클릭 시 자동으로 사라지게 함 (데이터에서도 삭제)
+            if (currentLabel === '새 상태' || currentLabel === '새상태') {
+                currentLabel = '';
+                saveState();
+                node.data('label', '');
+            }
+
             document.getElementById('nodePanel').style.display = 'block';
             document.getElementById('edgePanel').style.display = 'none';
-            document.getElementById('nodeLabel').value = node.data('label') || '';
+            document.getElementById('nodeLabel').value = currentLabel;
             document.getElementById('nodeMemo').value = node.data('memo') || '';
 
             // 타입 선택 표시
@@ -1049,6 +1090,7 @@
 
             // 텍스트 노드 여부에 따라 패널 표시/숨김
             const isTextNode = nodeType === 'text';
+            document.getElementById('nodeLabel').parentElement.style.display = isTextNode ? 'none' : 'block';
             document.getElementById('textOptionsPanel').style.display = isTextNode ? 'block' : 'none';
             document.getElementById('bgColorPicker').parentElement.style.display = isTextNode ? 'none' : 'block';
             document.getElementById('borderColorGroup').style.display = isTextNode ? 'none' : 'block';
@@ -1130,6 +1172,7 @@
             document.getElementById('edgeLabel').value = edge.data('label') || '';
             document.getElementById('edgeStyle').value = edge.data('lineStyle') || 'solid';
             document.getElementById('edgeCurve').value = edge.data('curveStyle') || 'taxi';
+            document.getElementById('edgeArrow').value = edge.data('targetArrowShape') || 'triangle';
         });
 
         cy.on('unselect', function() {
@@ -1184,6 +1227,14 @@
                 } else {
                     hideBezierHandles();
                 }
+            }
+        });
+
+        document.getElementById('edgeArrow').addEventListener('change', function() {
+            const selected = cy.$('edge:selected');
+            if (selected.length > 0) {
+                saveState();
+                selected.data('targetArrowShape', this.value);
             }
         });
 
@@ -1628,7 +1679,20 @@
         function saveNodeName() {
             if (editingNode) {
                 saveState();
-                editingNode.data('label', document.getElementById('editNodeName').value);
+                const newValue = document.getElementById('editNodeName').value;
+                if (editingNode.data('nodeType') === 'text') {
+                    editingNode.data('memo', newValue);
+                    // 사이드바 메모 필드 업데이트
+                    if (cy.$('node:selected').id() === editingNode.id()) {
+                        document.getElementById('nodeMemo').value = newValue;
+                    }
+                } else {
+                    editingNode.data('label', newValue);
+                    // 사이드바 라벨 필드 업데이트
+                    if (cy.$('node:selected').id() === editingNode.id()) {
+                        document.getElementById('nodeLabel').value = newValue;
+                    }
+                }
             }
             closeEditModal();
         }

@@ -1,0 +1,11 @@
+{
+    "택시": { "purpose": "교통비", "content": "" },
+    "KTX": { "purpose": "교통비", "content": "업무 이동" },
+    "SRT": { "purpose": "교통비", "content": "업무 이동" },
+    "주유소": { "purpose": "차량유지비", "content": "법인차량-주유비" },
+    "주차장": { "purpose": "차량유지비", "content": "법인차량-주차비" },
+    "투썸": { "purpose": "회의비(다과)", "content": "업무미팅" },
+    "스타벅스": { "purpose": "회의비(다과)", "content": "업무미팅" },
+    "미음": { "purpose": "회의비(다과)", "content": "업무미팅" },
+    "이디야": { "purpose": "회의비(다과)", "content": "업무미팅" }
+}

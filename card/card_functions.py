@@ -1,4 +1,4 @@
-from flask import render_template, request, redirect, make_response, jsonify
+from flask import Blueprint, render_template, request, redirect, make_response, jsonify, send_from_directory
 from google.oauth2.service_account import Credentials
 import gspread
 import traceback
@@ -8,6 +8,11 @@ import csv, io
 import uuid
 import os
 
+# card 블루프린트 생성
+card_bp = Blueprint('card', __name__, 
+                    template_folder='templates',
+                    static_folder='static')
+
 # Google Sheets API 설정 (card 폴더 기준)
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 cred_path = os.path.join(os.path.dirname(__file__), 'credentials.json')
@@ -15,6 +20,7 @@ credentials = Credentials.from_service_account_file(cred_path, scopes=scope)
 client = gspread.authorize(credentials)
 sheet = client.open('bizcard').sheet1
 
+@card_bp.route('/')
 def card_index():
     """카드 메인 페이지"""
     try:
@@ -80,6 +86,7 @@ def card_index():
         return render_template('card_index.html', data=[], year_months={}, year=None, month=None)
 
 
+@card_bp.route('/add', methods=['GET', 'POST'])
 def card_add():
     """카드 추가 처리"""
     try:
@@ -135,6 +142,7 @@ def card_add():
         return redirect('/card')
 
 
+@card_bp.route('/edit/<string:id>', methods=['GET', 'POST'])
 def card_edit(id):
     """카드 수정 처리"""
     try:
@@ -187,6 +195,7 @@ def card_edit(id):
         return "An unexpected error occurred", 500
 
 
+@card_bp.route('/delete/<id>', methods=['POST'])
 def card_delete(id):
     """카드 삭제 처리"""
     try:
@@ -201,6 +210,7 @@ def card_delete(id):
         return "An error occurred while deleting the record.", 500
 
 
+@card_bp.route('/print/<year>/<month>', methods=['GET'])
 def card_print_view(year, month):
     """카드 인쇄 뷰"""
     try:
@@ -243,6 +253,7 @@ def card_print_view(year, month):
         return render_template('card_print.html', data=[], year=year, month=month, total_amount=0)
 
 
+@card_bp.route('/download_csv/<year>/<month>')
 def card_download_csv(year, month):
     """CSV 다운로드"""
     try:
@@ -284,6 +295,7 @@ def card_download_csv(year, month):
         return "오류가 발생했습니다.", 500
 
 
+@card_bp.route('/monthly_viz')
 def card_monthly_viz():
     """월별 시각화"""
     try:
@@ -347,6 +359,7 @@ def card_monthly_viz():
         return "Error generating visualization", 500
 
 
+@card_bp.route('/yearly_viz')
 def card_yearly_viz():
     """연별 시각화"""
     try:
@@ -415,6 +428,7 @@ def card_yearly_viz():
         return "Error generating visualization", 500
 
 
+@card_bp.route('/get_notes')
 def card_get_notes():
     """비고 목록 조회"""
     try:

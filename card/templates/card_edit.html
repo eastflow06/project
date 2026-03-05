@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>카드 사용 내역 수정</title>
     
-    <link rel="stylesheet" href="{{ url_for('card_static', filename='css/card.css') }}">
+    <link rel="stylesheet" href="{{ url_for('card.static', filename='css/card.css') }}">
     
     <style>
         /* =========================================
@@ -29,7 +29,7 @@
             z-index: -1; /* 콘텐츠 뒤로 보내기 */
             
             /* [핵심] 라이트/다크 모드 동일한 이미지 사용 */
-            background-image: url("{{ url_for('card_static', filename='images/bg002.jpg') }}");
+            background-image: url("{{ url_for('card.static', filename='images/bg002.jpg') }}");
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -139,7 +139,8 @@
                 <label for="note">비고</label>
                 <div class="note-input-container">
                     <div class="note-input-wrapper">
-                        <input type="text" id="note" name="note" value="{{ record['note'] }}" readonly>
+                        <input type="text" id="note" name="note" value="{{ record['note'] }}" autocomplete="off">
+                        <div id="noteDropdown" class="content-dropdown"></div>
                     </div>
                     <button type="button" class="add-note-btn" title="비고 추가">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -281,9 +282,122 @@
            const deleteBtn = document.getElementById('deleteBtn');
            const deleteConfirmModal = document.getElementById('deleteConfirmModal');
 
+            // 전역 요소 참조
+            const usageInput = document.getElementById('usage');
+            const purposeInput = document.getElementById('purpose');
+            const contentInput = document.getElementById('content');
+            const contentDropdown = document.getElementById('contentDropdown');
+
+
+           // --- 초성 검색 로직 ---
+           const CHO_HANGUL = [
+               'ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'
+           ];
+
+           function getChosung(str) {
+               let result = "";
+               for (let i = 0; i < str.length; i++) {
+                   const code = str.charCodeAt(i) - 0xAC00;
+                   if (code > -1 && code < 11172) {
+                       const choIdx = Math.floor(code / 588);
+                       result += CHO_HANGUL[choIdx];
+                   } else {
+                       result += str.charAt(i);
+                   }
+               }
+               return result;
+           }
+
+           function matchChosung(target, query) {
+               target = target || "";
+               query = query || "";
+               if (target.toLowerCase().includes(query.toLowerCase())) return true;
+               const targetChosung = getChosung(target);
+               return targetChosung.includes(query);
+           }
+
+           // --- 비고 자동완성 로직 ---
+           const noteDropdown = document.getElementById('noteDropdown');
+           let currentNoteFocusIndex = -1;
+           
+           if (noteInput && noteDropdown) {
+               noteInput.addEventListener('input', function() {
+                   const val = this.value;
+                   // 콤마나 공백으로 분리
+                   const parts = val.split(/[,\s]+/);
+                   const lastPart = parts[parts.length - 1].trim();
+                   
+                   currentNoteFocusIndex = -1;
+                   
+                   if (val.length === 0) {
+                       noteDropdown.style.display = 'none';
+                       return;
+                   }
+                   
+                   const filtered = notes.filter(n => matchChosung(n, lastPart));
+                   
+                   if (filtered.length === 0) {
+                       noteDropdown.style.display = 'none';
+                       return;
+                   }
+                   
+                   noteDropdown.innerHTML = '';
+                   filtered.forEach(note => {
+                       const div = document.createElement('div');
+                       div.className = 'content-item';
+                       div.textContent = note;
+                       div.addEventListener('click', function() {
+                           parts[parts.length - 1] = note; 
+                           noteInput.value = parts.filter(p => p.trim()).join(', ');
+                           noteDropdown.style.display = 'none';
+                           noteInput.focus();
+                       });
+                       noteDropdown.appendChild(div);
+                   });
+                   noteDropdown.style.display = 'block';
+               });
+               
+               noteInput.addEventListener('keydown', function(e) {
+                   const items = noteDropdown.querySelectorAll('.content-item');
+                   if (noteDropdown.style.display === 'none' || items.length === 0) return;
+                   
+                   if (e.key === 'ArrowDown') {
+                       e.preventDefault();
+                       currentNoteFocusIndex++;
+                       if (currentNoteFocusIndex >= items.length) currentNoteFocusIndex = 0;
+                       setNoteActiveItem(items);
+                   } else if (e.key === 'ArrowUp') {
+                       e.preventDefault();
+                       currentNoteFocusIndex--;
+                       if (currentNoteFocusIndex < 0) currentNoteFocusIndex = items.length - 1;
+                       setNoteActiveItem(items);
+                   } else if (e.key === 'Enter' && currentNoteFocusIndex >= 0) {
+                       e.preventDefault();
+                       items[currentNoteFocusIndex].click();
+                   } else if (e.key === 'Escape') {
+                       noteDropdown.style.display = 'none';
+                   }
+               });
+               
+               function setNoteActiveItem(items) {
+                   items.forEach((item, index) => {
+                       if (index === currentNoteFocusIndex) {
+                           item.classList.add('active');
+                           item.scrollIntoView({ block: 'nearest' });
+                       } else {
+                           item.classList.remove('active');
+                       }
+                   });
+               }
+               
+               document.addEventListener('click', function(e) {
+                   if (e.target !== noteInput) {
+                       noteDropdown.style.display = 'none';
+                   }
+               });
+           }
+
            // 내용 자동완성 기능
-           const contentInput = document.getElementById('content');
-           const contentDropdown = document.getElementById('contentDropdown');
            const contents = {{ contents|default([])|tojson|safe }};
            let currentFocusIndex = -1;
 
@@ -366,9 +480,9 @@
            let selectedNames = new Set();
 
            // 초기 비고 값 설정
-           if (noteInput && noteInput.value) {
-               selectedNames = new Set(noteInput.value.split(',').map(n => n.trim()).filter(n => n));
-           }
+            if (noteInput && noteInput.value) {
+                selectedNames = new Set(noteInput.value.split(/[,\s]+/).map(n => n.trim()).filter(n => n));
+            }
 
            // 비고 모달 로직
            function openNoteModal(e) {
@@ -609,6 +723,51 @@
                    }
                });
            }
+
+            // --- 사용처 키워드 기반 자동 완성 ---
+            const mappingUrl = "{{ url_for('card.static', filename='keyword_mapping.json') }}";
+            let keywordMapping = {};
+
+            fetch(mappingUrl)
+                .then(response => response.json())
+                .then(data => {
+                    keywordMapping = data;
+                    console.log('Keyword mapping loaded:', Object.keys(keywordMapping).length, 'keywords');
+                })
+                .catch(err => console.error('Keyword mapping load failed:', err));
+
+            if (usageInput) {
+                usageInput.addEventListener('input', function() {
+                    const value = this.value.toUpperCase().trim();
+                    if (!value) return;
+
+                    // 키워드 매핑 확인
+                    for (const keyword in keywordMapping) {
+                        const upperKeyword = keyword.toUpperCase();
+                        if (value.includes(upperKeyword)) {
+                            const mapping = keywordMapping[keyword];
+                            console.log(`Keyword matched: ${keyword}`, mapping);
+                            
+                            const currentPurpose = purposeInput.value.trim();
+                            const currentContent = contentInput.value.trim();
+                            
+                            // 현재 목적이 비어있거나, 매핑 데이터 중 하나와 일치하면 덮어씌우기
+                            const isPurposeAutoFilled = Object.values(keywordMapping).some(m => m.purpose === currentPurpose);
+                            if (!currentPurpose || isPurposeAutoFilled) {
+                                purposeInput.value = mapping.purpose;
+                            }
+                            
+                            // 현재 내용이 비어있거나, 서버 기본값이거나, 매핑 데이터 중 하나와 일치하면 덮어씌우기
+                            const recordContent = "{{ record['content'] }}".trim();
+                            const isContentAutoFilled = Object.values(keywordMapping).some(m => m.content === currentContent);
+                            if (!currentContent || currentContent === recordContent || isContentAutoFilled) {
+                                contentInput.value = mapping.content;
+                            }
+                            break; 
+                        }
+                    }
+                });
+            }
 
            // 초기 이름 목록 로드
            if (noteModal) updateNamesList('');

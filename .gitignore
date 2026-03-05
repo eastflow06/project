@@ -42,3 +42,13 @@ static/data/
 # Data directories to exclude from backup
 /pdata/
 static/data/
+
+# Secrets and Credentials
+credentials.json
+gcal/service-account-key.json
+memoapp-drive-integration.json
+static/memoapp-drive-integration.json
+static/six-project-33.json
+settings.json
+
+card/credentials.json

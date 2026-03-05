@@ -154,7 +154,8 @@
                         'font-weight': 'normal',
                         'color': '#333333',
                         'text-wrap': 'wrap',
-                        'text-max-width': '110px'
+                        'text-max-width': '110px',
+                        'overlay-opacity': 0
                     }
                 },
                 // Start 노드 (이중 원, 연두색)
@@ -217,7 +218,7 @@
                         'border-width': 0,
                         'width': 200,
                         'height': 'label',
-                        'padding': '10px',
+                        'padding': '0px',
                         'shape': 'rectangle',
                         'text-wrap': 'wrap',
                         'text-max-width': '190px',
@@ -293,10 +294,7 @@
                 {
                     selector: 'node:selected',
                     style: {
-                        'border-color': '#00d9ff',
-                        'border-width': 3,
-                        'overlay-color': '#00d9ff',
-                        'overlay-opacity': 0.2
+                        'overlay-opacity': 0
                     }
                 },
                 {
@@ -320,7 +318,8 @@
                         'text-background-shape': 'roundrectangle',
                         'text-border-color': '#D6B656',
                         'text-border-width': 1,
-                        'text-border-opacity': 1
+                        'text-border-opacity': 1,
+                        'overlay-opacity': 0
                     }
                 },
                 {
@@ -348,11 +347,13 @@
                     style: { 'line-style': 'data(lineStyle)' }
                 },
                 {
+                    selector: 'edge[targetArrowShape]',
+                    style: { 'target-arrow-shape': 'data(targetArrowShape)' }
+                },
+                {
                     selector: 'edge:selected',
                     style: {
-                        'line-color': '#00d9ff',
-                        'target-arrow-color': '#00d9ff',
-                        'width': 2
+                        'overlay-opacity': 0
                     }
                 }
             ],

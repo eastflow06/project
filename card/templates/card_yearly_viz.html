@@ -139,7 +139,7 @@
 
     <script>
         // Monthly viz URL from Flask
-        const monthlyVizUrl = "{{ url_for('card_monthly_viz_route') }}";
+        const monthlyVizUrl = "{{ url_for('card.card_monthly_viz') }}";
         
         // Initialize data from Flask
         const chartData = {{ chart_data | tojson | safe }};

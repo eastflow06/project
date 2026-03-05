@@ -82,14 +82,19 @@
     }
     .flowchart-actions {
         display: flex;
-        gap: 10px;
+        gap: 12px;
+        justify-content: flex-end;
     }
     .flowchart-actions a,
     .flowchart-actions button {
-        flex: 1;
-        text-align: center;
-        padding: 8px;
-        font-size: 13px;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        font-size: 18px;
+        border-radius: 50%;
     }
     .empty-state {
         text-align: center;
@@ -117,12 +122,12 @@
             <h3>{{ fc['title'] }}</h3>
             <p>{{ fc['description'] or '설명 없음' }}</p>
             <div class="flowchart-meta">
-                생성: {{ fc['created_at'][:10] }} | 수정: {{ fc['updated_at'][:10] }}
+                생성: {{ (fc['created_at']|string)[:10] }} | 수정: {{ (fc['updated_at']|string)[:10] }}
             </div>
             <div class="flowchart-actions">
-                <a href="{{ url_for('flowchart.view', id=fc['id']) }}" class="btn-flowchart">보기</a>
-                <a href="{{ url_for('flowchart.edit', id=fc['id']) }}" class="btn-flowchart">수정</a>
-                <button class="btn-flowchart btn-flowchart-danger" onclick="deleteFlowchart({{ fc['id'] }})">삭제</button>
+                <a href="{{ url_for('flowchart.view', id=fc['id']) }}" class="btn-flowchart" title="보기">👁️</a>
+                <a href="{{ url_for('flowchart.edit', id=fc['id']) }}" class="btn-flowchart" title="수정">✏️</a>
+                <button class="btn-flowchart btn-flowchart-danger" onclick="deleteFlowchart({{ fc['id'] }})" title="삭제">🗑️</button>
             </div>
         </div>
         {% endfor %}

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>카드 사용 내역 추가</title>
     
-    <link rel="stylesheet" href="{{ url_for('card_static', filename='css/card.css') }}">
+    <link rel="stylesheet" href="{{ url_for('card.static', filename='css/card.css') }}">
     
     <style>
         /* =========================================
@@ -27,7 +27,7 @@
             z-index: -1;
             
             /* 배경 이미지 경로 */
-            background-image: url("{{ url_for('card_static', filename='images/bg002.jpg') }}");
+            background-image: url("{{ url_for('card.static', filename='images/bg002.jpg') }}");
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -251,6 +251,12 @@
             const selectedNamesContainer = noteModal.querySelector('.selected-names');
             const confirmButton = noteModal.querySelector('.confirm-button');
             const cancelButton = noteModal.querySelector('.cancel-button');
+
+            // 전역 요소 참조
+            const usageInput = document.getElementById('usage');
+            const purposeInput = document.getElementById('purpose');
+            const contentInput = document.getElementById('content');
+            const contentDropdown = document.getElementById('contentDropdown');
             
             // 데이터 안전 처리
             const notes = {{ notes|default([])|tojson|safe }};
@@ -292,12 +298,13 @@
             if (noteInput && noteDropdown) {
                 noteInput.addEventListener('input', function() {
                     const val = this.value;
-                    const parts = val.split(',');
+                    // 콤마나 공백으로 분리
+                    const parts = val.split(/[,\s]+/);
                     const lastPart = parts[parts.length - 1].trim();
                     
                     currentNoteFocusIndex = -1;
                     
-                    if (lastPart.length === 0) {
+                    if (val.length === 0) {
                         noteDropdown.style.display = 'none';
                         return;
                     }
@@ -316,7 +323,7 @@
                         div.textContent = note;
                         div.addEventListener('click', function() {
                             parts[parts.length - 1] = note; 
-                            noteInput.value = parts.map(p => p.trim()).join(', ') + ', ';
+                            noteInput.value = parts.filter(p => p.trim()).join(', ');
                             noteDropdown.style.display = 'none';
                             noteInput.focus();
                         });
@@ -372,8 +379,6 @@
             document.getElementById("date").value = today;
             
             // === 내용 자동완성 기능 ===
-            const contentInput = document.getElementById('content');
-            const contentDropdown = document.getElementById('contentDropdown');
             let currentFocusIndex = -1;
             
             if (contentInput && contentDropdown) {
@@ -449,7 +454,7 @@
                 e.preventDefault();
                 noteModal.style.display = 'block';
                 searchInput.value = '';
-                const currentNames = noteInput.value.split(',').map(n => n.trim()).filter(n => n);
+                const currentNames = noteInput.value.split(/[,\s]+/).map(n => n.trim()).filter(n => n);
                 selectedNames = new Set(currentNames);
                 updateSelectedNames();
                 updateNamesList('');
@@ -596,6 +601,52 @@
             setupFieldModal('purpose', purposes);
             setupFieldModal('user', users);
             
+            // --- 사용처 키워드 기반 자동 완성 ---
+            const mappingUrl = "{{ url_for('card.static', filename='keyword_mapping.json') }}";
+            let keywordMapping = {};
+
+            fetch(mappingUrl)
+                .then(response => response.json())
+                .then(data => {
+                    keywordMapping = data;
+                    console.log('Keyword mapping loaded:', Object.keys(keywordMapping).length, 'keywords');
+                })
+                .catch(err => console.error('Keyword mapping load failed:', err));
+
+            if (usageInput) {
+                usageInput.addEventListener('input', function() {
+                    const value = this.value.toUpperCase().trim();
+                    if (!value) return;
+
+                    // 키워드 매핑 확인
+                    for (const keyword in keywordMapping) {
+                        const upperKeyword = keyword.toUpperCase();
+                        if (value.includes(upperKeyword)) {
+                            const mapping = keywordMapping[keyword];
+                            console.log(`Keyword matched: ${keyword}`, mapping);
+                            
+                            const currentPurpose = purposeInput.value.trim();
+                            const currentContent = contentInput.value.trim();
+                            
+                            // 현재 목적이 비어있거나, 매핑 데이터 중 하나와 일치하면(자동 입력된 상태라면) 덮어씌우기
+                            const isPurposeAutoFilled = Object.values(keywordMapping).some(m => m.purpose === currentPurpose);
+                            if (!currentPurpose || isPurposeAutoFilled) {
+                                purposeInput.value = mapping.purpose;
+                            }
+                            
+                            // 현재 내용이 비어있거나, 서버 기본값이거나, 매핑 데이터 중 하나와 일치하면 덮어씌우기
+                            const lastContent = "{{ last_content }}".trim();
+                            const isContentAutoFilled = Object.values(keywordMapping).some(m => m.content === currentContent);
+                            if (!currentContent || currentContent === lastContent || isContentAutoFilled) {
+                                contentInput.value = mapping.content;
+                            }
+                            
+                            break; 
+                        }
+                    }
+                });
+            }
+
             updateNamesList('');
         });
     </script>

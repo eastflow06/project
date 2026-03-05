@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     <script>
@@ -199,6 +200,69 @@
         .sidebar-scroll:hover::-webkit-scrollbar-thumb {
             background: #334155;
         }
+
+        /* Resize Handles */
+        /* Resize Handles - Heat area changed for easier grabbing */
+        .resize-handle-h {
+            cursor: ns-resize;
+            height: 12px; /* Increased hit area */
+            width: 100%;
+            position: absolute;
+            bottom: -6px; /* Centered on the border */
+            left: 0;
+            z-index: 50;
+            background: transparent;
+        }
+        .resize-handle-h::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 4px; /* Center the 4px line within 12px height */
+            width: 100%;
+            height: 4px;
+            background-color: transparent;
+            transition: background-color 0.2s;
+        }
+        .resize-handle-h:hover::after, .resize-handle-h.resizing::after {
+            background-color: rgba(59, 130, 246, 0.5);
+        }
+        
+        .resize-handle-v {
+            cursor: ew-resize;
+            width: 12px; /* Increased hit area */
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: -6px; /* Centered on the border */
+            z-index: 50;
+            background: transparent;
+        }
+        .resize-handle-v::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 4px; /* Center the 4px line within 12px width */
+            width: 4px;
+            height: 100%;
+            background-color: transparent;
+            transition: background-color 0.2s;
+        }
+        .resize-handle-v:hover::after, .resize-handle-v.resizing::after {
+            background-color: rgba(59, 130, 246, 0.5);
+        }
+        
+        /* Ensure the handle container itself is transparent on hover */
+        .resize-handle-h:hover, .resize-handle-v:hover {
+            background-color: transparent;
+        }
+
+        /* Resize helper: prevent iframe from stealing events */
+        body.resizing-panel iframe {
+            pointer-events: none !important;
+        }
+        body.resizing-panel {
+            user-select: none;
+        }
     </style>
 </head>
 <body class="dark h-screen w-screen flex flex-col overflow-hidden bg-dark-bg text-dark-text">
@@ -279,10 +343,10 @@
             <button onclick="toggleDarkMode()" 
                     class="w-9 h-9 flex items-center justify-center text-dark-muted hover:text-yellow-400 transition hover:bg-white/5 rounded-lg" 
                     title="다크 모드 전환">
-                <svg id="header-icon-dark" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg id="header-icon-dark" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
                 </svg>
-                <svg id="header-icon-light" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg id="header-icon-light" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
                 </svg>
             </button>
@@ -354,7 +418,7 @@
 
 
                         <!-- Data Slide Panel (Top to Bottom) -->
-                        <div id="data-slide-panel" class="absolute inset-x-0 top-0 h-[50%] bg-dark-card border-b border-dark-border shadow-2xl transform -translate-y-full transition-transform duration-300 z-20 flex flex-col">
+                        <div id="data-slide-panel" class="absolute inset-x-0 top-0 h-[50%] bg-dark-card border-b border-dark-border shadow-2xl transform -translate-y-full z-20 flex flex-col transition-[transform] duration-300">
                             <div class="p-4 border-b border-dark-border flex items-center justify-between bg-dark-card">
                                 <h3 class="text-sm font-semibold text-dark-text">원본 데이터</h3>
                                 <button onclick="toggleDataPanel(event)" class="bg-transparent hover:bg-dark-border/50 rounded-full p-1 transition-colors">
@@ -366,10 +430,12 @@
                             <div id="data-content" class="flex-1 overflow-auto p-4 bg-dark-bg/95">
                                 <div class="text-center text-dark-muted py-10">데이터를 불러오는 중...</div>
                             </div>
+                            <div class="resize-handle-h" id="data-panel-resizer"></div>
                         </div>
 
                         <!-- Info Slide Panel -->
-                        <div id="info-slide-panel" class="absolute inset-y-0 right-0 w-[400px] bg-dark-card border-l border-dark-border shadow-2xl transform translate-x-full transition-transform duration-300 z-20 flex flex-col">
+                        <div id="info-slide-panel" class="absolute inset-y-0 right-0 w-[400px] bg-dark-card border-l border-dark-border shadow-2xl transform translate-x-full z-20 flex flex-col transition-[transform] duration-300">
+                            <div class="resize-handle-v" id="info-panel-resizer"></div>
                             <div class="p-4 border-b border-dark-border flex items-center justify-between bg-dark-card">
                                 <h3 class="text-lg font-semibold text-dark-text">시험 상세 정보</h3>
                                 <button onclick="toggleInfoPanel(event)" class="text-dark-muted hover:text-dark-text transition-colors">
@@ -476,7 +542,113 @@
                 });
             });
             observer.observe(document.body, { attributes: true }); // body 클래스 변화 감지
+
+            initResizablePanels();
         });
+
+        function initResizablePanels() {
+            // Data Slide Panel (Top to Bottom)
+            const dataPanel = document.getElementById('data-slide-panel');
+            const dataResizer = document.getElementById('data-panel-resizer');
+            
+            if (dataResizer && dataPanel) {
+                let isResizing = false;
+                let parentRect = null;
+                
+                dataResizer.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    isResizing = true;
+                    parentRect = dataPanel.parentElement.getBoundingClientRect();
+                    dataResizer.classList.add('resizing');
+                    document.body.classList.add('resizing-panel');
+                    // Disable transition while resizing
+                    dataPanel.style.transition = 'none';
+                    document.body.style.cursor = 'ns-resize';
+                });
+
+                dataResizer.addEventListener('dblclick', () => {
+                    dataPanel.style.height = '50%';
+                });
+                
+                window.addEventListener('mousemove', (e) => {
+                    if (!isResizing || !parentRect) return;
+                    
+                    let newHeight = e.clientY - parentRect.top;
+                    
+                    // Min/Max height constraints
+                    const minHeight = 100;
+                    const maxHeight = parentRect.height * 0.9;
+                    
+                    if (newHeight < minHeight) newHeight = minHeight;
+                    if (newHeight > maxHeight) newHeight = maxHeight;
+                    
+                    dataPanel.style.height = `${newHeight}px`;
+                });
+                
+                window.addEventListener('mouseup', () => {
+                    if (isResizing) {
+                        isResizing = false;
+                        parentRect = null;
+                        dataResizer.classList.remove('resizing');
+                        document.body.classList.remove('resizing-panel');
+                        dataPanel.style.transition = ''; // Restore transition
+                        document.body.style.cursor = '';
+                    }
+                });
+            }
+
+            // Info Slide Panel (Right to Left)
+            const infoPanel = document.getElementById('info-slide-panel');
+            const infoResizer = document.getElementById('info-panel-resizer');
+            
+            if (infoResizer && infoPanel) {
+                let isResizing = false;
+                let parentRect = null;
+                
+                infoResizer.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    isResizing = true;
+                    parentRect = infoPanel.parentElement.getBoundingClientRect();
+                    infoResizer.classList.add('resizing');
+                    document.body.classList.add('resizing-panel');
+                    // Disable transition while resizing
+                    infoPanel.style.transition = 'none';
+                    document.body.style.cursor = 'ew-resize';
+                });
+
+                infoResizer.addEventListener('dblclick', () => {
+                    infoPanel.style.width = '400px';
+                });
+                
+                window.addEventListener('mousemove', (e) => {
+                    if (!isResizing || !parentRect) return;
+                    
+                    let newWidth = parentRect.right - e.clientX;
+                    
+                    // Min/Max width constraints
+                    const minWidth = 250;
+                    const maxWidth = parentRect.width * 0.8;
+                    
+                    if (newWidth < minWidth) newWidth = minWidth;
+                    if (newWidth > maxWidth) newWidth = maxWidth;
+                    
+                    infoPanel.style.width = `${newWidth}px`;
+                });
+                
+                window.addEventListener('mouseup', () => {
+                    if (isResizing) {
+                        isResizing = false;
+                        parentRect = null;
+                        infoResizer.classList.remove('resizing');
+                        document.body.classList.remove('resizing-panel');
+                        infoPanel.style.transition = ''; // Restore transition
+                        document.body.style.cursor = '';
+                    }
+                });
+            }
+        }
 
         function setupStateManagement() {
             // Search Input (Debounced Save)
@@ -696,7 +868,7 @@
             } else {
                 emptyState.classList.add('hidden');
                 testList.innerHTML = displayTests.map(test => `
-                    <div class="test-item px-2 py-1 rounded-lg hover:bg-dark-bg cursor-pointer border border-transparent transition-all duration-200 group" 
+                    <div class="test-item px-3 py-2.5 hover:bg-dark-bg cursor-pointer border-b border-dark-border/30 last:border-b-0 transition-all duration-200 group" 
                             data-test-id="${test.id}"
                             onclick="selectTest(${test.id})">
                         <div class="flex items-start justify-between">
@@ -1582,12 +1754,13 @@
 
              const datasets = [];
  
-             // Design specified: Red color scheme as primary
-             const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22', '#1abc9c', '#34495e'];
+              // Design specified: Red color scheme as primary
+             const defaultColors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22', '#1abc9c', '#34495e'];
+             const customColors = settings.dataset_colors || [];
  
              // 각 컬럼별로 데이터셋 생성 (첫 번째 컬럼 제외)
              for (let i = 1; i < columns.length; i++) {
-                 const color = colors[(i - 1) % colors.length];
+                 const color = customColors[i - 1] || defaultColors[(i - 1) % defaultColors.length];
                  
                  let dataPoints;
                  if (scaleType === 'linear') {
@@ -1626,7 +1799,12 @@
 
                  let bgColor;
                  if (isBar) {
-                     bgColor = color; // Bar 차트는 불투명
+                     // 단일 데이터셋이면서 여러 색상이 지정된 경우 각 막대별 색상 적용
+                     if (columns.length === 2 && customColors.length > 1) {
+                         bgColor = customColors;
+                     } else {
+                         bgColor = color;
+                     }
                  } else {
                      // 선 그래프 등: 채우기 옵션이 켜져있으면 투명도 적용
                      if (fillOption) {
@@ -1754,8 +1932,13 @@
                  }
              };
 
+             // Register DataLabels plugin globally or per chart
+             // Since we included the script, ChartDataLabels is available
+             Chart.register(ChartDataLabels);
+
              currentChart = new Chart(ctx, {
                  type: settings.chart_type || 'line',
+                 plugins: [ChartDataLabels], // Activate plugin for this chart
                  data: {
                      labels: labels, // Linear일 경우 null
                      datasets: datasets.map(ds => ({
@@ -1809,7 +1992,29 @@
                          },
                          annotation: Object.keys(annotations).length > 0 ? {
                              annotations: annotations
-                         } : undefined
+                         } : undefined,
+                         datalabels: {
+                             display: settings.show_datalabels === true || settings.show_datalabels === 'true',
+                             color: themeText,
+                             anchor: 'end',
+                             align: 'top',
+                             offset: 4,
+                             font: {
+                                 weight: 'bold',
+                                 size: settings.datalabels_font_size || 11
+                             },
+                             formatter: function(value, context) {
+                                 // Round to 2 decimal places if number
+                                 if (typeof value === 'number') {
+                                     return Math.round(value * 100) / 100;
+                                 }
+                                 // If object {x, y}
+                                 if (value && typeof value.y === 'number') {
+                                     return Math.round(value.y * 100) / 100;
+                                 }
+                                 return value;
+                             }
+                         }
                      },
                      scales: isRadial ? undefined : scales
                  }
@@ -1828,17 +2033,17 @@
 
             // 1. Toggle Parent
             if (isDark) {
-                // Switch to Light
+                // Switch to Light (Show Moon to allow toggle back to dark)
                 body.classList.remove('dark');
                 html.classList.remove('dark');
-                if (iconDark) iconDark.classList.add('hidden');
-                if (iconLight) iconLight.classList.remove('hidden');
+                if (iconDark) iconDark.classList.remove('hidden'); // Show Moon
+                if (iconLight) iconLight.classList.add('hidden'); // Hide Sun
             } else {
-                // Switch to Dark
+                // Switch to Dark (Show Sun to allow toggle back to light)
                 body.classList.add('dark');
                 html.classList.add('dark');
-                if (iconDark) iconDark.classList.remove('hidden');
-                if (iconLight) iconLight.classList.add('hidden');
+                if (iconDark) iconDark.classList.add('hidden'); // Hide Moon
+                if (iconLight) iconLight.classList.remove('hidden'); // Show Sun
             }
 
             // 2. Toggle Iframe (if exists)
@@ -1870,6 +2075,7 @@
                  // 1. Save current theme state
                  const originalColors = {
                      text: currentChart.options.plugins.legend?.labels?.color,
+                     datalabels: currentChart.options.plugins.datalabels?.color,
                      scales: {}
                  };
                  
@@ -1892,6 +2098,11 @@
 
                  if (currentChart.options.plugins.legend) {
                      currentChart.options.plugins.legend.labels.color = lightText;
+                 }
+                 
+                 // Force datalabels color to dark for print
+                 if (currentChart.options.plugins.datalabels) {
+                     currentChart.options.plugins.datalabels.color = lightText;
                  }
 
                  ['x', 'y'].forEach(axis => {
@@ -1928,6 +2139,10 @@
                  // 4. Restore Original Colors
                  if (currentChart.options.plugins.legend) {
                      currentChart.options.plugins.legend.labels.color = originalColors.text;
+                 }
+                 
+                 if (currentChart.options.plugins.datalabels) {
+                     currentChart.options.plugins.datalabels.color = originalColors.datalabels;
                  }
                  
                  ['x', 'y'].forEach(axis => {
@@ -1986,10 +2201,93 @@
         function downloadContent() {
             // Priority 1: Chart.js Instance (Native dashboard chart)
             if (currentChart) {
+                // Same logic as print: switch to light mode temporarily
+                 const originalColors = {
+                     text: currentChart.options.plugins.legend?.labels?.color,
+                     datalabels: currentChart.options.plugins.datalabels?.color,
+                     scales: {}
+                 };
+                 
+                 ['x', 'y'].forEach(axis => {
+                     if (currentChart.options.scales[axis]) {
+                         originalColors.scales[axis] = {
+                             ticks: currentChart.options.scales[axis].ticks.color,
+                             title: currentChart.options.scales[axis].title.color,
+                             grid: currentChart.options.scales[axis].grid.color,
+                             gridBorder: currentChart.options.scales[axis].grid.borderColor,
+                             gridTick: currentChart.options.scales[axis].grid.tickColor
+                         };
+                     }
+                 });
+
+                 // Force Light Mode Colors
+                 const lightText = '#333333';
+                 const lightGrid = '#e5e7eb';
+                 const lightAxis = '#64748b';
+
+                 if (currentChart.options.plugins.legend) {
+                     currentChart.options.plugins.legend.labels.color = lightText;
+                 }
+                 if (currentChart.options.plugins.datalabels) {
+                     currentChart.options.plugins.datalabels.color = lightText;
+                 }
+
+
+                 ['x', 'y'].forEach(axis => {
+                     if (currentChart.options.scales[axis]) {
+                         currentChart.options.scales[axis].ticks.color = lightAxis;
+                         currentChart.options.scales[axis].title.color = lightAxis;
+                         if (currentChart.options.scales[axis].grid) {
+                             currentChart.options.scales[axis].grid.color = lightGrid;
+                             currentChart.options.scales[axis].grid.borderColor = lightGrid;
+                             currentChart.options.scales[axis].grid.tickColor = lightGrid;
+                         }
+                     }
+                 });
+
+                 // Update chart synchronously
+                 currentChart.update('none');
+
+                 // Capture with white background
+                 const canvas = document.getElementById('resultChart');
+                 const compositeCanvas = document.createElement('canvas');
+                 compositeCanvas.width = canvas.width;
+                 compositeCanvas.height = canvas.height;
+                 const ctx = compositeCanvas.getContext('2d');
+                 
+                 ctx.fillStyle = '#ffffff';
+                 ctx.fillRect(0, 0, canvas.width, canvas.height);
+                 ctx.drawImage(canvas, 0, 0);
+                 
                 const link = document.createElement('a');
                 link.download = (currentTestData ? currentTestData.test_title : 'chart') + '.png';
-                link.href = currentChart.toBase64Image();
+                link.href = compositeCanvas.toDataURL('image/png');
                 link.click();
+
+                 // Restore Original Colors
+                 if (currentChart.options.plugins.legend) {
+                     currentChart.options.plugins.legend.labels.color = originalColors.text;
+                 }
+                 if (currentChart.options.plugins.datalabels) {
+                     currentChart.options.plugins.datalabels.color = originalColors.datalabels;
+                 }
+                 
+                 ['x', 'y'].forEach(axis => {
+                     if (currentChart.options.scales[axis]) {
+                         const saved = originalColors.scales[axis];
+                         if (saved) {
+                             currentChart.options.scales[axis].ticks.color = saved.ticks;
+                             currentChart.options.scales[axis].title.color = saved.title;
+                             if (currentChart.options.scales[axis].grid) {
+                                 currentChart.options.scales[axis].grid.color = saved.grid;
+                                 currentChart.options.scales[axis].grid.borderColor = saved.gridBorder;
+                                 currentChart.options.scales[axis].grid.tickColor = saved.gridTick;
+                             }
+                         }
+                     }
+                 });
+                 currentChart.update('none');
+                 
                 return;
             }
             

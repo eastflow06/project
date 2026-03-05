@@ -3,7 +3,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 from models import db, Project, Product, Task, Memo, Link, ProjectImage, Tag, MyMemo, Infolink, MemoImage
 from note.models import Note
 from werkzeug.utils import secure_filename
-import os, random, uuid, re, base64, mimetypes, sys, unicodedata,pytz,markdown2, json
+import os, random, uuid, re, base64, mimetypes, sys, unicodedata,pytz,markdown2, json, subprocess
 from dotenv import load_dotenv
 
 # .env 파일 로드
@@ -44,12 +44,19 @@ app.config['BASE_DIR'] = BASE_DIR
 
 SETTINGS_FILE = os.path.join(BASE_DIR, 'settings.json')
 
-# 데이터베이스 (SQLite)
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{BASE_DIR}/db/project.db"
+# 데이터베이스 (MySQL)
+_MYSQL_HOST = os.environ.get('MYSQL_HOST', 'localhost')
+_MYSQL_PORT = os.environ.get('MYSQL_PORT', '3306')
+_MYSQL_USER = os.environ.get('MYSQL_USER', 'projectuser')
+_MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD', 'ProjectDB2026!')
+_MYSQL_DATABASE = os.environ.get('MYSQL_DATABASE', 'project_db')
+_MYSQL_URI = f"mysql+pymysql://{_MYSQL_USER}:{_MYSQL_PASSWORD}@{_MYSQL_HOST}:{_MYSQL_PORT}/{_MYSQL_DATABASE}?charset=utf8mb4"
+
+app.config['SQLALCHEMY_DATABASE_URI'] = _MYSQL_URI
 app.config['SQLALCHEMY_BINDS'] = {
-    'notes_db': f"sqlite:///{BASE_DIR}/db/notes.db",
-    'todo_db': f"sqlite:///{BASE_DIR}/db/todo.db",  # Todo Database configuration
-    'lims_db': f"sqlite:///{BASE_DIR}/db/lims.db"
+    'notes_db': _MYSQL_URI,
+    'todo_db': _MYSQL_URI,  # Todo Database configuration
+    'lims_db': _MYSQL_URI
 }
 
 # 파일/업로드 관련 설정 - 원하시는 대로 수정
@@ -75,38 +82,14 @@ app.config['OPENWEATHER_API_KEY'] = os.environ.get('OPENWEATHER_API_KEY', '')
 cache = Cache()
 cache.init_app(app, config={'CACHE_TYPE': 'simple'})
 
-# card 모듈 경로 추가 및 import
-# 기본 템플릿 로더 설정 (순서: 기본 -> 각 모듈)
-template_loaders = [
+
+    
+# 최종적으로 템플릿 로더 설정 (Flask는 블루프린트 제작 시 지정한 template_folder를 자동으로 인식하므로 기본 templates만 명시 가능)
+app.jinja_loader = jinja2.ChoiceLoader([
     jinja2.FileSystemLoader('templates'),
     jinja2.FileSystemLoader('flowchart/templates'),
     jinja2.FileSystemLoader('lims/templates')
-]
-
-# card 모듈 사용 설정
-try:
-    card_path = os.path.join(os.path.dirname(__file__), 'card')
-    sys.path.insert(0, card_path)
-    
-    # card 기능들 import
-    import card_functions as card_module
-    
-    # import 성공 시 card 템플릿 경로 추가
-    if os.path.exists(os.path.join(card_path, 'templates')):
-        template_loaders.append(jinja2.FileSystemLoader(os.path.join(card_path, 'templates')))
-    
-    CARD_ENABLED = True
-    print("Card module imported successfully")
-    
-except ImportError as e:
-    print(f"Card module import failed: {e}")
-    CARD_ENABLED = False
-except Exception as e:
-    print(f"Card module setup failed: {e}")
-    CARD_ENABLED = False
-    
-# 최종적으로 수집된 템플릿 로더들을 Flask 앱에 적용
-app.jinja_loader = jinja2.ChoiceLoader(template_loaders)
+])
 
 # 프로젝트 상태 상수 정의
 #PROJECT_STATUSES = ['기술개발', '시험평가', '제품개발', '허가승인', '사업화', '규제개선', '연구', '개발', '관리', '검토', '진행', '보류', '완료', '기타']
@@ -115,6 +98,140 @@ app.jinja_loader = jinja2.ChoiceLoader(template_loaders)
 db.init_app(app)
 migrate = Migrate(app, db)
 
+@app.route('/admin/sync', methods=['POST'])
+@login_required
+def admin_sync():
+    server_role = os.environ.get('SERVER_ROLE', 'main')
+    try:
+        log_file = "/home/ubuntu/.local/log/backup_gdrive.log" if server_role == 'main' else "/home/ubuntu/.local/log/sync_restore.log"
+        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+            
+        if server_role == 'main':
+            script_path = "/home/ubuntu/backup_to_gdrive.sh"
+        else:
+            script_path = "/home/ubuntu/sync_from_main.sh"
+            
+        # 프론트엔드에서 보낸 옵션 읽기
+        options = {}
+        if request.is_json:
+            options = request.json
+            
+        env = os.environ.copy()
+        # 기본값은 모두 1 (전체 백업)
+        env["BACKUP_DB"] = "1" if options.get("db", True) else "0"
+        env["BACKUP_PDATA"] = "1" if options.get("pdata", True) else "0"
+        env["BACKUP_STATIC"] = "1" if options.get("static", True) else "0"
+            
+        # 비동기로 스크립트 실행 (백그라운드)
+        subprocess.Popen(["/bin/bash", script_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
+        return jsonify({'success': True, 'message': 'Sync started asynchronously.'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/admin/sync_status', methods=['GET'])
+@login_required
+def admin_sync_status():
+    server_role = os.environ.get('SERVER_ROLE', 'main')
+    log_file = "/home/ubuntu/.local/log/backup_gdrive.log" if server_role == 'main' else "/home/ubuntu/.local/log/sync_restore.log"
+    
+    if not os.path.exists(log_file):
+        return jsonify({'status': 'idle', 'progress': 0, 'details': '대기 중'})
+        
+    try:
+        # 마지막 30줄 읽어서 분석
+        with open(log_file, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+            
+        if not lines:
+            return jsonify({'status': 'running', 'progress': 0, 'details': '동기화 준비 중...'})
+            
+        recent_text = "".join(lines[-30:])
+        
+        import time
+        # 로그 파일이 10초 이상 업데이트되지 않았다면(진행 중 멈췄거나 강제 종료), 대기 상태로 간주
+        if time.time() - os.path.getmtime(log_file) > 10:
+            return jsonify({'status': 'idle', 'progress': 0, 'details': '대기 중'})
+            
+        # 완료 및 실패 체크
+        if "백업 완료" in recent_text or "Sync/Restore process completed" in recent_text:
+            return jsonify({'status': 'completed', 'progress': 100, 'details': '동기화 완료!'})
+        elif "백업 실패" in recent_text or "DB Restore failed" in recent_text or "Sync/Restore failed" in recent_text:
+            return jsonify({'status': 'error', 'progress': 100, 'details': '동기화 오류 발생'})
+
+        # 상태 및 진행률 파싱 (rclone의 --stats 1s 출력)
+        import re
+        matches = list(re.finditer(r'Transferred:\s+(.*? \/ .*?),\s+([0-9]+)%,\s+(.*?),\s+ETA\s+(.*)', recent_text))
+        
+        if matches:
+            last_match = matches[-1]
+            bytes_info = last_match.group(1).strip()
+            percent = int(last_match.group(2))
+            speed = last_match.group(3).strip()
+            eta = last_match.group(4).strip()
+            details = f"동기화 중: {bytes_info} - 속도: {speed}, 남은 시간: {eta}"
+            return jsonify({'status': 'running', 'progress': percent, 'details': details})
+            
+        # Transferred 퍼센트가 없는 경우 (DB 백업/복구 중 등)
+        last_echo = "작업 진행 중..."
+        for line in reversed(lines[-20:]):
+            line = line.strip()
+            if line.startswith("[") and ("시작" in line or "Updating" in line or "Restoring" in line or "Syncing" in line or "백업" in line):
+                last_echo = re.sub(r'^\[.*?\]\s*', '', line)
+                break
+                
+        # 기본 퍼센트는 알 수 없으므로 중간 단계 정도로 표시
+        return jsonify({'status': 'running', 'progress': 10, 'details': last_echo})
+        
+    except Exception as e:
+        return jsonify({'status': 'error', 'progress': 0, 'details': f'상태 읽기 오류: {e}'})
+
+@app.route('/admin/sync_last_status', methods=['GET'])
+@login_required
+def admin_sync_last_status():
+    server_role = os.environ.get('SERVER_ROLE', 'main')
+    log_file = "/home/ubuntu/.local/log/backup_gdrive.log" if server_role == 'main' else "/home/ubuntu/.local/log/sync_restore.log"
+    
+    if not os.path.exists(log_file):
+        return jsonify({'history': [], 'last_sync': '기록 없음', 'success': False})
+        
+    try:
+        # 최근 500줄만 읽어서 다수의 기록 검색
+        with open(log_file, 'r', encoding='utf-8') as f:
+            lines = f.readlines()[-500:]
+            
+        history = []
+        import re
+        
+        # [2026-03-05 07:10:00] 백업 완료 
+        # 위와 같은 패턴을 찾기 위한 정규식
+        pattern = re.compile(r'^\[(\d{4}-\d{2}-\d{2}\s(\d{2}):\d{2}:\d{2})\]\s+(.*)')
+        
+        for line in reversed(lines):
+            line = line.strip()
+            match = pattern.match(line)
+            if match:
+                time_str = match.group(1)
+                hour_str = match.group(2)
+                msg_str = match.group(3)
+                
+                is_auto = (hour_str == '03') # 3시에 실행된 백업은 자동(크론) 백업으로 간주
+                
+                if "백업 완료" in msg_str or "Sync/Restore process completed" in msg_str:
+                    history.append({'time': time_str, 'success': True, 'is_auto': is_auto})
+                elif "백업 실패" in msg_str or "DB Restore failed" in msg_str or "Sync/Restore failed" in msg_str:
+                    history.append({'time': time_str, 'success': False, 'is_auto': is_auto})
+                    
+                if len(history) >= 5: # 최근 5개만 가져오기
+                    break
+                    
+        # 기존 호환성을 위해 last_sync와 success도 반환
+        last_sync = history[0]['time'] if history else "기록 없음"
+        success = history[0]['success'] if history else False
+        
+        return jsonify({'history': history, 'last_sync': last_sync, 'success': success})
+    except Exception as e:
+        return jsonify({'history': [], 'last_sync': '상태 확인 불가', 'success': False})
+
 # OAuth 초기화
 oauth.init_app(app)
 
@@ -122,7 +239,6 @@ oauth.init_app(app)
 app.register_blueprint(auth_bp, url_prefix='/auth')
 app.register_blueprint(contact_bp, url_prefix="/contacts")
 
-from note import note_bp
 from note import note_bp
 app.register_blueprint(note_bp, url_prefix='/pdata/note')
 
@@ -138,56 +254,30 @@ app.register_blueprint(dashboard_bp)
 from lims import lims_bp
 app.register_blueprint(lims_bp)  # Registers at /lims by default
 
+# card 모듈 블루프린트 임포트 및 등록
+try:
+    from card.card_functions import card_bp
+    app.register_blueprint(card_bp, url_prefix='/card')
+    CARD_ENABLED = True
+    print("Card blueprint registered successfully")
+except ImportError as e:
+    print(f"Card blueprint import failed: {e}")
+    CARD_ENABLED = False
+except Exception as e:
+    print(f"Card blueprint setup failed: {e}")
+    CARD_ENABLED = False
+
 CSRF_ENABLED = os.environ.get('CSRF_ENABLED', 'False').lower() == 'true'
 app.config['WTF_CSRF_ENABLED'] = CSRF_ENABLED
 
-# CSRF 보호 (설정에 따라)
-if CSRF_ENABLED:
-    csrf = CSRFProtect(app)
+# CSRF 보호 초기화 (템플릿에서 csrf_token() 사용 가능하도록)
+csrf = CSRFProtect(app)
 
-# card 관련 라우트들 추가 (card가 정상적으로 import된 경우에만)
-if CARD_ENABLED:
-    @app.route('/card')
-    def card_index_route():
-        return card_module.card_index()
-
-    @app.route('/card/add', methods=['GET', 'POST'])
-    def card_add_route():
-        return card_module.card_add()
-
-    @app.route('/card/edit/<string:id>', methods=['GET', 'POST'])
-    def card_edit_route(id):
-        return card_module.card_edit(id)
-
-    @app.route('/card/delete/<id>', methods=['POST'])
-    def card_delete_route(id):
-        return card_module.card_delete(id)
-
-    @app.route('/card/print/<year>/<month>', methods=['GET'])
-    def card_print_route(year, month):
-        return card_module.card_print_view(year, month)
-
-    @app.route('/card/download_csv/<year>/<month>')
-    def card_download_csv_route(year, month):
-        return card_module.card_download_csv(year, month)
-
-    @app.route('/card/monthly_viz')
-    def card_monthly_viz_route():
-        return card_module.card_monthly_viz()
-
-    @app.route('/card/yearly_viz')
-    def card_yearly_viz_route():
-        return card_module.card_yearly_viz()
-
-    @app.route('/card/get_notes')
-    def card_get_notes_route():
-        return card_module.card_get_notes()
-
-    # card의 정적 파일 서빙 (CSS, JS, 이미지 등)
-    @app.route('/card/static/<path:filename>')
-    def card_static(filename):
-        card_static_dir = os.path.join(os.path.dirname(__file__), 'card', 'static')
-        return send_from_directory(card_static_dir, filename)
+# CSRF 보호 활성화 여부 (설정에 따라)
+if not CSRF_ENABLED:
+    # CSRF가 꺼져 있어도 csrf_token()은 필요함 (JS fetch 등에서 사용)
+    # 하지만 보호 자체는 비활성화됨
+    pass
 
 def load_settings():
     """JSON 파일에서 설정값을 읽어오는 함수"""
@@ -672,7 +762,8 @@ def process_special_content(text):
 def inject_now():
     # 한국 시간대 기준 오늘 날짜
     kst_now = datetime.now(KST).date()
-    return {'now': kst_now, 'datetime': datetime,'date': date}
+    server_role = os.environ.get('SERVER_ROLE', 'main')
+    return {'now': kst_now, 'datetime': datetime,'date': date, 'server_role': server_role}
 
 # 캐시된 함수들
 def get_project_summary():
@@ -1787,14 +1878,20 @@ def edit_memo(memo_id):
             # 파일 삭제 처리 함수
             def delete_file(file_key, file_attr):
                 if request.form.get(file_key) and getattr(memo, file_attr):
-                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], getattr(memo, file_attr))
+                    old_filename = getattr(memo, file_attr)
+                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], old_filename)
                     try:
                         if os.path.exists(file_path):
                             os.remove(file_path)
-                        setattr(memo, file_attr, None)
-                        # 대표 이미지가 삭제되면 original_filename도 초기화 (단, 다른 파일이 아닐 경우)
+                        
+                        # 만약 대표 이미지가 삭제되면 MemoImage에서도 삭제 (싱크)
                         if file_attr == 'image_filename':
-                             memo.original_filename = None 
+                            memo_img = MemoImage.query.filter_by(memo_id=memo.id, filename=old_filename).first()
+                            if memo_img:
+                                db.session.delete(memo_img)
+                            memo.original_filename = None 
+
+                        setattr(memo, file_attr, None)
                     except OSError as e:
                         flash(f"파일 삭제 중 오류 발생: {e}", "error")
 
@@ -1808,6 +1905,10 @@ def edit_memo(memo_id):
                 for img_id in delete_image_ids:
                     image_to_delete = MemoImage.query.get(img_id)
                     if image_to_delete and image_to_delete.memo_id == memo.id:
+                        # 삭제되는 이미지가 대표 이미지(image_filename)인 경우 초기화
+                        if memo.image_filename == image_to_delete.filename:
+                            memo.image_filename = None
+                        
                         file_path = os.path.join(app.config['UPLOAD_FOLDER'], image_to_delete.filename)
                         try:
                             if os.path.exists(file_path):
@@ -1815,6 +1916,13 @@ def edit_memo(memo_id):
                             db.session.delete(image_to_delete)
                         except OSError as e:
                             flash(f"이미지 삭제 중 오류 발생: {e}", "error")
+
+                # 모든 삭제 후 대표 이미지가 비어있고 남은 이미지가 있다면 새로운 대표 선정
+                # (db.session.deleted에 있는 것은 제외하고 계산)
+                remaining_images = [img for img in memo.images if img not in db.session.deleted]
+                if not memo.image_filename and remaining_images:
+                    memo.image_filename = remaining_images[0].filename
+
 
             # 이미지/파일 업로드 처리
             image_option = request.form.get('image_option', 'file')
@@ -3243,24 +3351,49 @@ def search():
 # 하이라이트 필터 등록
 @app.template_filter('highlight')
 def highlight_filter(text, keyword):
-    """안전하게 검색 키워드를 하이라이트"""
+    """안전하게 검색 키워드를 하이라이트 (AND 검색 지원)"""
     if not text or not keyword or not isinstance(text, str) or not isinstance(keyword, str):
         return text if text else ''
     
     try:
-        # 특수문자 이스케이프 처리
-        escaped_keyword = re.escape(keyword)
+        # 유니코드 정규화 및 필터 제거
+        import unicodedata
+        normalized_keyword = unicodedata.normalize('NFC', keyword)
+        normalized_keyword = re.sub(r'@\S+', '', normalized_keyword).strip()
         
-        # 대소문자 구분 없이 검색
-        pattern = re.compile(f'({escaped_keyword})', re.IGNORECASE)
+        # 검색어 분할 (&& 기준)
+        if '&&' in normalized_keyword:
+            terms = [term.strip() for term in normalized_keyword.split('&&')]
+        else:
+            terms = [normalized_keyword]
+            
+        # 빈 검색어 제거
+        terms = [term for term in terms if term]
         
-        # 키워드 하이라이트 처리
-        highlighted = pattern.sub(r'<span class="keyword-highlight">\1</span>', text)
+        if not terms:
+            return text
+            
+        # 정규식 패턴 생성 (긴 단어 우선 매칭)
+        sorted_terms = sorted(list(set(terms)), key=len, reverse=True)
+        pattern_parts = [re.escape(term) for term in sorted_terms]
+        combined_pattern = re.compile(f"({'|'.join(pattern_parts)})", re.IGNORECASE)
+        
+        def replace_func(match):
+            matched_text = match.group(0)
+            # 원본 검색어 순서에서 인덱스 파악
+            klass = "keyword-highlight"
+            for idx, term in enumerate(terms):
+                if term.lower() == matched_text.lower():
+                    if idx > 0:
+                        klass = "keyword-highlight-2"
+                    break
+            return f'<span class="{klass}">{matched_text}</span>'
+            
+        highlighted = combined_pattern.sub(replace_func, text)
         
         # 안전한 HTML 마크업으로 반환
         return Markup(highlighted)
     except Exception as e:
-        # 오류 시 원본 텍스트 반환 (로깅 추가)
         app.logger.error(f"Highlight error: {str(e)}")
         return text
 
@@ -3944,114 +4077,23 @@ def delete_subcategory(subcategory_id):
     return redirect(url_for('manage_subcategories'))
 
 
-@app.route('/summary')
-def summary():
-    """캘린더 이벤트와 가장 중요한 연락처를 표시하는 요약 페이지"""
-    
-    # 1. 관리자 설정 값 로드
-    settings = load_settings() 
-
-    # ---------------------------------------------------------
-    # [수정됨] 연락처 개수(limit) 결정 로직 (세션 사용)
-    # ---------------------------------------------------------
-    # 1. URL 파라미터로 'limit'이 들어왔는지 확인 (사용자가 변경했을 때)
-    if 'limit' in request.args:
-        try:
-            limit = int(request.args.get('limit'))
-            # 사용자가 선택한 값을 세션(서버 메모리)에 저장하여 기억함
-            session['summary_limit'] = limit 
-        except (ValueError, TypeError):
-            limit = 5
-    else:
-        # 2. URL에 'limit'이 없으면(메뉴 클릭 등), 이전에 저장된 값을 세션에서 가져옴
-        # 저장된 값이 없으면 기본값 5 사용
-        limit = session.get('summary_limit', 5)
-        
-    # ---------------------------------------------------------
-    
-    # 기존 연락처 데이터 로드
-    contacts = load_contacts()
-    
-    # 1. 즐겨찾기 연락처 필터링
-    favorite_contacts = [contact for contact in contacts if contact.get("is_favorite")]
-    
-    # 2. 정렬 함수 정의
-    def summary_sort_key(contact):
-        priority_score = contact.get("priority_score", 0.0)
-        return (-priority_score, contact["name"])
-    
-    # 3. 정렬 적용
-    sorted_favorites = sorted(favorite_contacts, key=summary_sort_key)
-    
-    # 4. 연락처 개수 제한 보정 (5~20 사이)
-    if limit < 5: limit = 5
-    elif limit > 20: limit = 20
-    else: limit = (limit // 5) * 5
-    
-    # 보정된 값을 다시 세션에 업데이트 (혹시 이상한 값이 들어왔을 경우 대비)
-    session['summary_limit'] = limit
-        
-    limited_contacts = sorted_favorites[:limit]
-    
-    # 캐시된 캘린더 이벤트가 있으면 템플릿에 전달 (즉시 표시용)
-    try:
-        cached_events = _calendar_cache.get('events') or []
-    except (NameError, AttributeError):
-        cached_events = []
-    
-    # Summary 설정 추출
-    summary_settings = settings.get('Summary', {})
-    
-    return render_template('summary.html', 
-                            contacts=limited_contacts, 
-                            cached_calendar_events=cached_events,  # 캐시된 이벤트 전달
-                            current_limit=limit,
-                            summary_bg_url=summary_settings.get('bg_url', ''),
-                            summary_bg_color=summary_settings.get('bg_color', '#f8f9fa'),
-                            summary_opacity=summary_settings.get('opacity', '1.0')
-                            )
 
 
-# 캘린더 이벤트 캐시 (간단한 in-memory 캐싱)
-_calendar_cache = {
-    'events': None,
-    'timestamp': None,
-    'ttl': 300  # 5분 (300초)
-}
+
 
 @app.route('/api/calendar-events')
 def api_calendar_events():
     """비동기 캘린더 이벤트 API (캐싱 포함)"""
-    from datetime import datetime as dt
-    
     try:
-        # 캐시 확인
-        now = dt.now()
-        if (_calendar_cache['events'] is not None and 
-            _calendar_cache['timestamp'] is not None):
-            # 캐시가 유효한지 확인 (TTL 체크)
-            elapsed = (now - _calendar_cache['timestamp']).total_seconds()
-            if elapsed < _calendar_cache['ttl']:
-                app.logger.info(f"캘린더 이벤트 캐시 사용 (남은 시간: {int(_calendar_cache['ttl'] - elapsed)}초)")
-                return jsonify({
-                    'events': _calendar_cache['events'],
-                    'success': True,
-                    'cached': True
-                })
-        
-        # 캐시가 없거나 만료됨 - 새로 가져오기
-        app.logger.info("캘린더 이벤트 새로 가져오기...")
+        from gcal import fetch_calendar_events
+        # fetch_calendar_events가 내부적으로 캐싱을 처리함
         calendar_events = fetch_calendar_events()
-        
-        # 캐시 업데이트
-        _calendar_cache['events'] = calendar_events
-        _calendar_cache['timestamp'] = now
         
         return jsonify({
             'events': calendar_events,
-            'success': True,
-            'cached': False
+            'success': True
         })
+
     except Exception as e:
         app.logger.error(f"캘린더 이벤트 가져오기 오류: {e}")
         return jsonify({

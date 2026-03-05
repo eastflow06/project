@@ -1,1 +1,1 @@
-from .gcal import fetch_calendar_events
+from .gcal import fetch_calendar_events, get_cached_calendar_events

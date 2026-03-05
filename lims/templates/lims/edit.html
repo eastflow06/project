@@ -410,9 +410,46 @@
                             <option value="start">바닥까지 (Start)</option>
                         </select>
                     </div>
-
+                    <div class="flex items-center mt-6 gap-4">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="show_datalabels"
+                                   class="w-4 h-4 text-blue-600 bg-dark-bg border-dark-border rounded focus:ring-blue-500">
+                            <label for="show_datalabels" class="ml-2 text-sm font-medium text-dark-text whitespace-nowrap">
+                                값 표시
+                            </label>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label for="datalabels_font_size" class="text-xs text-dark-muted whitespace-nowrap">크기:</label>
+                            <input type="number" id="datalabels_font_size" 
+                                   class="w-16 px-2 py-1 bg-dark-bg border border-dark-border rounded text-dark-text focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs"
+                                   value="11" min="8" max="24">
+                        </div>
+                    </div>
+                    <div class="col-span-3">
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-sm font-medium text-dark-text">
+                                데이터셋 색상 (Hex 코드를 컴마로 구분)
+                            </label>
+                            <div class="flex gap-1">
+                                <button type="button" onclick="loadHeadersFromSheet()" id="btn-load-headers"
+                                        class="text-[10px] px-2 py-0.5 bg-slate-700 text-slate-300 rounded hover:bg-slate-600 transition hidden">
+                                    항목 가져오기
+                                </button>
+                                <button type="button" onclick="loadCategoriesFromSheet()" id="btn-load-categories"
+                                        class="text-[10px] px-2 py-0.5 bg-slate-700 text-slate-300 rounded hover:bg-slate-600 transition hidden">
+                                    범주 가져오기
+                                </button>
+                            </div>
+                        </div>
+                        <input type="text" id="dataset_colors" name="dataset_colors"
+                               class="w-full px-2 py-1 bg-dark-bg border border-dark-border rounded text-dark-text focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs"
+                               placeholder="예: #e74c3c, #3498db, #2ecc71, #f1c40f">
+                        <div id="dynamic-colors-container" class="mt-2 flex flex-wrap gap-2"></div>
+                    </div>
                 </div>
             </div>
+
+
 
             <!-- 그래프 제목 설정 섹션 -->
             <div class="bg-dark-card rounded-xl p-6 border border-dark-border">
@@ -929,6 +966,22 @@
                         const fillVal = settings.fill !== undefined ? String(settings.fill) : 'false';
                         document.getElementById('chart_fill').value = fillVal;
 
+                        // 값 표시 설정
+                        document.getElementById('show_datalabels').checked = settings.show_datalabels === true || settings.show_datalabels === 'true';
+                        document.getElementById('datalabels_font_size').value = settings.datalabels_font_size || 11;
+
+                        // 데이터셋 색상
+                        if (settings.dataset_colors) {
+                            const colors = settings.dataset_colors;
+                            document.getElementById('dataset_colors').value = Array.isArray(colors) ? colors.join(', ') : colors;
+                        }
+
+                        // 시트 URL이 있으면 버튼 표시
+                        if (data.gsheet_url) {
+                            document.getElementById('btn-load-headers').classList.remove('hidden');
+                            document.getElementById('btn-load-categories').classList.remove('hidden');
+                        }
+
                         // X축
                         if (settings.x_axis) {
                             document.getElementById('x_axis_title').value = settings.x_axis.title || 'X축';
@@ -1066,6 +1119,143 @@
             }
         }
         
+        // 시트에서 헤더(데이터셋) 목록 가져와서 색상 선택기 생성
+        async function loadHeadersFromSheet() {
+            const url = document.getElementById('gsheet_url').value.trim();
+            const sheetName = document.getElementById('sheet_name').value;
+            const range = document.getElementById('cell_range').value || 'A1:Z5'; // 헤더만 필요하므로 작게
+
+            if (!url || !sheetName) {
+                showToast('URL과 시트 이름을 먼저 설정해주세요.', 'info');
+                return;
+            }
+
+            showLoading(true);
+            try {
+            // 헤더만 가져오기 위해 상위 5행 범위 계산 (예: A1:Z100 -> A1:Z5)
+            
+            let headerRange = range;
+            if (range.includes(':')) {
+                const startCell = range.split(':')[0];
+                const endCell = range.split(':')[1];
+                const endCol = endCell.replace(/[0-9]/g, ''); 
+                headerRange = startCell + ':' + endCol + '5';
+            }
+
+            // 상위 5행만 가져와서 헤더 확인
+            const response = await fetch('/lims/api/sheet-data?' + new URLSearchParams({
+                sheet_url: url,
+                sheet_name: sheetName,
+                range: headerRange 
+            }));
+
+                const result = await response.json();
+                if (result.error) throw new Error(result.error);
+
+                const columns = result.columns;
+                if (!columns || columns.length <= 1) {
+                    showToast('데이터셋을 찾을 수 없습니다 (컬럼이 1개 이하).', 'info');
+                    return;
+                }
+
+                // 첫 번째 컬럼(X축) 제외한 나머지 데이터셋 목록
+                const datasets = columns.slice(1);
+                renderDynamicColorPickers(datasets);
+                showToast('항목 목록을 불러왔습니다.', 'success');
+            } catch (error) {
+                showToast('항목 로드 실패: ' + error.message, 'error');
+                console.error(error);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 시트에서 첫 번째 컬럼(범주) 목록 가져와서 색상 선택기 생성
+        async function loadCategoriesFromSheet() {
+            const url = document.getElementById('gsheet_url').value.trim();
+            const sheetName = document.getElementById('sheet_name').value;
+            const range = document.getElementById('cell_range').value || 'A1:Z100';
+
+            if (!url || !sheetName) {
+                showToast('URL과 시트 이름을 먼저 설정해주세요.', 'info');
+                return;
+            }
+
+            showLoading(true);
+            try {
+                const response = await fetch('/lims/api/sheet-data?' + new URLSearchParams({
+                    sheet_url: url,
+                    sheet_name: sheetName,
+                    range: range
+                }));
+
+                const result = await response.json();
+                if (result.error) throw new Error(result.error);
+
+                // 첫 번째 컬럼의 모든 행(범주)을 가져옴
+                const categories = result.rows.map(row => row[0]);
+                if (!categories || categories.length === 0) {
+                    showToast('범주를 찾을 수 없습니다.', 'info');
+                    return;
+                }
+
+                renderDynamicColorPickers(categories);
+                showToast('범주 목록을 불러왔습니다.', 'success');
+            } catch (error) {
+                showToast('범주 로드 실패: ' + error.message, 'error');
+                console.error(error);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function renderDynamicColorPickers(datasets) {
+            const container = document.getElementById('dynamic-colors-container');
+            const currentColorsStr = document.getElementById('dataset_colors').value;
+            const currentColors = currentColorsStr ? currentColorsStr.split(',').map(c => c.trim()) : [];
+            
+            // Default palette
+            const defaultPalette = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22', '#1abc9c', '#34495e'];
+
+            container.innerHTML = '';
+            
+            datasets.forEach((name, idx) => {
+                const color = currentColors[idx] || defaultPalette[idx % defaultPalette.length];
+                
+                const div = document.createElement('div');
+                div.className = 'flex items-center gap-1 bg-dark-bg p-1 rounded border border-dark-border';
+                div.innerHTML = `
+                    <span class="text-[10px] text-dark-muted max-w-[60px] truncate" title="${name}">${name}</span>
+                    <input type="color" value="${color}" 
+                           oninput="updateColorsFromPickers()" 
+                           class="w-6 h-5 p-0 border-0 bg-transparent cursor-pointer">
+                `;
+                container.appendChild(div);
+            });
+            
+            updateColorsFromPickers();
+        }
+
+        function updateColorsFromPickers() {
+            const container = document.getElementById('dynamic-colors-container');
+            const pickers = container.querySelectorAll('input[type="color"]');
+            const colors = Array.from(pickers).map(p => p.value);
+            document.getElementById('dataset_colors').value = colors.join(', ');
+        }
+
+        // URL 입력 시 버튼 노출
+        document.getElementById('gsheet_url').addEventListener('input', function(e) {
+            const btnHeaders = document.getElementById('btn-load-headers');
+            const btnCategories = document.getElementById('btn-load-categories');
+            if (e.target.value.trim().length > 10) {
+                btnHeaders.classList.remove('hidden');
+                btnCategories.classList.remove('hidden');
+            } else {
+                btnHeaders.classList.add('hidden');
+                btnCategories.classList.add('hidden');
+            }
+        });
+        
         // Line Tension Slider Update
         document.getElementById('line_tension').addEventListener('input', function(e) {
             document.getElementById('line_tension_val').textContent = e.target.value;
@@ -1127,6 +1317,9 @@
                     point_style: document.getElementById('point_style').value,
                     line_tension: parseFloat(document.getElementById('line_tension').value) || 0.1,
                     fill: document.getElementById('chart_fill').value === 'true' ? true : (document.getElementById('chart_fill').value === 'false' ? false : document.getElementById('chart_fill').value),
+                    show_datalabels: document.getElementById('show_datalabels').checked,
+                    datalabels_font_size: parseInt(document.getElementById('datalabels_font_size').value) || 11,
+                    dataset_colors: document.getElementById('dataset_colors').value ? document.getElementById('dataset_colors').value.split(',').map(c => c.trim()).filter(c => c) : null,
                     
                     x_axis: {
                         title: document.getElementById('x_axis_title').value,

@@ -198,7 +198,7 @@
                         'border-width': 0,
                         'width': 200,
                         'height': 'label',
-                        'padding': '10px',
+                        'padding': '0px',
                         'shape': 'rectangle',
                         'text-wrap': 'wrap',
                         'text-max-width': '190px',
@@ -318,6 +318,10 @@
                 {
                     selector: 'edge[lineStyle]',
                     style: { 'line-style': 'data(lineStyle)' }
+                },
+                {
+                    selector: 'edge[targetArrowShape]',
+                    style: { 'target-arrow-shape': 'data(targetArrowShape)' }
                 }
             ],
             layout: { name: 'preset' },

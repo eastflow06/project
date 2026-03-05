@@ -10,6 +10,7 @@ import uuid
 from werkzeug.utils import secure_filename
 from flask import url_for
 from auth import login_required
+import pandas as pd
 
 # ============================================================================
 # 페이지 라우트
@@ -101,6 +102,7 @@ def view_html_result(test_id):
                 )
                 
                 if not df.empty:
+                    df = df.where(pd.notnull(df), None)  # JSON Serialization Issue Fix (NaN -> null)
                     data_dict = {'columns': df.columns.tolist(), 'rows': df.values.tolist()}
                     data_json = json.dumps(data_dict, ensure_ascii=False)
                     # JS 문자열 이스케이프 처리
@@ -538,6 +540,7 @@ def get_gsheet_data(test_id):
         )
         
         # DataFrame을 JSON으로 변환
+        df = df.where(pd.notnull(df), None)  # JSON Serialization Issue Fix (NaN -> null)
         data = {
             'columns': df.columns.tolist(),
             'rows': df.values.tolist()
@@ -667,6 +670,7 @@ def get_sheet_data_proxy():
             )
         
         else:
+            df = df.where(pd.notnull(df), None)  # JSON Serialization Issue Fix (NaN -> null)
             return jsonify({
                 'columns': df.columns.tolist(),
                 'rows': df.values.tolist()

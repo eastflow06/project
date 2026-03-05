@@ -262,13 +262,13 @@ def index():
     except Exception as e:
         print(f"Error loading favorite contacts: {e}")
 
-    # 8. Calendar Events
+    # 8. Calendar Events (SSR uses cache for speed)
     calendar_events = []
     try:
-        from gcal import fetch_calendar_events
-        calendar_events = fetch_calendar_events()
+        from gcal import get_cached_calendar_events
+        calendar_events = get_cached_calendar_events()
     except Exception as e:
-        print(f"Error loading calendar events: {e}")
+        print(f"Error loading cached calendar events: {e}")
 
     return render_template('dashboard/index.html',
                            file_stats=file_stats,
