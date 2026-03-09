@@ -624,6 +624,7 @@ let materialsData = {
     memos: initialMemos,
     tags: [] 
 };
+let allTasks = []; // [추가] Task 데이터를 전역으로 관리 
 
 // 탭 전환 함수
 function showTab(tabName) {
@@ -850,6 +851,7 @@ async function loadTasksData() {
         if (!response.ok) throw new Error('Task 데이터를 불러오는데 실패했습니다.');
         
         const data = await response.json();
+        allTasks = data.tasks; // [추가] 전역 변수에 저장
         renderTaskViews(data.tasks);
 
     } catch (error) {
@@ -912,15 +914,12 @@ function renderTaskViews(tasks) {
             const dueDateDisplay = task.due_date ? `(${task.due_date})` : '';
             const beacon = daysLeft === 0 ? `<img src="{{ url_for('static', filename='icons/beacon.gif') }}" alt="Beacon" class="beacon">` : '';
             
-            const escapedTitle = task.title.replace(/'/g, "\\'").replace(/"/g, '\\"');
-            const escapedComment = (task.comment || '').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
-            const escapedProjectTitle = projectInfo.title.replace(/'/g, "\\'").replace(/"/g, '\\"');
 
             projectViewHTML += `
                 <li class="task-row">
                     <div class="task-content">
                         <span class="task-title-container">
-                            <a href="#" class="task-title-link" onclick="toggleEditForm('${task.id}', '${escapedTitle}', '${task.status}', '${task.start_date || ''}', '${task.due_date || ''}', '${task.finished_date || ''}', '${escapedComment}', '${escapedProjectTitle}'); return false;">${task.title}</a>
+                            <a href="#" class="task-title-link" onclick="toggleEditForm('${task.id}'); return false;">${task.title}</a>
                         </span>
                         <span class="due-date ${dateClass}">${dueDateDisplay}</span>
                         ${beacon}
@@ -952,7 +951,7 @@ function renderTaskViews(tasks) {
             <li class="task-row">
                 <div class="task-content">
                     <span class="task-title-container">
-                        <a href="#" class="task-title-link" onclick="toggleEditForm('${task.id}', '${escapedTitle}', '${task.status}', '${task.start_date || ''}', '${task.due_date || ''}', '${task.finished_date || ''}', '${escapedComment}', '${escapedProjectTitle}'); return false;">${task.title}</a>
+                        <a href="#" class="task-title-link" onclick="toggleEditForm('${task.id}'); return false;">${task.title}</a>
                     </span>
                     <span class="due-date ${dateClass}">(${task.due_date})</span>
                     ${beacon}
@@ -976,7 +975,7 @@ function renderTaskViews(tasks) {
             <li class="task-row">
                 <div class="task-content">
                     <span class="task-title-container">
-                        <a href="#" class="task-title-link" onclick="toggleEditForm('${task.id}', '${escapedTitle}', '${task.status}', '${task.start_date || ''}', '${task.due_date || ''}', '${task.finished_date || ''}', '${escapedComment}', '${escapedProjectTitle}'); return false;">${task.title}</a>
+                        <a href="#" class="task-title-link" onclick="toggleEditForm('${task.id}'); return false;">${task.title}</a>
                     </span>
                     <span class="project-name-container">
                         - [<a href="${linkUrl}" class="project-name-link">${projectTitle}</a>]
@@ -1012,16 +1011,33 @@ function toggleViewMode(mode) {
 }
 
 // === Edit Form Logic ===
-function toggleEditForm(taskId, title, status, startDate, dueDate, finishedDate, comment, projectTitle) {
+function toggleEditForm(taskId) {
     var panel = document.getElementById('edit-panel');
     var isPanelVisible = panel.style.right === '0px';
 
     if (!isPanelVisible && taskId) {
+        // [수정] 전역 allTasks에서 해당 taskId를 가진 task를 찾음
+        const task = allTasks.find(t => String(t.id) === String(taskId));
+        if (!task) {
+            console.error('Task not found:', taskId);
+            return;
+        }
+
+        const projectTitle = task.project ? task.project.title : '프로젝트 없음';
+        
         panel.style.right = '0';
         panel.style.display = 'flex';
         var form = document.getElementById('edit-form');
-        form.innerHTML = generateEditFormHTML(taskId, title, status, startDate, dueDate, finishedDate, comment);
-        form.action = `/update_task/${taskId}`;
+        form.innerHTML = generateEditFormHTML(
+            task.id, 
+            task.title, 
+            task.status, 
+            task.start_date || '', 
+            task.due_date || '', 
+            task.finished_date || '', 
+            task.comment || ''
+        );
+        form.action = `/update_task/${task.id}`;
         document.getElementById('project-title').textContent = projectTitle;
     } else {
         panel.style.right = '-40%';
