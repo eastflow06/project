@@ -370,6 +370,7 @@ function generateEditFormHTML(taskId, title, status, startDate, dueDate, finishe
     
     return `
         <div style="margin-bottom: 10px;">
+            <input type="hidden" name="return_url" value="${window.location.href}">
             <input type="text" name="title" value="${title}" required class="editable-input" style="font-size: 24px; font-weight: bold;">
         </div>
         <div style="margin-bottom: 10px;">

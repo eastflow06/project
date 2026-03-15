@@ -195,33 +195,39 @@ def admin_sync_last_status():
         return jsonify({'history': [], 'last_sync': '기록 없음', 'success': False})
         
     try:
-        # 최근 500줄만 읽어서 다수의 기록 검색
+        # 최근 30000줄을 읽어서 다수의 기록 검색 (동기화 중 기록이 밀릴 수 있음)
         with open(log_file, 'r', encoding='utf-8') as f:
-            lines = f.readlines()[-500:]
+            lines = f.readlines()[-30000:]
             
         history = []
+        seen_times = set()
         import re
         
         # [2026-03-05 07:10:00] 백업 완료 
-        # 위와 같은 패턴을 찾기 위한 정규식
-        pattern = re.compile(r'^\[(\d{4}-\d{2}-\d{2}\s(\d{2}):\d{2}:\d{2})\]\s+(.*)')
+        # 위와 같은 패턴을 찾기 위한 정규식 (줄 시작 부분에 공백이 있을 수 있으므로 ^ 제거)
+        pattern = re.compile(r'\[(\d{4}-\d{2}-\d{2}\s(\d{2}):\d{2}:\d{2})\]\s+(.*)')
         
         for line in reversed(lines):
             line = line.strip()
-            match = pattern.match(line)
+            match = pattern.search(line)
             if match:
                 time_str = match.group(1)
+                minute_str = time_str[:16] # YYYY-MM-DD HH:MM
+                if minute_str in seen_times: continue # 중복 시간(분 단위) 제거
+                
                 hour_str = match.group(2)
                 msg_str = match.group(3)
                 
-                is_auto = (hour_str == '03') # 3시에 실행된 백업은 자동(크론) 백업으로 간주
+                is_auto = (hour_str == '03')
                 
-                if "백업 완료" in msg_str or "Sync/Restore process completed" in msg_str:
+                if any(kw in msg_str for kw in ["백업 완료", "백업 성공", "Sync/Restore process completed"]):
                     history.append({'time': time_str, 'success': True, 'is_auto': is_auto})
-                elif "백업 실패" in msg_str or "DB Restore failed" in msg_str or "Sync/Restore failed" in msg_str:
+                    seen_times.add(minute_str)
+                elif any(kw in msg_str for kw in ["백업 실패", "DB Restore failed", "Sync/Restore failed"]):
                     history.append({'time': time_str, 'success': False, 'is_auto': is_auto})
+                    seen_times.add(minute_str)
                     
-                if len(history) >= 5: # 최근 5개만 가져오기
+                if len(history) >= 4: # 최근 4개만 가져오기
                     break
                     
         # 기존 호환성을 위해 last_sync와 success도 반환
@@ -1456,11 +1462,14 @@ def edit_task(task_id):
 
         try:
             db.session.commit()
+            return_url = request.form.get('return_url')
+            if return_url:
+                return redirect(return_url)
             return redirect(url_for('project_tasks', project_id=task.project_id))
         except Exception as e:
             db.session.rollback()
             return str(e), 500
-    return render_template('edit_task.html', task=task)
+    return render_template('edit_task.html', task=task, return_url=request.referrer)
 
 @app.route('/update_task/<int:task_id>', methods=['POST'])
 @login_required
@@ -1513,8 +1522,8 @@ def update_task(task_id):
         if return_url:
             return redirect(return_url)
         else:
-            # return_url이 없는 경우, 기본 Index 페이지로 리다이렉트
-            return redirect(url_for('index'))
+            # return_url이 없는 경우, 해당 프로젝트 페이지로 리다이렉트 (기존 index 대신)
+            return redirect(url_for('project', project_id=task.project_id))
             
     except Exception as e:
         db.session.rollback()

@@ -1,0 +1,34 @@
+#!/bin/bash
+# =============================================================
+# sync_from_main.sh — Backup Server Sync & Restore Script Template
+# (Upload this to /home/ubuntu/sync_from_main.sh on via.redapril.com)
+# =============================================================
+
+LOG_FILE="/home/ubuntu/.local/log/sync_restore.log"
+SYNC_DATE=$(date '+%Y-%m-%d %H:%M:%S')
+
+mkdir -p "$(dirname "$LOG_FILE")"
+
+echo "[$SYNC_DATE] 동기화 및 복구 시작" >> "$LOG_FILE"
+
+# 1. GDrive에서 최신 데이터 가져오기 (rclone)
+echo "[$SYNC_DATE] GDrive 데이터 다운로드 중..." >> "$LOG_FILE"
+
+# DB 백업 전체/증분 데이터
+/usr/bin/rclone sync "gdrive:Backup_SIX/db" "/home/ubuntu/backup/db" --log-file "$LOG_FILE" --stats 1s
+# 프로젝트 데이터 및 정적 파일
+/usr/bin/rclone sync "gdrive:Backup_SIX/pdata" "/home/ubuntu/project/pdata" --log-file "$LOG_FILE" --stats 1s
+/usr/bin/rclone sync "gdrive:Backup_SIX/static" "/home/ubuntu/project/static" --log-file "$LOG_FILE" --stats 1s
+
+# 2. MariaDB 물리 복원 실행
+echo "[$SYNC_DATE] MariaDB 물리 복원 시작" >> "$LOG_FILE"
+# 07번 스크립트 실행 (최신 증분까지 자동 적용)
+sudo bash /home/ubuntu/project/migration/07_mariabackup_restore.sh >> "$LOG_FILE" 2>&1
+
+if [ $? -eq 0 ]; then
+    echo "[$SYNC_DATE] Sync/Restore process completed" >> "$LOG_FILE"
+else
+    echo "[$SYNC_DATE] Sync/Restore failed" >> "$LOG_FILE"
+fi
+
+echo "[$SYNC_DATE] 동기화 프로세스 종료" >> "$LOG_FILE"

@@ -1,0 +1,34 @@
+
+=============================================
+ MariaDB 마이그레이션 사전 점검 — Thu Mar  5 13:10:53 KST 2026
+=============================================
+
+[1] MySQL 서비스 상태 확인
+[0;32m[PASS][0m MySQL 서비스 실행 중
+
+[2] MySQL 연결 확인
+[0;32m[PASS][0m MySQL 접속 성공 (user: projectuser, db: project_db)
+
+[3] MySQL 버전 확인
+[0;32m[PASS][0m MySQL 버전: 8.0.45-0ubuntu0.24.04.1
+
+[4] DB 크기 확인
+[0;32m[PASS][0m project_db 크기: 0 MB
+
+[5] 디스크 여유 공간 확인 (최소 2GB 필요)
+[0;32m[PASS][0m 디스크 여유: 32GB
+
+[6] rclone + GDrive 설정 확인
+[0;32m[PASS][0m rclone 설치됨: rclone v1.60.1-DEV
+[0;32m[PASS][0m GDrive (gdrive:) 연결 정상
+
+[7] Gunicorn 서비스 상태
+[0;32m[PASS][0m Gunicorn 실행 중 (마이그레이션 중 일시 중단 예정)
+
+[8] MariaDB 관련 패키지 사전 설치 여부
+[0;32m[PASS][0m MariaDB 미설치 — 설치 준비 완료
+
+=============================================
+ 점검 결과: PASS=9, FAIL=0
+=============================================
+[0;32m★ 모든 점검 통과! 01_mysql_full_dump.sh 를 실행하세요.[0m

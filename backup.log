@@ -443,3 +443,551 @@
 2026-03-05T07:50:21+09:00 MySQL backup created: /home/ubuntu/gdrive/db/project-2026-03-05_0750.sql.gz
 2026-03-05T07:50:21+09:00 Project files synced to: /home/ubuntu/gdrive/
 2026-03-05T07:50:21+09:00 pdata synced to: /home/ubuntu/gdrive//pdata/
+
+======================================
+ [FULL] 전체 물리 백업 시작 — Thu Mar  5 13:52:38 KST 2026
+======================================
+[FULL] Mariabackup 전체 백업 실행 중...
+/home/ubuntu/project/migration/05_mariabackup_full.sh: line 36: mariabackup: command not found
+
+======================================
+ [FULL] 전체 물리 백업 시작 — Thu Mar  5 13:56:02 KST 2026
+======================================
+[FULL] Mariabackup 전체 백업 실행 중...
+mariabackup: Deprecated program name. It will be removed in a future release, use '/usr/bin/mariadb-backup' instead
+[00] 2026-03-05 13:56:03 Connecting to MariaDB server host: localhost, user: projectuser, password: set, port: not set, socket: /run/mysqld/mysqld.sock
+[00] 2026-03-05 13:56:04 Using server version 12.2.2-MariaDB-ubu2404
+[00] 2026-03-05 13:56:04 Error: missing required privilege RELOAD on *.*
+[00] 2026-03-05 13:56:04 Error: missing required privilege PROCESS on *.*
+[00] 2026-03-05 13:56:04 Current privileges, as reported by 'SHOW GRANTS': 
+[00] 2026-03-05 13:56:04   1.GRANT USAGE ON *.* TO `projectuser`@`localhost` IDENTIFIED BY PASSWORD '*DCC7729E6399556BD66FE14CC043B65E729A2A6E'
+[00] 2026-03-05 13:56:04   2.GRANT ALL PRIVILEGES ON `project_db`.* TO `projectuser`@`localhost`
+
+======================================
+ [FULL] 전체 물리 백업 시작 — Thu Mar  5 13:57:52 KST 2026
+======================================
+[FULL] Mariabackup 전체 백업 실행 중...
+[00] 2026-03-05 13:57:52 Connecting to MariaDB server host: localhost, user: projectuser, password: set, port: not set, socket: /run/mysqld/mysqld.sock
+[00] 2026-03-05 13:57:53 Using server version 12.2.2-MariaDB-ubu2404
+mariadb-backup based on MariaDB server 12.2.2-MariaDB debian-linux-gnu (x86_64)
+[00] 2026-03-05 13:57:53 uses posix_fadvise().
+[00] 2026-03-05 13:57:53 cd to /var/lib/mysql/
+[00] 2026-03-05 13:57:53 open files limit requested 0, set to 1024
+[00] 2026-03-05 13:57:53 mariabackup: using the following InnoDB configuration:
+[00] 2026-03-05 13:57:53 innodb_data_home_dir = 
+[00] 2026-03-05 13:57:53 innodb_data_file_path = ibdata1:12M:autoextend
+[00] 2026-03-05 13:57:53 innodb_log_group_home_dir = ./
+2026-03-05 13:57:53 0 [Note] InnoDB: Number of transaction pools: 1
+2026-03-05 13:57:53 0 [Note] InnoDB: Using io_uring
+2026-03-05 13:57:53 0 [Note] InnoDB: Buffered log writes (block size=4096 bytes)
+[00] 2026-03-05 13:57:53 mariabackup: Generating a list of tablespaces
+[00] 2026-03-05 13:57:54 DDL tracking : delete 8 "./project_db/flowcharts.ibd"
+[00] 2026-03-05 13:57:54 DDL tracking : create 9 "./project_db/flowcharts.ibd"
+[00] 2026-03-05 13:57:54 DDL tracking : create 10 "./project_db/infolink.ibd"
+[00] 2026-03-05 13:57:54 DDL tracking : create 11 "./project_db/link.ibd"
+[00] 2026-03-05 13:57:54 DDL tracking : create 12 "./project_db/memo.ibd"
+[00] 2026-03-05 13:57:54 DDL tracking : create 13 "./project_db/memo_image.ibd"
+[00] 2026-03-05 13:57:54 DDL tracking : create 14 "./project_db/mymemo.ibd"
+[00] 2026-03-05 13:57:54 DDL tracking : create 15 "./project_db/notes.ibd"
+[00] 2026-03-05 13:57:54 DDL tracking : create 16 "./project_db/product.ibd"
+[00] 2026-03-05 13:57:54 DDL tracking : create 17 "./project_db/project.ibd"
+[00] 2026-03-05 13:57:54 DDL tracking : create 18 "./project_db/project_image.ibd"
+[00] 2026-03-05 13:57:54 DDL tracking : create 19 "./project_db/project_memo_image.ibd"
+[00] 2026-03-05 13:57:54 DDL tracking : create 20 "./project_db/project_product.ibd"
+[00] 2026-03-05 13:57:54 DDL tracking : create 21 "./project_db/tag.ibd"
+[00] 2026-03-05 13:57:54 DDL tracking : create 22 "./project_db/task.ibd"
+[00] 2026-03-05 13:57:54 DDL tracking : create 23 "./project_db/test_results.ibd"
+[00] 2026-03-05 13:57:54 DDL tracking : create 24 "./project_db/todo_item.ibd"
+[00] 2026-03-05 13:57:54 DDL tracking : create 25 "./project_db/todo_list.ibd"
+[00] 2026-03-05 13:57:54 Connecting to MariaDB server host: localhost, user: projectuser, password: set, port: not set, socket: /run/mysqld/mysqld.sock
+[00] 2026-03-05 13:57:54 Connecting to MariaDB server host: localhost, user: projectuser, password: set, port: not set, socket: /run/mysqld/mysqld.sock
+[00] 2026-03-05 13:57:54 Starting BACKUP STAGE START
+[00] 2026-03-05 13:57:54 Acquiring BACKUP LOCKS...
+[00] 2026-03-05 13:57:54 Acquired locks for BACKUP STAGE START
+[00] 2026-03-05 13:57:54 Copying /var/lib/mysql//aria_log_control to /home/ubuntu/backup/db/full/aria_log_control
+[00] 2026-03-05 13:57:54         ...done
+[00] 2026-03-05 13:57:54 Loading aria_log_control.
+[00] 2026-03-05 13:57:54 aria_log_control: last_log_number: 1
+[00] 2026-03-05 13:57:54 Start scanning aria tables.
+[00] 2026-03-05 13:57:54 Start scanning aria log files.
+[00] 2026-03-05 13:57:54 Found 1 aria log files, minimum log number 1, maximum log number 1
+[00] 2026-03-05 13:57:54 Stop scanning aria tables.
+[00] 2026-03-05 13:57:54 Copying .//undo001 to /home/ubuntu/backup/db/full/undo001
+[00] 2026-03-05 13:57:55         ...done
+[00] 2026-03-05 13:57:55 Copying .//undo002 to /home/ubuntu/backup/db/full/undo002
+[00] 2026-03-05 13:57:55         ...done
+[00] 2026-03-05 13:57:55 Copying .//undo003 to /home/ubuntu/backup/db/full/undo003
+[00] 2026-03-05 13:57:55         ...done
+[00] 2026-03-05 13:57:55 Copying ./mysql/transaction_registry.ibd to /home/ubuntu/backup/db/full/mysql/transaction_registry.ibd
+[00] 2026-03-05 13:57:55         ...done
+[00] 2026-03-05 13:57:55 Copying ./mysql/innodb_index_stats.ibd to /home/ubuntu/backup/db/full/mysql/innodb_index_stats.ibd
+[00] 2026-03-05 13:57:55         ...done
+[00] 2026-03-05 13:57:55 Copying ./mysql/gtid_slave_pos.ibd to /home/ubuntu/backup/db/full/mysql/gtid_slave_pos.ibd
+[00] 2026-03-05 13:57:56         ...done
+[00] 2026-03-05 13:57:56 Copying ./mysql/innodb_table_stats.ibd to /home/ubuntu/backup/db/full/mysql/innodb_table_stats.ibd
+[00] 2026-03-05 13:57:56         ...done
+[00] 2026-03-05 13:57:56 Copying ibdata1 to /home/ubuntu/backup/db/full/ibdata1
+[00] 2026-03-05 13:57:56         ...done
+[00] 2026-03-05 13:57:56 aria table file ./sys/sys_config.MAI is copied successfully.
+[00] 2026-03-05 13:57:56 aria table file ./sys/sys_config.MAD is copied successfully.
+[00] 2026-03-05 13:57:56 aria table file ./mysql/time_zone_name.MAI is copied successfully.
+[00] 2026-03-05 13:57:56 aria table file ./mysql/time_zone_name.MAD is copied successfully.
+[00] 2026-03-05 13:57:56 aria table file ./mysql/event.MAI is copied successfully.
+[00] 2026-03-05 13:57:56 aria table file ./mysql/event.MAD is copied successfully.
+[00] 2026-03-05 13:57:56 aria table file ./mysql/procs_priv.MAI is copied successfully.
+[00] 2026-03-05 13:57:56 aria table file ./mysql/procs_priv.MAD is copied successfully.
+[00] 2026-03-05 13:57:56 aria table file ./mysql/time_zone_transition_type.MAI is copied successfully.
+[00] 2026-03-05 13:57:56 aria table file ./mysql/time_zone_transition_type.MAD is copied successfully.
+[00] 2026-03-05 13:57:56 aria table file ./mysql/roles_mapping.MAI is copied successfully.
+[00] 2026-03-05 13:57:56 aria table file ./mysql/roles_mapping.MAD is copied successfully.
+[00] 2026-03-05 13:57:56 aria table file ./mysql/global_priv.MAI is copied successfully.
+[00] 2026-03-05 13:57:56 aria table file ./mysql/global_priv.MAD is copied successfully.
+[00] 2026-03-05 13:57:56 aria table file ./mysql/proc.MAI is copied successfully.
+[00] 2026-03-05 13:57:56 aria table file ./mysql/proc.MAD is copied successfully.
+[00] 2026-03-05 13:57:56 aria table file ./mysql/time_zone_leap_second.MAI is copied successfully.
+[00] 2026-03-05 13:57:56 aria table file ./mysql/time_zone_leap_second.MAD is copied successfully.
+[00] 2026-03-05 13:57:56 aria table file ./mysql/time_zone_transition.MAI is copied successfully.
+[00] 2026-03-05 13:57:56 aria table file ./mysql/time_zone_transition.MAD is copied successfully.
+[00] 2026-03-05 13:57:56 aria table file ./mysql/columns_priv.MAI is copied successfully.
+[00] 2026-03-05 13:57:56 aria table file ./mysql/columns_priv.MAD is copied successfully.
+[00] 2026-03-05 13:57:57 aria table file ./mysql/tables_priv.MAI is copied successfully.
+[00] 2026-03-05 13:57:57 aria table file ./mysql/tables_priv.MAD is copied successfully.
+[00] 2026-03-05 13:57:57 aria table file ./mysql/servers.MAI is copied successfully.
+[00] 2026-03-05 13:57:57 aria table file ./mysql/servers.MAD is copied successfully.
+[00] 2026-03-05 13:57:57 aria table file ./mysql/func.MAI is copied successfully.
+[00] 2026-03-05 13:57:57 aria table file ./mysql/func.MAD is copied successfully.
+[00] 2026-03-05 13:57:57 aria table file ./mysql/time_zone.MAI is copied successfully.
+[00] 2026-03-05 13:57:57 aria table file ./mysql/time_zone.MAD is copied successfully.
+[00] 2026-03-05 13:57:57 aria table file ./mysql/proxies_priv.MAI is copied successfully.
+[00] 2026-03-05 13:57:57 aria table file ./mysql/proxies_priv.MAD is copied successfully.
+[00] 2026-03-05 13:57:57 aria table file ./mysql/plugin.MAI is copied successfully.
+[00] 2026-03-05 13:57:57 aria table file ./mysql/plugin.MAD is copied successfully.
+[00] 2026-03-05 13:57:57 aria table file ./mysql/db.MAI is copied successfully.
+[00] 2026-03-05 13:57:57 aria table file ./mysql/db.MAD is copied successfully.
+[00] 2026-03-05 13:57:57 Start copying aria log file tail: /var/lib/mysql//aria_log.00000001
+[00] 2026-03-05 13:57:57 Stop copying aria log file tail: /var/lib/mysql//aria_log.00000001, copied 409600 bytes
+[00] 2026-03-05 13:57:57 Finished BACKUP STAGE START
+[00] 2026-03-05 13:57:57 Starting BACKUP STAGE FLUSH
+[00] 2026-03-05 13:57:58 Acquired locks for BACKUP STAGE FLUSH
+[00] 2026-03-05 13:57:58 Start scanning common engine tables, need backup locks: 0, collect log and stat tables: 1
+[00] 2026-03-05 13:57:58 Log table found: mysql.slow_log
+[00] 2026-03-05 13:57:58 Collect log table file: ./mysql/slow_log.CSM
+[00] 2026-03-05 13:57:58 Log table found: mysql.general_log
+[00] 2026-03-05 13:57:58 Collect log table file: ./mysql/general_log.CSV
+[00] 2026-03-05 13:57:58 Collect log table file: ./mysql/slow_log.CSV
+[00] 2026-03-05 13:57:58 Collect log table file: ./mysql/general_log.CSM
+[00] 2026-03-05 13:57:58 Stop scanning common engine tables
+[00] 2026-03-05 13:57:58 Start copying aria log file tail: /var/lib/mysql//aria_log.00000001
+[00] 2026-03-05 13:57:58 Stop copying aria log file tail: /var/lib/mysql//aria_log.00000001, copied 0 bytes
+[00] 2026-03-05 13:57:58 aria table file ./mysql/help_category.MAI is copied successfully.
+[00] 2026-03-05 13:57:58 aria table file ./mysql/help_category.MAD is copied successfully.
+[00] 2026-03-05 13:57:58 aria table file ./mysql/help_relation.MAI is copied successfully.
+[00] 2026-03-05 13:57:58 aria table file ./mysql/help_relation.MAD is copied successfully.
+[00] 2026-03-05 13:57:58 aria table file ./mysql/help_keyword.MAI is copied successfully.
+[00] 2026-03-05 13:57:58 aria table file ./mysql/help_keyword.MAD is copied successfully.
+[00] 2026-03-05 13:57:58 aria table file ./mysql/help_topic.MAI is copied successfully.
+[00] 2026-03-05 13:57:58 aria table file ./mysql/help_topic.MAD is copied successfully.
+[00] 2026-03-05 13:57:58 Finished BACKUP STAGE FLUSH
+[00] 2026-03-05 13:57:58 Started BACKUP STAGE BLOCK_DDL
+[00] 2026-03-05 13:57:58 Acquired locks for BACKUP STAGE BLOCK_DDL
+[00] 2026-03-05 13:57:58 Getting InnoDB LSN
+[00] 2026-03-05 13:57:58 InnoDB LSN: 1501422, Flushing Logs
+[00] 2026-03-05 13:57:58 Flushed Logs
+[00] 2026-03-05 13:57:58 Start scanning common engine tables, need backup locks: 1, collect log and stat tables: 0
+[00] 2026-03-05 13:57:58 Stop scanning common engine tables
+[00] 2026-03-05 13:57:58 Starting to backup non-InnoDB tables and files
+[01] 2026-03-05 13:57:58 Copying ./sys/waits_by_host_by_latency.frm to /home/ubuntu/backup/db/full/sys/waits_by_host_by_latency.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/version.frm to /home/ubuntu/backup/db/full/sys/version.frm
+[00] 2026-03-05 13:57:58 Copied file ./mysql/general_log.CSV for log table `mysql`.`general_log`, 0 bytes
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024ps_digest_avg_latency_distribution.frm to /home/ubuntu/backup/db/full/sys/x@0024ps_digest_avg_latency_distribution.frm
+[01] 2026-03-05 13:57:58         ...done
+[00] 2026-03-05 13:57:58 Copied file ./mysql/slow_log.CSV for log table `mysql`.`slow_log`, 0 bytes
+[01] 2026-03-05 13:57:58 Copying ./sys/user_summary_by_stages.frm to /home/ubuntu/backup/db/full/sys/user_summary_by_stages.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/schema_table_lock_waits.frm to /home/ubuntu/backup/db/full/sys/schema_table_lock_waits.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024io_global_by_wait_by_latency.frm to /home/ubuntu/backup/db/full/sys/x@0024io_global_by_wait_by_latency.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024statements_with_temp_tables.frm to /home/ubuntu/backup/db/full/sys/x@0024statements_with_temp_tables.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/user_summary_by_file_io.frm to /home/ubuntu/backup/db/full/sys/user_summary_by_file_io.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024latest_file_io.frm to /home/ubuntu/backup/db/full/sys/x@0024latest_file_io.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024statements_with_sorting.frm to /home/ubuntu/backup/db/full/sys/x@0024statements_with_sorting.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/schema_redundant_indexes.frm to /home/ubuntu/backup/db/full/sys/schema_redundant_indexes.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/io_global_by_file_by_latency.frm to /home/ubuntu/backup/db/full/sys/io_global_by_file_by_latency.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024statement_analysis.frm to /home/ubuntu/backup/db/full/sys/x@0024statement_analysis.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/statements_with_runtimes_in_95th_percentile.frm to /home/ubuntu/backup/db/full/sys/statements_with_runtimes_in_95th_percentile.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024user_summary_by_statement_type.frm to /home/ubuntu/backup/db/full/sys/x@0024user_summary_by_statement_type.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024host_summary_by_file_io.frm to /home/ubuntu/backup/db/full/sys/x@0024host_summary_by_file_io.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/metrics.frm to /home/ubuntu/backup/db/full/sys/metrics.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024host_summary_by_file_io_type.frm to /home/ubuntu/backup/db/full/sys/x@0024host_summary_by_file_io_type.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024host_summary_by_stages.frm to /home/ubuntu/backup/db/full/sys/x@0024host_summary_by_stages.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/session_ssl_status.frm to /home/ubuntu/backup/db/full/sys/session_ssl_status.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/schema_unused_indexes.frm to /home/ubuntu/backup/db/full/sys/schema_unused_indexes.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/innodb_lock_waits.frm to /home/ubuntu/backup/db/full/sys/innodb_lock_waits.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/privileges_by_table_by_level.frm to /home/ubuntu/backup/db/full/sys/privileges_by_table_by_level.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024host_summary_by_statement_latency.frm to /home/ubuntu/backup/db/full/sys/x@0024host_summary_by_statement_latency.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/host_summary_by_file_io_type.frm to /home/ubuntu/backup/db/full/sys/host_summary_by_file_io_type.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024memory_global_total.frm to /home/ubuntu/backup/db/full/sys/x@0024memory_global_total.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024wait_classes_global_by_avg_latency.frm to /home/ubuntu/backup/db/full/sys/x@0024wait_classes_global_by_avg_latency.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/waits_by_user_by_latency.frm to /home/ubuntu/backup/db/full/sys/waits_by_user_by_latency.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024wait_classes_global_by_latency.frm to /home/ubuntu/backup/db/full/sys/x@0024wait_classes_global_by_latency.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024schema_table_lock_waits.frm to /home/ubuntu/backup/db/full/sys/x@0024schema_table_lock_waits.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024memory_by_host_by_current_bytes.frm to /home/ubuntu/backup/db/full/sys/x@0024memory_by_host_by_current_bytes.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/statements_with_temp_tables.frm to /home/ubuntu/backup/db/full/sys/statements_with_temp_tables.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/io_global_by_wait_by_bytes.frm to /home/ubuntu/backup/db/full/sys/io_global_by_wait_by_bytes.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/memory_by_host_by_current_bytes.frm to /home/ubuntu/backup/db/full/sys/memory_by_host_by_current_bytes.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/host_summary_by_statement_type.frm to /home/ubuntu/backup/db/full/sys/host_summary_by_statement_type.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024innodb_buffer_stats_by_table.frm to /home/ubuntu/backup/db/full/sys/x@0024innodb_buffer_stats_by_table.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/io_global_by_wait_by_latency.frm to /home/ubuntu/backup/db/full/sys/io_global_by_wait_by_latency.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/host_summary_by_statement_latency.frm to /home/ubuntu/backup/db/full/sys/host_summary_by_statement_latency.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024statements_with_full_table_scans.frm to /home/ubuntu/backup/db/full/sys/x@0024statements_with_full_table_scans.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024waits_by_host_by_latency.frm to /home/ubuntu/backup/db/full/sys/x@0024waits_by_host_by_latency.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/sys_config.frm to /home/ubuntu/backup/db/full/sys/sys_config.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/schema_table_statistics.frm to /home/ubuntu/backup/db/full/sys/schema_table_statistics.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/memory_global_by_current_bytes.frm to /home/ubuntu/backup/db/full/sys/memory_global_by_current_bytes.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024io_global_by_wait_by_bytes.frm to /home/ubuntu/backup/db/full/sys/x@0024io_global_by_wait_by_bytes.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/user_summary_by_statement_type.frm to /home/ubuntu/backup/db/full/sys/user_summary_by_statement_type.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/db.opt to /home/ubuntu/backup/db/full/sys/db.opt
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/ps_check_lost_instrumentation.frm to /home/ubuntu/backup/db/full/sys/ps_check_lost_instrumentation.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/host_summary.frm to /home/ubuntu/backup/db/full/sys/host_summary.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024processlist.frm to /home/ubuntu/backup/db/full/sys/x@0024processlist.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024memory_by_user_by_current_bytes.frm to /home/ubuntu/backup/db/full/sys/x@0024memory_by_user_by_current_bytes.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024user_summary_by_file_io_type.frm to /home/ubuntu/backup/db/full/sys/x@0024user_summary_by_file_io_type.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/wait_classes_global_by_avg_latency.frm to /home/ubuntu/backup/db/full/sys/wait_classes_global_by_avg_latency.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024io_by_thread_by_latency.frm to /home/ubuntu/backup/db/full/sys/x@0024io_by_thread_by_latency.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024schema_table_statistics_with_buffer.frm to /home/ubuntu/backup/db/full/sys/x@0024schema_table_statistics_with_buffer.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024host_summary_by_statement_type.frm to /home/ubuntu/backup/db/full/sys/x@0024host_summary_by_statement_type.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024user_summary.frm to /home/ubuntu/backup/db/full/sys/x@0024user_summary.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024io_global_by_file_by_latency.frm to /home/ubuntu/backup/db/full/sys/x@0024io_global_by_file_by_latency.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/statements_with_errors_or_warnings.frm to /home/ubuntu/backup/db/full/sys/statements_with_errors_or_warnings.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/host_summary_by_file_io.frm to /home/ubuntu/backup/db/full/sys/host_summary_by_file_io.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024ps_schema_table_statistics_io.frm to /home/ubuntu/backup/db/full/sys/x@0024ps_schema_table_statistics_io.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/user_summary_by_statement_latency.frm to /home/ubuntu/backup/db/full/sys/user_summary_by_statement_latency.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024user_summary_by_file_io.frm to /home/ubuntu/backup/db/full/sys/x@0024user_summary_by_file_io.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024schema_flattened_keys.frm to /home/ubuntu/backup/db/full/sys/x@0024schema_flattened_keys.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/statements_with_full_table_scans.frm to /home/ubuntu/backup/db/full/sys/statements_with_full_table_scans.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/innodb_buffer_stats_by_schema.frm to /home/ubuntu/backup/db/full/sys/innodb_buffer_stats_by_schema.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024io_global_by_file_by_bytes.frm to /home/ubuntu/backup/db/full/sys/x@0024io_global_by_file_by_bytes.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/schema_auto_increment_columns.frm to /home/ubuntu/backup/db/full/sys/schema_auto_increment_columns.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/schema_table_statistics_with_buffer.frm to /home/ubuntu/backup/db/full/sys/schema_table_statistics_with_buffer.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024memory_global_by_current_bytes.frm to /home/ubuntu/backup/db/full/sys/x@0024memory_global_by_current_bytes.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/host_summary_by_stages.frm to /home/ubuntu/backup/db/full/sys/host_summary_by_stages.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/statements_with_sorting.frm to /home/ubuntu/backup/db/full/sys/statements_with_sorting.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024statements_with_runtimes_in_95th_percentile.frm to /home/ubuntu/backup/db/full/sys/x@0024statements_with_runtimes_in_95th_percentile.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/schema_object_overview.frm to /home/ubuntu/backup/db/full/sys/schema_object_overview.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/memory_by_user_by_current_bytes.frm to /home/ubuntu/backup/db/full/sys/memory_by_user_by_current_bytes.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024innodb_lock_waits.frm to /home/ubuntu/backup/db/full/sys/x@0024innodb_lock_waits.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/innodb_buffer_stats_by_table.frm to /home/ubuntu/backup/db/full/sys/innodb_buffer_stats_by_table.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/processlist.frm to /home/ubuntu/backup/db/full/sys/processlist.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024waits_by_user_by_latency.frm to /home/ubuntu/backup/db/full/sys/x@0024waits_by_user_by_latency.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024user_summary_by_stages.frm to /home/ubuntu/backup/db/full/sys/x@0024user_summary_by_stages.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/io_global_by_file_by_bytes.frm to /home/ubuntu/backup/db/full/sys/io_global_by_file_by_bytes.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/memory_global_total.frm to /home/ubuntu/backup/db/full/sys/memory_global_total.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024ps_digest_95th_percentile_by_avg_us.frm to /home/ubuntu/backup/db/full/sys/x@0024ps_digest_95th_percentile_by_avg_us.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024session.frm to /home/ubuntu/backup/db/full/sys/x@0024session.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/io_by_thread_by_latency.frm to /home/ubuntu/backup/db/full/sys/io_by_thread_by_latency.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024schema_index_statistics.frm to /home/ubuntu/backup/db/full/sys/x@0024schema_index_statistics.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/session.frm to /home/ubuntu/backup/db/full/sys/session.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/schema_index_statistics.frm to /home/ubuntu/backup/db/full/sys/schema_index_statistics.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024statements_with_errors_or_warnings.frm to /home/ubuntu/backup/db/full/sys/x@0024statements_with_errors_or_warnings.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024user_summary_by_statement_latency.frm to /home/ubuntu/backup/db/full/sys/x@0024user_summary_by_statement_latency.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/waits_global_by_latency.frm to /home/ubuntu/backup/db/full/sys/waits_global_by_latency.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/memory_by_thread_by_current_bytes.frm to /home/ubuntu/backup/db/full/sys/memory_by_thread_by_current_bytes.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/latest_file_io.frm to /home/ubuntu/backup/db/full/sys/latest_file_io.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024schema_table_statistics.frm to /home/ubuntu/backup/db/full/sys/x@0024schema_table_statistics.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/user_summary.frm to /home/ubuntu/backup/db/full/sys/user_summary.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024innodb_buffer_stats_by_schema.frm to /home/ubuntu/backup/db/full/sys/x@0024innodb_buffer_stats_by_schema.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/schema_tables_with_full_table_scans.frm to /home/ubuntu/backup/db/full/sys/schema_tables_with_full_table_scans.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024schema_tables_with_full_table_scans.frm to /home/ubuntu/backup/db/full/sys/x@0024schema_tables_with_full_table_scans.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/user_summary_by_file_io_type.frm to /home/ubuntu/backup/db/full/sys/user_summary_by_file_io_type.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/statement_analysis.frm to /home/ubuntu/backup/db/full/sys/statement_analysis.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024waits_global_by_latency.frm to /home/ubuntu/backup/db/full/sys/x@0024waits_global_by_latency.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024memory_by_thread_by_current_bytes.frm to /home/ubuntu/backup/db/full/sys/x@0024memory_by_thread_by_current_bytes.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/x@0024host_summary.frm to /home/ubuntu/backup/db/full/sys/x@0024host_summary.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./sys/wait_classes_global_by_latency.frm to /home/ubuntu/backup/db/full/sys/wait_classes_global_by_latency.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./performance_schema/db.opt to /home/ubuntu/backup/db/full/performance_schema/db.opt
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./project_db/flowcharts.frm to /home/ubuntu/backup/db/full/project_db/flowcharts.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./project_db/notes.frm to /home/ubuntu/backup/db/full/project_db/notes.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./project_db/task.frm to /home/ubuntu/backup/db/full/project_db/task.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./project_db/project.frm to /home/ubuntu/backup/db/full/project_db/project.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./project_db/mymemo.frm to /home/ubuntu/backup/db/full/project_db/mymemo.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./project_db/memo_image.frm to /home/ubuntu/backup/db/full/project_db/memo_image.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./project_db/db.opt to /home/ubuntu/backup/db/full/project_db/db.opt
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./project_db/infolink.frm to /home/ubuntu/backup/db/full/project_db/infolink.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./project_db/project_product.frm to /home/ubuntu/backup/db/full/project_db/project_product.frm
+[01] 2026-03-05 13:57:58         ...done
+[01] 2026-03-05 13:57:58 Copying ./project_db/tag.frm to /home/ubuntu/backup/db/full/project_db/tag.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./project_db/project_image.frm to /home/ubuntu/backup/db/full/project_db/project_image.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./project_db/memo.frm to /home/ubuntu/backup/db/full/project_db/memo.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./project_db/todo_item.frm to /home/ubuntu/backup/db/full/project_db/todo_item.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./project_db/product.frm to /home/ubuntu/backup/db/full/project_db/product.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./project_db/test_results.frm to /home/ubuntu/backup/db/full/project_db/test_results.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./project_db/link.frm to /home/ubuntu/backup/db/full/project_db/link.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./project_db/project_memo_image.frm to /home/ubuntu/backup/db/full/project_db/project_memo_image.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./project_db/todo_list.frm to /home/ubuntu/backup/db/full/project_db/todo_list.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/time_zone_transition.frm to /home/ubuntu/backup/db/full/mysql/time_zone_transition.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/help_category.frm to /home/ubuntu/backup/db/full/mysql/help_category.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/gtid_slave_pos.frm to /home/ubuntu/backup/db/full/mysql/gtid_slave_pos.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/column_stats.frm to /home/ubuntu/backup/db/full/mysql/column_stats.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/help_keyword.frm to /home/ubuntu/backup/db/full/mysql/help_keyword.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/func.frm to /home/ubuntu/backup/db/full/mysql/func.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/time_zone_transition_type.frm to /home/ubuntu/backup/db/full/mysql/time_zone_transition_type.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/table_stats.frm to /home/ubuntu/backup/db/full/mysql/table_stats.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/plugin.frm to /home/ubuntu/backup/db/full/mysql/plugin.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/proc.frm to /home/ubuntu/backup/db/full/mysql/proc.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/time_zone_name.frm to /home/ubuntu/backup/db/full/mysql/time_zone_name.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/db.frm to /home/ubuntu/backup/db/full/mysql/db.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/event.frm to /home/ubuntu/backup/db/full/mysql/event.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/roles_mapping.frm to /home/ubuntu/backup/db/full/mysql/roles_mapping.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/time_zone_leap_second.frm to /home/ubuntu/backup/db/full/mysql/time_zone_leap_second.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/innodb_index_stats.frm to /home/ubuntu/backup/db/full/mysql/innodb_index_stats.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/procs_priv.frm to /home/ubuntu/backup/db/full/mysql/procs_priv.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/db.opt to /home/ubuntu/backup/db/full/mysql/db.opt
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/servers.frm to /home/ubuntu/backup/db/full/mysql/servers.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/transaction_registry.frm to /home/ubuntu/backup/db/full/mysql/transaction_registry.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/index_stats.frm to /home/ubuntu/backup/db/full/mysql/index_stats.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/proxies_priv.frm to /home/ubuntu/backup/db/full/mysql/proxies_priv.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/tables_priv.frm to /home/ubuntu/backup/db/full/mysql/tables_priv.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/columns_priv.frm to /home/ubuntu/backup/db/full/mysql/columns_priv.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/slow_log.frm to /home/ubuntu/backup/db/full/mysql/slow_log.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/global_priv.frm to /home/ubuntu/backup/db/full/mysql/global_priv.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/time_zone.frm to /home/ubuntu/backup/db/full/mysql/time_zone.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/user.frm to /home/ubuntu/backup/db/full/mysql/user.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/innodb_table_stats.frm to /home/ubuntu/backup/db/full/mysql/innodb_table_stats.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/help_relation.frm to /home/ubuntu/backup/db/full/mysql/help_relation.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/general_log.frm to /home/ubuntu/backup/db/full/mysql/general_log.frm
+[01] 2026-03-05 13:57:59         ...done
+[01] 2026-03-05 13:57:59 Copying ./mysql/help_topic.frm to /home/ubuntu/backup/db/full/mysql/help_topic.frm
+[01] 2026-03-05 13:57:59         ...done
+[00] 2026-03-05 13:57:59 Finished backing up non-InnoDB tables and files
+[00] 2026-03-05 13:57:59 Copying ./project_db/flowcharts.ibd to /home/ubuntu/backup/db/full/project_db/flowcharts.new
+[00] 2026-03-05 13:57:59         ...done
+[00] 2026-03-05 13:57:59 Copying ./project_db/infolink.ibd to /home/ubuntu/backup/db/full/project_db/infolink.new
+[00] 2026-03-05 13:57:59         ...done
+[00] 2026-03-05 13:57:59 Copying ./project_db/link.ibd to /home/ubuntu/backup/db/full/project_db/link.new
+[00] 2026-03-05 13:57:59         ...done
+[00] 2026-03-05 13:57:59 Copying ./project_db/memo.ibd to /home/ubuntu/backup/db/full/project_db/memo.new
+[00] 2026-03-05 13:57:59         ...done
+[00] 2026-03-05 13:57:59 Copying ./project_db/memo_image.ibd to /home/ubuntu/backup/db/full/project_db/memo_image.new
+[00] 2026-03-05 13:57:59         ...done
+[00] 2026-03-05 13:57:59 Copying ./project_db/mymemo.ibd to /home/ubuntu/backup/db/full/project_db/mymemo.new
+[00] 2026-03-05 13:57:59         ...done
+[00] 2026-03-05 13:57:59 Copying ./project_db/notes.ibd to /home/ubuntu/backup/db/full/project_db/notes.new
+[00] 2026-03-05 13:57:59         ...done
+[00] 2026-03-05 13:57:59 Copying ./project_db/product.ibd to /home/ubuntu/backup/db/full/project_db/product.new
+[00] 2026-03-05 13:57:59         ...done
+[00] 2026-03-05 13:57:59 Copying ./project_db/project.ibd to /home/ubuntu/backup/db/full/project_db/project.new
+[00] 2026-03-05 13:57:59         ...done
+[00] 2026-03-05 13:57:59 Copying ./project_db/project_image.ibd to /home/ubuntu/backup/db/full/project_db/project_image.new
+[00] 2026-03-05 13:57:59         ...done
+[00] 2026-03-05 13:57:59 Copying ./project_db/project_memo_image.ibd to /home/ubuntu/backup/db/full/project_db/project_memo_image.new
+[00] 2026-03-05 13:57:59         ...done
+[00] 2026-03-05 13:57:59 Copying ./project_db/project_product.ibd to /home/ubuntu/backup/db/full/project_db/project_product.new
+[00] 2026-03-05 13:57:59         ...done
+[00] 2026-03-05 13:57:59 Copying ./project_db/tag.ibd to /home/ubuntu/backup/db/full/project_db/tag.new
+[00] 2026-03-05 13:57:59         ...done
+[00] 2026-03-05 13:57:59 Copying ./project_db/task.ibd to /home/ubuntu/backup/db/full/project_db/task.new
+[00] 2026-03-05 13:57:59         ...done
+[00] 2026-03-05 13:57:59 Copying ./project_db/test_results.ibd to /home/ubuntu/backup/db/full/project_db/test_results.new
+[00] 2026-03-05 13:57:59         ...done
+[00] 2026-03-05 13:57:59 Copying ./project_db/todo_item.ibd to /home/ubuntu/backup/db/full/project_db/todo_item.new
+[00] 2026-03-05 13:57:59         ...done
+[00] 2026-03-05 13:57:59 Copying ./project_db/todo_list.ibd to /home/ubuntu/backup/db/full/project_db/todo_list.new
+[00] 2026-03-05 13:57:59         ...done
+[00] 2026-03-05 13:57:59 Start copying aria log file tail: /var/lib/mysql//aria_log.00000001
+[00] 2026-03-05 13:57:59 Stop copying aria log file tail: /var/lib/mysql//aria_log.00000001, copied 0 bytes
+[00] 2026-03-05 13:57:59 Finished BACKUP STAGE BLOCK_DDL
+[00] 2026-03-05 13:57:59 Starting BACKUP STAGE BLOCK_COMMIT
+[00] 2026-03-05 13:57:59 Acquired locks for BACKUP STAGE BLOCK_COMMIT
+[00] 2026-03-05 13:57:59 Copied file ./mysql/general_log.CSV for log table `mysql`.`general_log`, 0 bytes
+[00] 2026-03-05 13:57:59 Copied file ./mysql/general_log.CSM for log table `mysql`.`general_log`, 35 bytes
+[00] 2026-03-05 13:57:59 Copied file ./mysql/slow_log.CSM for log table `mysql`.`slow_log`, 35 bytes
+[00] 2026-03-05 13:57:59 Copied file ./mysql/slow_log.CSV for log table `mysql`.`slow_log`, 0 bytes
+[00] 2026-03-05 13:57:59 Getting InnoDB LSN
+[00] 2026-03-05 13:57:59 InnoDB LSN: 1501422, Flushing Logs
+[00] 2026-03-05 13:57:59 Flushed Logs
+[00] 2026-03-05 13:57:59 mariabackup: The latest check point (for incremental): '48028'
+mariabackup: Stopping log copying thread.
+[00] 2026-03-05 13:57:59 Start copying statistics aria tables.
+[00] 2026-03-05 13:57:59 aria table file ./mysql/index_stats.MAI is copied successfully.
+[00] 2026-03-05 13:57:59 aria table file ./mysql/index_stats.MAD is copied successfully.
+[00] 2026-03-05 13:57:59 aria table file ./mysql/column_stats.MAI is copied successfully.
+[00] 2026-03-05 13:57:59 aria table file ./mysql/column_stats.MAD is copied successfully.
+[00] 2026-03-05 13:57:59 aria table file ./mysql/table_stats.MAI is copied successfully.
+[00] 2026-03-05 13:57:59 aria table file ./mysql/table_stats.MAD is copied successfully.
+[00] 2026-03-05 13:57:59 Stop copying statistics aria tables.
+[00] 2026-03-05 13:57:59 Start copying aria log file tail: /var/lib/mysql//aria_log.00000001
+[00] 2026-03-05 13:57:59 Stop copying aria log file tail: /var/lib/mysql//aria_log.00000001, copied 8192 bytes
+[00] 2026-03-05 13:57:59 Executing FLUSH NO_WRITE_TO_BINLOG ENGINE LOGS...
+[00] 2026-03-05 13:57:59 Finishing BACKUP STAGE BLOCK_COMMIT
+[00] 2026-03-05 13:57:59 Starting BACKUP STAGE END
+[00] 2026-03-05 13:57:59 Executing BACKUP STAGE END
+[00] 2026-03-05 13:57:59 All tables unlocked
+[00] 2026-03-05 13:57:59 Backup created in directory '/home/ubuntu/backup/db/full/'
+[00] 2026-03-05 13:57:59 Writing backup-my.cnf
+[00] 2026-03-05 13:57:59         ...done
+[00] 2026-03-05 13:57:59 Writing mariadb_backup_info
+[00] 2026-03-05 13:57:59         ...done
+[00] 2026-03-05 13:57:59 Redo log (from LSN 48028 to 1501422) was copied.
+[00] 2026-03-05 13:57:59 completed OK!
+[FULL] 백업 Prepare 중 (apply-log-only)...
+mariadb-backup: unknown option '--apply-log-only'
+
+======================================
+ [INC] 증분 백업 시작 — Thu Mar  5 14:10:03 KST 2026
+======================================
+[ERROR] 전체 백업이 없습니다: /home/ubuntu/backup/db/full
+  먼저 05_mariadb-backup_full.sh 를 실행하세요.
+
+======================================
+ [INC] 증분 백업 시작 — Thu Mar  5 15:24:45 KST 2026
+======================================
+[ERROR] 전체 백업이 없습니다: /home/ubuntu/backup/db/full
+  먼저 05_mariadb-backup_full.sh 를 실행하세요.

@@ -8,6 +8,7 @@
         <div class="card-body">
             <!-- Main form for updating task -->
             <form method="POST" action="{{ url_for('update_task', task_id=task.id) }}">
+                <input type="hidden" name="return_url" value="{{ return_url }}">
                 <div class="form-group">
                     <label for="title">제목:</label>
                     <input type="text" class="form-control" id="title" name="title" value="{{ task.title }}" required>
